@@ -1,0 +1,24 @@
+**/bin/
+**/obj/
+.vs/
+*.user
+*.secrets.*
+artifacts/
+publish/
+TestResults/
+*.trx
+*.pdb
+*.log
+Stock.exe
+
+# Local credentials and account data
+.env
+.env.*
+*.db
+*.db-wal
+*.db-shm
+**/broker-keys/
+**/*.protected
+**/*-live-*.json
+appsettings.Local.json
+secrets.json

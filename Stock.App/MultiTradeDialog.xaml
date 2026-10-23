@@ -1,0 +1,52 @@
+<Window x:Class="Stock.App.MultiTradeDialog" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Title="다량 전략 실행" Width="1280" Height="880" MinWidth="960" MinHeight="680" Background="{StaticResource CanvasBrush}" WindowStartupLocation="CenterOwner">
+ <Grid Margin="22" Background="{StaticResource CanvasBrush}">
+  <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+  <StackPanel>
+   <TextBlock Text="다량 전략 실행" FontSize="25" FontWeight="Bold"/>
+   <TextBlock Text="{Binding Account}" FontSize="15" Margin="0,8,0,8"/>
+   <TextBlock Text="{Binding LaunchContextText}" TextWrapping="Wrap" Foreground="#526174"/>
+   <WrapPanel Margin="0,4,0,8">
+    <CheckBox Content="모의 · 실제 주문 없음" IsChecked="{Binding UseMock,Mode=TwoWay}" IsEnabled="{Binding CanToggleMock}" ToolTip="체크하면 가상 계좌를 사용합니다. 실시간 해제 시 과거 백테스트, 실시간 체크 시 실제 시세 기반 모의매매입니다."/>
+    <CheckBox Content="실시간" IsChecked="{Binding UseRealtime,Mode=TwoWay}" IsEnabled="{Binding CanToggleRealtime}" ToolTip="모의와 함께 체크하면 키움 실제 체결·호가를 받아 전략을 실시간으로 판단하고 가상 체결합니다. 모의를 해제한 실제 계좌 자동매매는 항상 실시간입니다." Margin="18,0,0,0"/>
+   </WrapPanel>
+   <TextBlock Text="모의 실시간은 틱·분 기준과 실제 시세 연결이 필요합니다. 모의를 해제하면 선택한 키움 국내 실계좌에서만 실행하며 시작 전에 주문 내용을 다시 확인합니다." TextWrapping="Wrap" Foreground="#526174" Margin="0,4,0,14"/>
+  </StackPanel>
+  <Border Grid.Row="1" Style="{StaticResource Card}" Padding="16" Margin="0,0,0,12" IsEnabled="{Binding CanEdit}">
+  <Grid>
+   <Grid.ColumnDefinitions><ColumnDefinition Width="2*"/><ColumnDefinition Width="3*"/></Grid.ColumnDefinitions>
+   <StackPanel>
+    <WrapPanel><ComboBox ItemsSource="{Binding Regions}" SelectedItem="{Binding Region}" Width="100"/><TextBox Text="{Binding Query,UpdateSourceTrigger=PropertyChanged}" Width="190" KeyUp="SearchKey"/><Button Content="검색" Command="{Binding Actions[검색]}"/></WrapPanel>
+    <ComboBox ItemsSource="{Binding Results}" SelectedItem="{Binding SelectedResult}" DisplayMemberPath="Name" Margin="0,8,12,0"/>
+    <WrapPanel Margin="0,8,0,0"><Button Content="선택 종목 추가" Command="{Binding Actions[추가]}"/><Button Content="현재 스크리닝 후보 추가" Command="{Binding Actions[후보추가]}" Style="{StaticResource Secondary}" ToolTip="마지막 스크리닝의 후보를 중복 없이 추가합니다. 후보는 주문 신호가 아닙니다."/></WrapPanel>
+    <Expander Header="관심그룹 여러 개 선택" Margin="0,8,8,0" IsExpanded="True">
+     <ScrollViewer MaxHeight="105" VerticalScrollBarVisibility="Auto">
+      <ItemsControl ItemsSource="{Binding Groups}"><ItemsControl.ItemTemplate><DataTemplate>
+       <StackPanel Margin="0,2"><CheckBox Content="{Binding Name}" IsThreeState="True" IsChecked="{Binding Selected,Mode=TwoWay}" FontWeight="SemiBold"/>
+        <ItemsControl ItemsSource="{Binding Members}"><ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ItemsControl.ItemsPanel><ItemsControl.ItemTemplate><DataTemplate><CheckBox Content="{Binding Name}" IsChecked="{Binding Selected,Mode=TwoWay}" Margin="12,0,5,0"/></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+       </StackPanel>
+      </DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+     </ScrollViewer>
+    </Expander>
+   </StackPanel>
+   <StackPanel Grid.Column="1" Margin="12,0,0,0"><WrapPanel IsEnabled="{Binding CanUseLiveBudget}" ToolTipService.ShowOnDisabled="True" ToolTip="실행 전 전체 투자 한도와 일 손실 한도를 편집합니다. 실행을 시작하면 잠깁니다."><TextBlock Text="전체 투자 한도 (원)" VerticalAlignment="Center"/><TextBox Text="{Binding TotalBudget,UpdateSourceTrigger=PropertyChanged}" Width="150" Margin="10,0,20,0"/><TextBlock Text="일 손실 한도 (원)" VerticalAlignment="Center"/><TextBox Text="{Binding DailyLoss,UpdateSourceTrigger=PropertyChanged}" Width="130" Margin="10,0,0,0"/></WrapPanel><TextBlock Text="과거 모의는 선택 기간을 사용하고, 실시간 모의는 실제 시세와 가상 잔고를 사용합니다. 실계좌 전략은 검증된 연결만 허용됩니다." TextWrapping="Wrap" Foreground="#6B7684" Margin="0,14,0,0"/></StackPanel>
+  </Grid>
+  </Border>
+  <Border Grid.Row="2" Style="{StaticResource Card}" Padding="0" ClipToBounds="True">
+  <DataGrid x:Name="RowsGrid" ItemsSource="{Binding Rows}" SelectedItem="{Binding SelectedRow}" AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="{Binding IsLocked}" HeadersVisibility="Column" RowHeaderWidth="0">
+   <DataGrid.Columns>
+    <DataGridCheckBoxColumn Header="실행" Binding="{Binding Selected,UpdateSourceTrigger=PropertyChanged}" Width="55"/>
+    <DataGridTextColumn Header="종목" Binding="{Binding Stock.Name}" IsReadOnly="True" Width="140"/>
+    <DataGridTemplateColumn Header="등록 전략" Width="165"><DataGridTemplateColumn.CellTemplate><DataTemplate><ComboBox ItemsSource="{Binding DataContext.Presets,RelativeSource={RelativeSource AncestorType=Window}}" SelectedItem="{Binding Preset,UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding DataContext.CanEdit,RelativeSource={RelativeSource AncestorType=Window}}"/></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
+    <DataGridTemplateColumn Header="종목 예산 (원)" Width="135"><DataGridTemplateColumn.CellTemplate><DataTemplate><TextBox Text="{Binding Budget,UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding DataContext.CanEdit,RelativeSource={RelativeSource AncestorType=Window}}" MinWidth="105" Padding="8,5" Margin="0"/></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
+    <DataGridTextColumn Header="상태" Binding="{Binding State}" IsReadOnly="True" Width="160"/>
+    <DataGridTextColumn Header="최근 신호" Binding="{Binding Signal}" IsReadOnly="True" Width="190"/>
+    <DataGridTextColumn Header="소유 수량" Binding="{Binding Owned,StringFormat=N0}" IsReadOnly="True" Width="75"/>
+    <DataGridTextColumn Header="미체결" Binding="{Binding Pending,StringFormat=N0}" IsReadOnly="True" Width="70"/>
+    <DataGridTextColumn Header="실현손익" Binding="{Binding Profit}" IsReadOnly="True" Width="150"/>
+    <DataGridTextColumn Header="오류/차단 이유" Binding="{Binding Error}" IsReadOnly="True" Width="250"/>
+   </DataGrid.Columns>
+  </DataGrid>
+  </Border>
+  <Border Grid.Row="3" Style="{StaticResource Card}" Padding="16" Margin="0,12,0,0"><StackPanel><TextBlock Text="{Binding Message}" Foreground="#315786" TextWrapping="Wrap" Margin="0,0,0,12"/><WrapPanel><Button Content="{Binding RunCaption}" Command="{Binding Actions[실행]}"/><Button Content="선택 종목 중지" Command="{Binding Actions[개별중지]}" Style="{StaticResource Secondary}"/><Button Content="전체 중지" Command="{Binding Actions[전체중지]}" Background="#FFF0F1" Foreground="#D93644"/><Button Content="선택 행 삭제" Command="{Binding Actions[삭제]}" Style="{StaticResource Secondary}"/><Button Content="목록 저장" Command="{Binding Actions[저장]}" Style="{StaticResource Secondary}"/><Button Content="이전 실행 외부 확인" Command="{Binding Actions[이전확인]}" Style="{StaticResource Secondary}"/></WrapPanel><TextBlock Text="과거 및 실시간 모의는 실제 주문이 없습니다. 실시간 모의 중지는 새 가상 주문을 막고 가상 미체결만 취소합니다. 실계좌 중지는 신규 주문 차단과 소유 미체결 취소 요청입니다." Foreground="#6B7684" TextWrapping="Wrap" Margin="0,10,0,0"/></StackPanel></Border>
+ </Grid>
+</Window>

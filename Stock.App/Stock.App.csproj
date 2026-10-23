@@ -1,0 +1,8 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><OutputType>WinExe</OutputType><TargetFramework>net10.0-windows10.0.19041.0</TargetFramework><UseWPF>true</UseWPF><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable><AssemblyName>Stock</AssemblyName><DebugType>embedded</DebugType></PropertyGroup>
+  <ItemGroup><ProjectReference Include="../Stock.Core/Stock.Core.csproj" /></ItemGroup>
+  <ItemGroup><Resource Include="Assets/Brokers/*" /></ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="ScottPlot.WPF" Version="5.1.59" />
+  </ItemGroup>
+</Project>

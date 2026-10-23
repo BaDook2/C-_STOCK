@@ -1,0 +1,624 @@
+<Window x:Class="Stock.App.MainWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="clr-namespace:Stock.App" Title="STOCK · 주식을 이해하는 나만의 공간" Width="1540" Height="1040" MinWidth="1160" MinHeight="760" Background="{StaticResource CanvasBrush}" WindowStartupLocation="CenterScreen">
+    <DockPanel Background="{StaticResource CanvasBrush}">
+        <Border DockPanel.Dock="Top" Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource LineBrush}" BorderThickness="0,0,0,1" Padding="28,14">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="190" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="●" Foreground="#3182F6" FontSize="22" />
+                    <TextBlock Text=" STOCK" FontWeight="Bold" FontSize="23" Foreground="#191F28" />
+                </StackPanel>
+                <StackPanel Grid.Column="1">
+                    <Border Background="#F2F4F6" CornerRadius="10" HorizontalAlignment="Left">
+                        <StackPanel Orientation="Horizontal" IsEnabled="{Binding CanConfigure}">
+                            <RadioButton Content="오프라인 테스트" GroupName="Mode" IsChecked="{Binding IsOffline}" />
+                            <RadioButton Content="온라인 투자" GroupName="Mode" IsChecked="{Binding IsOnline}" />
+                            <TextBlock Text="{Binding ConnectedAccountText}" Visibility="{Binding IsOnline,Converter={StaticResource Visible}}" VerticalAlignment="Center" Foreground="#3182F6" FontWeight="SemiBold" Margin="12,0,12,0" />
+                        </StackPanel>
+                    </Border>
+                    <TextBlock Text="{Binding ModeDescription}" Foreground="#8B95A1" Margin="4,8,0,0" FontSize="11" />
+                </StackPanel>
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button Content="실제 계좌 키 설정" ToolTip="증권사를 선택해 실제 계좌를 연결합니다. 연결에 성공한 키는 이 Windows 사용자 계정에 암호화해 저장합니다." Command="{Binding Actions[키설정]}" />
+                    <Button Content="긴급중지" ToolTip="신규 주문을 막고 미체결 주문의 취소를 요청합니다. 보유 주식을 자동 매도하지 않습니다." Command="{Binding Actions[긴급중지]}" Background="#FFF0F0" Foreground="#D23A49" />
+                </StackPanel>
+            </Grid>
+        </Border>
+        <Border DockPanel.Dock="Bottom" Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource LineBrush}" BorderThickness="0,1,0,0" Padding="24,8">
+            <DockPanel>
+                <Button DockPanel.Dock="Right" Content="작업 취소" Style="{StaticResource Secondary}" Command="{Binding Actions[취소]}" Padding="10,5" MinHeight="30" />
+                <TextBlock Text="{Binding Status}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+            </DockPanel>
+        </Border>
+        <TabControl SelectedIndex="{Binding ActiveTab}" Margin="20,8,20,16" Background="Transparent" BorderThickness="0">
+            <TabItem Header="종목 · 차트">
+                <Grid Margin="0,16,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="190" />
+                        <ColumnDefinition Width="12" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="12" />
+                        <ColumnDefinition Width="350" />
+                    </Grid.ColumnDefinitions>
+                    <Border Style="{StaticResource Card}" Padding="16">
+                        <DockPanel>
+                            <StackPanel DockPanel.Dock="Top">
+                                <ComboBox ItemsSource="{Binding Regions}" SelectedItem="{Binding Region}" IsEnabled="{Binding CanConfigure}" />
+                                <TextBox x:Name="StockSearch" Text="{Binding Query,UpdateSourceTrigger=PropertyChanged}" KeyUp="SearchKeyUp" Margin="0,12,0,8" ToolTip="삼성전자, 애플 등 종목 이름을 입력하고 Enter를 누르세요." />
+                                <Button Content="이름으로 검색" Command="{Binding Actions[검색]}" Margin="0,0,0,12" />
+                            </StackPanel>
+                            <ListBox x:Name="StockSearchResults" PreviewMouseUp="StockClick" KeyUp="StockKeyUp" ItemsSource="{Binding SearchResults}" SelectedItem="{Binding SelectedStock,Mode=OneWay}" BorderThickness="0" Background="White" IsEnabled="{Binding CanConfigure}" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Margin="5,9">
+                                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextWrapping="Wrap" />
+                                            <TextBlock Text="{Binding Region}" FontSize="11" Foreground="#8B95A1" Margin="0,4,0,0" />
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </DockPanel>
+                    </Border>
+                    <Border Grid.Column="2" Style="{StaticResource Card}" Padding="16">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Margin="0,0,8,0">
+                                    <WrapPanel ToolTip="{Binding StockDetail}">
+                                        <TextBlock Text="{Binding StockName}" FontSize="21" FontWeight="Bold"/>
+                                        <TextBlock Text="{Binding StockCode}" Foreground="#8B95A1" Margin="8,6"/>
+                                        <Button Content="원본 1틱" Command="{Binding Actions[원본틱]}" Style="{StaticResource Secondary}" Padding="6,4"/>
+                                    </WrapPanel>
+                                    <TextBlock Text="{Binding PriceText}" FontSize="28" FontWeight="Bold" Foreground="{Binding PriceColor}"/>
+                                    <TextBlock Text="{Binding ChangeText}" Foreground="{Binding PriceColor}"/>
+                                    <TextBlock Text="{Binding PriceDate}" FontSize="10" Foreground="#8B95A1" Margin="0,6"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" MaxWidth="285">
+                                    <WrapPanel HorizontalAlignment="Right">
+                                        <ComboBox ItemsSource="{Binding WatchGroups}" SelectedItem="{Binding RegistrationGroup}" DisplayMemberPath="Name" Width="112" MinWidth="0" Margin="0,0,6,4"/>
+                                        <Button Command="{Binding Actions[관심등록]}" Style="{StaticResource Secondary}" Padding="8,7">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="{Binding WatchRegistrationStar}" FontSize="16">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Foreground" Value="#8B95A1"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding IsWatchRegistered}" Value="True">
+                                                                    <Setter Property="Foreground" Value="#3182F6"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style></TextBlock>
+                                                <TextBlock Text=" 관심등록"/>
+                                            </StackPanel>
+                                        </Button>
+                                    </WrapPanel>
+                                    <WrapPanel HorizontalAlignment="Right">
+                                        <CheckBox Content="이동평균선" IsChecked="{Binding ShowMa}"/>
+                                        <CheckBox Content="일목균형표" IsChecked="{Binding ShowCloud}"/>
+                                        <CheckBox Content="실제매매 내역 표시" IsChecked="{Binding ShowLiveTradeMarkers}" ToolTip="선택한 실제 계좌에서 확인된 체결을 차트에 표시합니다."/>
+                                        <CheckBox Content="모의매매 내역 표시" IsChecked="{Binding ShowTradeMarkers}" ToolTip="모의매매와 실시간 모의 전략 체결을 모든 봉 차트에 표시합니다."/>
+                                        <CheckBox Content="백테스트 매매 내역 표시" IsChecked="{Binding ShowBacktestTradeMarkers}" ToolTip="선택한 백테스트 결과의 매수·매도를 차트에 함께 표시합니다."/>
+                                    </WrapPanel>
+                                    
+                                </StackPanel>
+                            </Grid>
+                            <StackPanel Grid.Row="1" Orientation="Horizontal">
+                                <WrapPanel Orientation="Horizontal" Margin="0,12,0,4" VerticalAlignment="Center">
+                                    <StackPanel Orientation="Horizontal" Visibility="{Binding ShowMa,Converter={StaticResource Visible}}" Margin="0,0,12,4" ToolTip="차트 표시용 이동평균선입니다. 전략의 이동평균 기간은 전략 설정을 따릅니다.">
+                                        <TextBlock Text="● 5" Foreground="#FFA132" Margin="0,3,8,0"/>
+                                        <TextBlock Text="● 20" Foreground="#8E5EEF" Margin="0,3,8,0"/>
+                                        <TextBlock Text="● 60" Foreground="#22A68C" Margin="0,3,8,0"/>
+                                        <TextBlock Text="● 120" Foreground="#E45D83" Margin="0,3,8,0"/>
+                                    </StackPanel>
+                                    <RadioButton Content="1개월" GroupName="ChartRange" Command="{Binding Actions[기간1]}" IsChecked="{Binding ChartRange1Selected,Mode=OneWay}" Padding="6,5" Margin="0,0,4,4"/>
+                                    <RadioButton Content="3개월" GroupName="ChartRange" Command="{Binding Actions[기간3]}" IsChecked="{Binding ChartRange3Selected,Mode=OneWay}" Padding="6,5" Margin="0,0,4,4"/>
+                                    <RadioButton Content="6개월" GroupName="ChartRange" Command="{Binding Actions[기간6]}" IsChecked="{Binding ChartRange6Selected,Mode=OneWay}" Padding="6,5" Margin="0,0,4,4"/>
+                                    <RadioButton Content="1년" GroupName="ChartRange" Command="{Binding Actions[기간12]}" IsChecked="{Binding ChartRange12Selected,Mode=OneWay}" Padding="6,5" Margin="0,0,4,4"/>
+                                    <RadioButton Content="3년" GroupName="ChartRange" Command="{Binding Actions[기간36]}" IsChecked="{Binding ChartRange36Selected,Mode=OneWay}" Padding="6,5" Margin="0,0,4,4"/>
+                                    <RadioButton Content="5년" GroupName="ChartRange" Command="{Binding Actions[기간60]}" IsChecked="{Binding ChartRange60Selected,Mode=OneWay}" Padding="6,5" Margin="0,0,4,4"/>
+                                    <RadioButton Content="10년" GroupName="ChartRange" Command="{Binding Actions[기간120]}" IsChecked="{Binding ChartRange120Selected,Mode=OneWay}" Padding="6,5" Margin="0,0,4,4"/>
+                                </WrapPanel>
+                                <StackPanel 
+                                    Margin="140,0,0,0"
+                                    Orientation="Horizontal" IsEnabled="{Binding CanConfigure}">
+                                    <ComboBox Width="30" ItemsSource="{Binding TickIntervals}" SelectedItem="{Binding SelectedTickInterval}" IsEnabled="{Binding CanUseIntraday}" ToolTip="{Binding IntradayHelp}" ToolTipService.ShowOnDisabled="True"  Margin="2" Tag="틱"/>
+                                    <ComboBox Width="30" ItemsSource="{Binding MinuteIntervals}" SelectedItem="{Binding SelectedMinuteInterval}" IsEnabled="{Binding CanUseMinutes}" ToolTip="{Binding IntradayHelp}" ToolTipService.ShowOnDisabled="True"  Margin="2" Tag="분"/>
+                                    <RadioButton Content="일봉" GroupName="ChartPeriod" IsChecked="{Binding DailySelected}" Padding="6,5"/>
+                                    <RadioButton Content="주봉" GroupName="ChartPeriod" IsChecked="{Binding WeeklySelected}" Padding="6,5"/>
+                                    <RadioButton Content="월봉" GroupName="ChartPeriod" IsChecked="{Binding MonthlySelected}" Padding="6,5"/>
+                                </StackPanel>
+                                <TextBlock Visibility="{Binding IsTick,Converter={StaticResource Visible}}" Text="{Binding TickStatus}" FontSize="10" Foreground="#6B7684" TextWrapping="Wrap"/>
+                            </StackPanel>
+                            <Grid Grid.Row="2">
+                                <local:CandleChart x:Name="PriceChart" EmptyMessage="{Binding ChartMessage}" TradeMarkers="{Binding DisplayTradeMarkers}" EquityCurve="{Binding ChartEquity}" DisplayBarCount="{Binding ChartWindowCount}" Period="{Binding ChartPeriod}" Bars="{Binding ChartBars}" MovingAverages="{Binding ShowMa}" Ichimoku="{Binding ShowCloud}" FastPeriod="5" SlowPeriod="20" Margin="0,8,0,4" />
+                                <Border Background="#F9FAFB" CornerRadius="12" Visibility="{Binding ChartLoading,Converter={StaticResource Visible}}">
+                                    <StackPanel VerticalAlignment="Center">
+                                        <TextBlock Text="차트를 불러오고 있어요" FontSize="18" FontWeight="SemiBold" HorizontalAlignment="Center" />
+                                        <ProgressBar IsIndeterminate="True" Width="190" Height="4" Margin="0,18,0,0" Foreground="#3182F6" BorderThickness="0" />
+                                        <TextBlock Text="잠시만 기다려 주세요" Foreground="#6B7684" Margin="0,12,0,0" HorizontalAlignment="Center" />
+                                    </StackPanel>
+                                </Border>
+                            </Grid>
+                            <StackPanel Grid.Row="3">
+                                <TextBlock Text="{Binding DataInfo}" ToolTip="{Binding DataInfo}" FontSize="9" Foreground="#8B95A1" TextTrimming="CharacterEllipsis" Margin="0,0,0,2" />
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+                    <Border x:Name="RightToolsPanel" local:MinimumTextSize.Value="14" TextElement.FontSize="14" Grid.Column="4" Style="{StaticResource Card}" Padding="10">
+                        <TabControl SelectedIndex="{Binding WorkspaceToolTab}" BorderThickness="0" Background="White" Name="WorkspaceTools">
+                            <TabControl.Resources>
+                                <Style TargetType="TabItem" BasedOn="{StaticResource {x:Type TabItem}}">
+                                    <Setter Property="Padding" Value="8,14"/>
+                                </Style>
+                            </TabControl.Resources>
+                            <TabItem Padding="4,12" Header="실제 계좌 주문" FontSize="14" Visibility="{Binding IsOnline,Converter={StaticResource Visible}}">
+                                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                    <StackPanel>
+                                        <TextBlock Text="실제 계좌 주문" FontSize="18" FontWeight="Bold" Margin="0,0,0,18" />
+                                        <Button Content="실제 계좌 전략매매 설정" Tag="Live" Click="MultiClick" IsEnabled="{Binding CanOpenMulti}" Margin="0,0,0,10" ToolTip="선택한 키움 국내 실계좌에서 전략 주문을 실행합니다. 가상 주문은 가상 계좌 주문 탭에서 실행하세요."/>
+                                        <TextBlock Text="{Binding MultiStatus}" TextWrapping="Wrap" Foreground="#3182F6"/>
+                                        <Button Content="다중매매 전체 중지" Click="MultiStopClick" IsEnabled="{Binding MultiSessionExists}" Style="{StaticResource Secondary}" Margin="0,8,0,12"/>
+                                        <TextBlock Text="{Binding AccountInfo}" TextWrapping="Wrap" LineHeight="23" />
+                                        <TextBlock Text="1회 매수 한도 · 종목 통화" Margin="0,14,0,6" Foreground="#6B7684" />
+                                        <TextBox Text="{Binding LiveOrderLimitText,UpdateSourceTrigger=PropertyChanged}" />
+                                        <TextBlock Text="실제 주문은 시장가로 전송됩니다.&#xA;조회 가격은 확인창에서 자동 표시해요." Foreground="#8B95A1" FontSize="14" TextWrapping="Wrap" Margin="0,10,0,16" />
+                                        <TextBlock Text="주문 수량" Foreground="#6B7684" />
+                                        <TextBox Text="{Binding Quantity}" Margin="0,8,0,12" />
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition />
+                                                <ColumnDefinition />
+                                            </Grid.ColumnDefinitions>
+                                            <Button Content="매수" Command="{Binding Actions[매수]}" Background="#F04452" />
+                                            <Button Grid.Column="1" Content="매도" Command="{Binding Actions[매도]}" />
+                                        </Grid>
+                                        <Button Content="대기 주문 취소" Command="{Binding Actions[주문취소]}" Style="{StaticResource Secondary}" Margin="0,10,0,20" />
+                                        <TextBlock Text="이 탭의 주문은 연결된 실제 계좌로만 전송됩니다. 가상 주문은 다음 탭에서 실행하세요." FontSize="14" Foreground="#8B95A1" TextWrapping="Wrap" Margin="0,16,0,0" />
+                                    </StackPanel>
+                                </ScrollViewer>
+                            </TabItem>
+                            <TabItem Padding="4,12" Header="가상 계좌 주문" FontSize="14">
+                                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                    <StackPanel>
+                                        <TextBlock Text="가상 계좌 주문" FontSize="18" FontWeight="Bold" Margin="0,0,0,14" />
+                                        <Button Content="실시간 가상 전략매매 설정" Tag="VirtualRealtime" Click="MultiClick" IsEnabled="{Binding CanOpenRealtimePaper}" ToolTip="실제 시세를 받아 선택 전략을 실행하지만 증권사 주문은 전송하지 않습니다."/>
+                                        <TextBlock Text="{Binding VirtualTradingHelp}" Foreground="#6B7684" TextWrapping="Wrap" Margin="0,8,0,10" />
+                                        <TextBlock Text="{Binding MultiStatus}" TextWrapping="Wrap" Foreground="#3182F6"/>
+                                        <Button Content="가상 전략매매 전체 중지" Click="MultiStopClick" IsEnabled="{Binding MultiSessionExists}" Style="{StaticResource Secondary}" Margin="0,8,0,14"/>
+                                        <StackPanel Visibility="{Binding IsOffline,Converter={StaticResource Visible}}">
+                                            <TextBlock Text="가상 시작 금액 · 종목 통화" Foreground="#6B7684" />
+                                            <TextBox Text="{Binding Capital}" Margin="0,8,0,14" IsEnabled="{Binding CanConfigure}" />
+                                            <TextBlock Text="{Binding PaperSummary}" TextWrapping="Wrap" LineHeight="23" Margin="0,0,0,15" />
+                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Stretch">
+                                                <Button Content="{Binding NextStepCaption}" ToolTip="다음 거래일로 진행하고 대기 중인 가상 주문을 시가 기준으로 처리합니다." Command="{Binding Actions[다음]}" Style="{StaticResource Secondary}" />
+                                                <Button Margin="44,0,0,0" Content="▶" Command="{Binding Actions[재생]}" Padding="12,10" />
+                                                <Button Margin="44,0,0,0" Content="일시정지" Command="{Binding Actions[정지]}" Padding="12,10" Style="{StaticResource Secondary}" />
+                                            </StackPanel>
+                                            <TextBlock Text="주문 수량" Foreground="#6B7684" Margin="0,14,0,0" />
+                                            <TextBox Text="{Binding Quantity}" Margin="0,8,0,12" />
+                                            <Grid>
+                                                <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
+                                                <Button Content="가상 매수" Command="{Binding Actions[매수]}" Background="#F04452" />
+                                                <Button Grid.Column="1" Content="가상 매도" Command="{Binding Actions[매도]}" />
+                                            </Grid>
+                                            <Button Content="가상 대기 주문 취소" Command="{Binding Actions[주문취소]}" Style="{StaticResource Secondary}" Margin="0,10,0,12" />
+                                            <TextBlock Text="오프라인 가상 주문은 확정 일봉 판단 후 다음 시가로 체결됩니다." FontSize="14" Foreground="#8B95A1" TextWrapping="Wrap"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </ScrollViewer>
+                            </TabItem>
+                            <TabItem Padding="4,12" Header="전략 백테스트" FontSize="14">
+                                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                    <StackPanel>
+                                        <Border Background="#F9FAFB" CornerRadius="12" Padding="12">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto" />
+                                                    <RowDefinition Height="Auto" />
+                                                </Grid.RowDefinitions>
+                                                <WrapPanel Grid.ColumnSpan="2" IsEnabled="{Binding CanConfigure}" Margin="0,0,0,12">
+                                                    <DatePicker SelectedDate="{Binding From}" Width="125" />
+                                                    <TextBlock Text=" ~ " VerticalAlignment="Center" />
+                                                    <DatePicker SelectedDate="{Binding To}" Width="125" />
+                                                </WrapPanel>
+                                                <StackPanel x:Name="BacktestButtons" Grid.Row="1" Orientation="Vertical" VerticalAlignment="Center">
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <TextBlock Text="전략" Foreground="#6B7684" FontSize="14" 
+                                                                   VerticalAlignment="Center"/>
+                                                        <ComboBox Margin="30,0,0,0" ItemsSource="{Binding Presets}" SelectedItem="{Binding SelectedOversoldPreset,Mode=TwoWay}" 
+                                                                  MinWidth="150" ToolTip="저장된 전략 중 백테스트에 적용할 전략을 선택합니다."/>
+                                                    </StackPanel>
+                                                    <Button
+                                                        Margin="0,20,0,0"
+                                                        Width="280"
+                                                        Content="백테스트" Command="{Binding Actions[백테스트]}" ToolTip="선택한 전략을 지정 기간의 일봉에 적용합니다." Padding="8,8"/>
+                                                </StackPanel>
+                                            </Grid>
+                                        </Border>
+                                        <Border x:Name="InlineTestResult" BorderBrush="#E5E8EB" BorderThickness="1" CornerRadius="12" Padding="12" Margin="0,12,0,0">
+                                            <StackPanel>
+                                                <TextBlock Text="{Binding SelectedOversoldPreset}" FontWeight="Bold" FontSize="14"/>
+                                                <TextBlock Text="선택한 저장 전략 · 위 기간의 일봉으로 실행" Foreground="#6B7684" TextWrapping="Wrap" FontSize="14" Margin="0,6"/>
+                                                <TextBlock Text="{Binding OversoldResultSummary}" TextWrapping="Wrap" Margin="0,8"/>
+                                                <ItemsControl ItemsSource="{Binding OversoldCards}">
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate>
+                                                            <DockPanel Margin="0,3">
+                                                                <TextBlock Text="{Binding Value}" DockPanel.Dock="Right" FontWeight="SemiBold"/>
+                                                                <TextBlock Text="{Binding Label}" Foreground="#6B7684"/>
+                                                            </DockPanel>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                                <Button Content="상세 결과 · 판단 기록" Command="{Binding Actions[낙주결과상세]}" Style="{StaticResource Secondary}" Margin="0,8,0,0"/>
+                                                <TextBlock Text="{Binding OversoldMessage}" Foreground="#6B7684" TextWrapping="Wrap" FontSize="14" Margin="0,8,0,0"/>
+                                            </StackPanel>
+                                        </Border>
+                                    </StackPanel>
+                                </ScrollViewer>
+                            </TabItem>
+                            <TabItem Padding="4,12" Header="정기매수 백테스트" FontSize="14">
+                                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                    <local:RecurringPurchasePanel />
+                                </ScrollViewer>
+                            </TabItem>
+                        </TabControl>
+                    </Border>
+                </Grid>
+            </TabItem>
+            <TabItem Header="스크리닝">
+                <Border Style="{StaticResource Card}" Margin="0,16,0,0">
+                    <DockPanel>
+                        <StackPanel DockPanel.Dock="Top">
+                            <StackPanel.Resources>
+                                <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                                    <Setter Property="Height" Value="40"/>
+                                    <Setter Property="Padding" Value="12,6"/>
+                                </Style>
+                                <Style TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
+                                    <Setter Property="Height" Value="40"/>
+                                    <Setter Property="Padding" Value="10,6"/>
+                                </Style>
+                                <Style TargetType="ComboBox" BasedOn="{StaticResource {x:Type ComboBox}}">
+                                    <Setter Property="Height" Value="40"/>
+                                    <Setter Property="Padding" Value="10,6"/>
+                                </Style>
+                                <Style TargetType="DatePicker" BasedOn="{StaticResource {x:Type DatePicker}}">
+                                    <Setter Property="Height" Value="40"/>
+                                    <Setter Property="MinHeight" Value="40"/>
+                                    <Setter Property="Padding" Value="0"/>
+                                    <Setter Property="VerticalAlignment" Value="Center"/>
+                                    <Setter Property="VerticalContentAlignment" Value="Center"/>
+                                </Style>
+                                <Style TargetType="RadioButton" BasedOn="{StaticResource {x:Type RadioButton}}">
+                                    <Setter Property="Height" Value="40"/>
+                                    <Setter Property="Padding" Value="11,6"/>
+                                </Style>
+                                <Style TargetType="CheckBox" BasedOn="{StaticResource {x:Type CheckBox}}">
+                                    <Setter Property="Height" Value="40"/>
+                                    <Setter Property="Margin" Value="0,0,12,0"/>
+                                </Style>
+                            </StackPanel.Resources>
+                            <TextBlock Text="내 전략에 맞는 종목 찾기" FontSize="23" FontWeight="Bold" />
+                            <TextBlock Text="{Binding ScreeningExplanation}" Foreground="#8B95A1" Margin="0,8,0,20" />
+                            <DockPanel IsEnabled="{Binding CanConfigure}" MinHeight="40" Margin="0,0,0,8">
+                                <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <RadioButton Content="시장 상위 종목" GroupName="ScreenSource" IsChecked="{Binding ScreenMarket}" />
+                                    <RadioButton Content="관심종목" GroupName="ScreenSource" IsChecked="{Binding ScreenWatchlist}" />
+                                </StackPanel>
+                                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" Margin="16,0,0,0" Visibility="{Binding ScreenWatchlist,Converter={StaticResource Visible}}">
+                                    <ItemsControl ItemsSource="{Binding WatchGroups}" VerticalAlignment="Center">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <StackPanel Orientation="Horizontal" />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border Background="#F2F4F6" CornerRadius="9" Padding="12,0" Margin="0,0,10,0">
+                                                    <CheckBox Content="{Binding Name}" IsChecked="{Binding IncludeInScreening}" ToolTip="여러 그룹을 함께 선택할 수 있습니다. 겹치는 종목은 한 번만 검사합니다." />
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </ScrollViewer>
+                            </DockPanel>
+                            <WrapPanel IsEnabled="{Binding CanConfigure}">
+                                <ComboBox ItemsSource="{Binding ScreeningMarkets}" SelectedItem="{Binding ScreeningMarketSelection}" Width="150" Margin="0,0,12,0" ToolTip="스크리닝할 국내 시장을 선택합니다." />
+                                <TextBlock Text="분야" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                <ComboBox ItemsSource="{Binding Sectors}" SelectedItem="{Binding Sector}" Width="190" Margin="0,0,12,0" />
+                                <TextBlock Visibility="{Binding ScreenMarket,Converter={StaticResource Visible}}" Text="시장별 상위" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                <ComboBox Visibility="{Binding ScreenMarket,Converter={StaticResource Visible}}" ItemsSource="{Binding ScreeningSizes}" SelectedItem="{Binding ScreeningSize}" Width="80" Margin="0,0,12,0" ToolTip="가져올 시장 목록의 종목 수입니다. 스크리닝 날짜 범위와 별개입니다." />
+                                <Button Height="40" Visibility="{Binding ScreenMarket,Converter={StaticResource Visible}}" Content="목록 · 분야 불러오기" ToolTip="시가총액 상위 종목과 업종 분류를 갱신합니다. 전체 시장 목록은 아닙니다." Command="{Binding Actions[목록]}" Style="{StaticResource Secondary}" />
+                                <TextBlock Text="전략" VerticalAlignment="Center" Margin="8,0" />
+                                <ComboBox ItemsSource="{Binding Presets}" SelectedItem="{Binding SelectedOversoldPreset,Mode=TwoWay}" Width="210" ToolTip="저장된 전략 중 스크리닝에 적용할 전략을 선택합니다." />
+                                <TextBlock Text="데이터 기준" VerticalAlignment="Center" Margin="8,0" />
+                                <RadioButton Content="일봉" GroupName="ScreenBars" IsChecked="{Binding ScreenDaily}" VerticalAlignment="Center" />
+                                <StackPanel x:Name="ScreenCustomBarOptions" Orientation="Horizontal" Visibility="{Binding IsOnline,Converter={StaticResource Visible}}">
+                                    <RadioButton Content="지정 봉" GroupName="ScreenBars" IsChecked="{Binding ScreenCustomBars}" VerticalAlignment="Center" />
+                                    <TextBox Text="{Binding ScreenBarValue,UpdateSourceTrigger=PropertyChanged}" Width="90" IsEnabled="{Binding ScreenCustomBars}" ToolTip="임의 양의 정수. 각 지표의 기간은 선택한 봉 개수입니다." />
+                                    <ComboBox ItemsSource="{Binding ScreenBarUnitOptions}" SelectedValue="{Binding ScreenBarUnit}" SelectedValuePath="Value" DisplayMemberPath="Label" Width="90" IsEnabled="{Binding ScreenCustomBars}" ToolTip="온라인 연결에서 틱봉·분봉·시간봉을 선택합니다." />
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="시작일" VerticalAlignment="Center" Margin="10,0,4,0"/>
+                                    <DatePicker SelectedDate="{Binding ScreenFrom}" Width="125" 
+                                                ToolTip="전략 신호를 집계할 첫 날짜입니다. 이전 봉은 지표 준비에만 사용합니다."/>
+                                    <TextBlock Text="종료일" VerticalAlignment="Center" Margin="8,0,4,0"/>
+                                    <DatePicker SelectedDate="{Binding ScreenTo}" Width="125" ToolTip="이 날짜까지의 전략 신호만 집계합니다. 미래 날짜는 사용할 수 없습니다."/>
+
+                                    <Button Margin="5,0,0,0" Content="스크리닝 시작" ToolTip="선택한 시장 목록 또는 관심그룹에서 국가·분야와 전략 조건에 맞는 종목을 찾습니다." Command="{Binding Actions[스크리닝]}" />
+                                    <Button Height="40" Content="스크리닝 결과" Command="{Binding Actions[스크리닝결과]}" Style="{StaticResource Secondary}" />
+                                    <Button Height="40" Content="백테스트 보기" Command="{Binding Actions[결과열기]}" Style="{StaticResource Secondary}" ToolTip="선택한 종목을 스크리닝 당시 기간·전략 설정으로 백테스트해 새 창에서 봅니다." />
+
+                                </StackPanel>
+                            </WrapPanel>
+                            <TextBlock Text="{Binding ScreenInfo}" Margin="0,14,0,20" Foreground="#6B7684" TextWrapping="Wrap" />
+                        </StackPanel>
+                        <DataGrid ItemsSource="{Binding Matches}" SelectedItem="{Binding SelectedMatch}" MouseDoubleClick="ScreeningRowDoubleClick">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="코드" Binding="{Binding Code}" Width="85" />
+                                <DataGridTemplateColumn Header="종목 이름" Width="2*">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Button Content="{Binding Name}" Style="{StaticResource TextLink}" Click="ScreeningTradeClick" ToolTip="차트와 매수·매도 시점을 새 창으로 봅니다."/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTextColumn Header="시장" Binding="{Binding Region}" Width="80" />
+                                <DataGridTextColumn Header="분야" Binding="{Binding Sector}" Width="2*" />
+                                <DataGridTextColumn Header="현재가 · 관측값" Binding="{Binding Price}" Width="140" />
+
+
+                                <DataGridTextColumn Header="급락률 %" Binding="{Binding Drawdown,StringFormat=N2}" Width="100" />
+                                <DataGridTextColumn Header="RSI" Binding="{Binding Rsi,StringFormat=N2}" Width="80" />
+                                <DataGridTextColumn Header="거래량 배수" Binding="{Binding VolumeRatio,StringFormat=N2}" Width="100" />
+                                <DataGridTextColumn Header="지지 개수" Binding="{Binding SupportCount,StringFormat=N0}" Width="90" />
+                                <DataGridTextColumn Header="상태" Binding="{Binding Status}" Width="140" />
+                                <DataGridTextColumn Header="기준일 · 한국시간" Binding="{Binding Date}" Width="170" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </DockPanel>
+                </Border>
+            </TabItem>
+            <TabItem Header="전략 설정">
+                <Border Style="{StaticResource Card}" Margin="0,16,0,0">
+                    <DockPanel>
+                        <StackPanel DockPanel.Dock="Top">
+                            <TextBlock Text="전략 설정" FontSize="28" FontWeight="Bold"/>
+                            <TextBlock Text="저장한 전략을 선택해 백테스트·스크리닝·검증된 실시간 실행에 사용할 조건을 관리합니다." Foreground="#6B7684" Margin="0,12"/>
+                            <WrapPanel IsEnabled="{Binding CanConfigure}">
+                                <ComboBox ItemsSource="{Binding Presets}" SelectedItem="{Binding SelectedOversoldPreset,Mode=TwoWay}" Text="{Binding Preset,UpdateSourceTrigger=PropertyChanged}" IsEditable="True" Width="250" ToolTip="전략을 선택하거나 추가·이름 변경에 사용할 이름을 입력합니다."/>
+                                <Button Content="추가" Command="{Binding Actions[추가]}" ToolTip="현재 입력값으로 새 전략 설정을 추가합니다."/>
+                                <Button Content="이름 변경" Command="{Binding Actions[이름변경]}" Style="{StaticResource Secondary}" ToolTip="선택한 전략의 이름을 입력한 이름으로 바꿉니다."/>
+                                <Button Content="설정 저장" Command="{Binding Actions[저장]}" ToolTip="현재 입력값을 선택한 전략에 저장합니다."/>
+                                <Button Content="복구" Command="{Binding Actions[복구]}" Style="{StaticResource Secondary}" ToolTip="저장 이후 수정한 입력을 버리고 선택한 전략의 이전 저장값으로 되돌립니다."/>
+                                <Button Content="불러오기" Command="{Binding Actions[불러오기]}" Style="{StaticResource Secondary}" ToolTip="다운로드한 전략 JSON 파일을 새 전략으로 가져옵니다."/>
+                                <Button Content="다운로드" Command="{Binding Actions[다운로드]}" Style="{StaticResource Secondary}" ToolTip="현재 전략 설정만 JSON으로 저장합니다. 계좌와 매매 기록은 포함하지 않습니다."/>
+                                <Button Content="기본값" Command="{Binding Actions[기본값]}" Style="{StaticResource Secondary}" ToolTip="현재 편집값을 기본값으로 바꿉니다. 설정 저장 전에는 기존 저장값을 덮어쓰지 않습니다."/>
+                            </WrapPanel>
+                        </StackPanel>
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                            <local:OversoldParameterPanel/>
+                        </ScrollViewer>
+                    </DockPanel>
+                </Border>
+            </TabItem>
+            <TabItem Header="계좌 · 주문">
+                <Border Style="{StaticResource Card}" Margin="0,16,0,0">
+                    <DockPanel>
+                        <StackPanel DockPanel.Dock="Top">
+                            <TextBlock Text="{Binding AccountInfo}" FontSize="18" FontWeight="Bold" Margin="0,0,0,14" />
+                            <WrapPanel>
+                                <Button Content="계좌 새로고침" Command="{Binding Actions[계좌조회]}" />
+                                <Button Content="선택 주문 취소" Command="{Binding Actions[주문취소]}" Style="{StaticResource Secondary}" />
+                                <Button Content="미확인 주문 외부 확인" ToolTip="증권사 앱에서 미확인 주문을 직접 확인한 뒤 신규 주문 차단을 해제합니다." Command="{Binding Actions[외부확인]}" Style="{StaticResource Secondary}" />
+                            </WrapPanel>
+                            <TextBlock Text="계좌 내역은 선택 종목의 시장 기준입니다. 국내·미국 금액은 환산 합산하지 않습니다." Margin="0,12,0,16" Foreground="#8B95A1" />
+                        </StackPanel>
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition />
+                                <RowDefinition />
+                            </Grid.RowDefinitions>
+                            <DataGrid ItemsSource="{Binding Holdings}">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="보유 종목" Binding="{Binding Name}" Width="*" />
+                                    <DataGridTextColumn Header="수량" Binding="{Binding Quantity,StringFormat=N0}" Width="100" />
+                                    <DataGridTextColumn Header="평균 매수가" Binding="{Binding AveragePrice,Converter={StaticResource IntegerPrice}}" Width="150" />
+                                    <DataGridTextColumn Header="현재가" Binding="{Binding CurrentPrice,Converter={StaticResource IntegerPrice}}" Width="150" />
+                                    <DataGridTextColumn Header="평가손익" Binding="{Binding Profit,StringFormat=N0}" Width="150" />
+                                    <DataGridTextColumn Header="통화" Binding="{Binding Currency}" Width="80" />
+                                </DataGrid.Columns>
+                            </DataGrid>
+                            <DataGrid Grid.Row="1" ItemsSource="{Binding Orders}" SelectedItem="{Binding SelectedOrder}" Margin="0,20,0,0">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="주문번호" Binding="{Binding Number}" Width="130" />
+                                    <DataGridTextColumn Header="종목" Binding="{Binding Name}" Width="*" />
+                                    <DataGridTextColumn Header="구분" Binding="{Binding Side}" Width="80" />
+                                    <DataGridTextColumn Header="주문 수량" Binding="{Binding Quantity,StringFormat=N0}" Width="100" />
+                                    <DataGridTextColumn Header="체결 수량" Binding="{Binding Filled,StringFormat=N0}" Width="100" />
+                                    <DataGridTextColumn Header="미체결 수량" Binding="{Binding Remaining,StringFormat=N0}" Width="100" />
+                                    <DataGridTextColumn Header="상태" Binding="{Binding Status}" Width="180" />
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </Grid>
+                    </DockPanel>
+                </Border>
+            </TabItem>
+            <TabItem Header="테스트 기록">
+                <Border Style="{StaticResource Card}" Margin="0,16,0,0">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="2*" />
+                            <RowDefinition />
+                        </Grid.RowDefinitions>
+                        <StackPanel>
+                            <ComboBox ItemsSource="{Binding History}" SelectedItem="{Binding SelectedRun}" DisplayMemberPath="Title" ToolTip="저장된 이전 테스트를 선택합니다. 현재 계좌와 차트는 바뀌지 않습니다." />
+                            <TextBlock Text="{Binding SelectedRun.Summary}" FontSize="16" Margin="0,12,0,8" />
+                            <Button Content="과매도·낙주 상세 기록 열기" Command="{Binding Actions[낙주기록상세]}" Visibility="{Binding HasOversoldHistory,Converter={StaticResource Visible}}" HorizontalAlignment="Left" Margin="0,0,0,8" />
+                        </StackPanel>
+                        <DataGrid Grid.Row="1" ItemsSource="{Binding SelectedRun.Fills}">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="체결일 · 한국시간" Binding="{Binding KoreaTime}" Width="180" />
+                                <DataGridTextColumn Header="구분" Binding="{Binding Side}" Width="80" />
+                                <DataGridTextColumn Header="수량" Binding="{Binding Quantity,StringFormat=N0}" Width="90" />
+                                <DataGridTextColumn Header="체결가" Binding="{Binding Price,Converter={StaticResource IntegerPrice}}" Width="140" />
+                                <DataGridTextColumn Header="수수료" Binding="{Binding Fee,StringFormat=N0}" Width="120" />
+                                <DataGridTextColumn Header="실현손익" Binding="{Binding Realized,StringFormat=N0}" Width="130" />
+                                <DataGridTextColumn Header="전략 / 이유" Binding="{Binding Reason}" Width="*" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+                        <ListBox Grid.Row="2" ItemsSource="{Binding Logs}" BorderThickness="0" Background="#F9FAFB" Margin="0,20,0,0" Padding="10" />
+                    </Grid>
+                </Border>
+            </TabItem>
+            <TabItem Header="시장 현황">
+                <Border Style="{StaticResource Card}" Margin="0,16,0,0">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                        <StackPanel>
+                            <TextBlock Text="오늘의 시장" FontSize="28" FontWeight="Bold" />
+                            <TextBlock Text="주요 지수와 시장의 흐름을 한눈에" Foreground="#8B95A1" Margin="0,8,0,20" />
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,18">
+                                <RadioButton Content="국내" FontSize="18" GroupName="IndexMarket" IsChecked="{Binding DomesticMarket}" />
+                                <RadioButton Content="해외" FontSize="18" GroupName="IndexMarket" IsChecked="{Binding OverseasMarket}" />
+                            </StackPanel>
+                            <ItemsControl ItemsSource="{Binding VisibleIndices}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <UniformGrid Rows="1" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Background="#F7F8FA" CornerRadius="18" Padding="20" Margin="0,0,16,0">
+                                            <StackPanel>
+                                                <DockPanel>
+                                                    <TextBlock DockPanel.Dock="Right" Text="{Binding Code}" FontSize="11" Foreground="#8B95A1" VerticalAlignment="Center" />
+                                                    <TextBlock Text="{Binding Name}" FontSize="19" FontWeight="SemiBold" />
+                                                </DockPanel>
+                                                <TextBlock Text="{Binding Price}" FontSize="34" FontWeight="Bold" Margin="0,18,0,10" />
+                                                <StackPanel Orientation="Horizontal">
+                                                    <TextBlock Text="{Binding Change}" Foreground="{Binding Color}" FontSize="17" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                                    <Border Background="{Binding Color}" CornerRadius="6" Padding="9,4" Margin="10,0,0,0">
+                                                        <TextBlock Text="{Binding Percent}" Foreground="White" FontSize="15" FontWeight="SemiBold" />
+                                                    </Border>
+                                                </StackPanel>
+                                                <local:IndexSparkline Series="{Binding Trend}" LineColor="{Binding Color}" Height="80" Margin="0,14,0,8" />
+                                                <TextBlock Text="{Binding ChartCaption}" FontSize="10" Foreground="#8B95A1" TextWrapping="Wrap" />
+                                                <TextBlock Text="{Binding Time}" FontSize="11" Foreground="#6B7684" Margin="0,10,0,0" />
+                                                <TextBlock Text="{Binding QuoteStatus}" FontSize="11" Foreground="#D23A49" />
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <TextBlock Text="{Binding MarketStatus}" Margin="0,18,0,28" Foreground="#8B95A1" FontSize="11" />
+                            <TextBlock Text="내가 보고 있는 종목" FontSize="20" FontWeight="Bold" Margin="0,0,0,14" />
+                            <Border Background="#F7F8FA" CornerRadius="14" Padding="22">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition />
+                                        <ColumnDefinition />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding StockQuote.Name,TargetNullValue=종목을 검색해 보세요}" FontSize="17" />
+                                        <TextBlock Text="{Binding StockQuote.PriceText}" FontSize="25" FontWeight="Bold" Margin="0,8,0,5" />
+                                        <TextBlock Text="{Binding StockQuote.ChangeText}" />
+                                        <TextBlock Text="{Binding StockQuote.KoreaTime}" FontSize="10" Foreground="#8B95A1" Margin="0,8,0,0" />
+                                    </StackPanel>
+                                    <TextBlock Grid.Column="1" Text="{Binding AverageVolume}" TextWrapping="Wrap" VerticalAlignment="Center" FontSize="16" />
+                                </Grid>
+                            </Border>
+                            <TextBlock Text="국내 지수 값은 네이버, 추이와 해외 지수는 Yahoo Finance 제공 자료입니다. 점선은 전일 종가이며 모든 시각은 한국시간입니다. 소수점은 화면에서만 반올림합니다." Foreground="#8B95A1" FontSize="11" TextWrapping="Wrap" Margin="0,18,0,0" />
+                        </StackPanel>
+                    </ScrollViewer>
+                </Border>
+            </TabItem>
+            <TabItem Header="관심종목">
+                <Border Style="{StaticResource Card}" Margin="0,16,0,0">
+                    <DockPanel>
+                        <StackPanel DockPanel.Dock="Top">
+                            <DockPanel>
+                                <Button DockPanel.Dock="Right" Content="+ 그룹 추가" Command="{Binding Actions[그룹추가]}" Style="{StaticResource Secondary}" />
+                                <TextBlock Text="관심종목" FontSize="28" FontWeight="Bold" />
+                            </DockPanel>
+                            <TextBlock Text="자주 보는 주식을 그룹으로 모아보세요" Foreground="#8B95A1" Margin="0,8,0,20" />
+                            <ListBox ItemsSource="{Binding WatchGroups}" SelectedItem="{Binding SelectedWatchGroup}" BorderThickness="0" Background="Transparent" ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollBarVisibility="Disabled">
+                                <ListBox.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <StackPanel Orientation="Horizontal" />
+                                    </ItemsPanelTemplate>
+                                </ListBox.ItemsPanel>
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Orientation="Horizontal" Margin="8,6,14,6">
+                                            <TextBlock Text="{Binding Name}" FontSize="17" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                            <Button Content="편집" Command="{Binding Edit}" FontSize="11" Foreground="#8B95A1" Background="Transparent" Padding="6,3" Margin="7,0,0,0" ToolTip="이 그룹의 이름을 바꿉니다." />
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                            <StackPanel Orientation="Horizontal" Visibility="{Binding EditingGroup,Converter={StaticResource Visible}}" Margin="0,12">
+                                <TextBox Text="{Binding GroupDraft,UpdateSourceTrigger=PropertyChanged}" Width="220" MaxLength="20" ToolTip="그룹 이름을 1~20자로 입력하세요." />
+                                <Button Content="저장" Command="{Binding Actions[그룹저장]}" Margin="10,0,8,0" />
+                                <Button Content="취소" Command="{Binding Actions[그룹편집취소]}" Style="{StaticResource Secondary}" />
+                            </StackPanel>
+                            <DockPanel Margin="0,20,0,12">
+                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                    <Button Content="시세 새로고침" Command="{Binding Actions[관심새로고침]}" Style="{StaticResource Secondary}" />
+                                    <Button Content="차트 열기" Command="{Binding Actions[관심차트]}" />
+                                    <Button Content="이 그룹에서 해제" Command="{Binding Actions[관심해제]}" Style="{StaticResource Secondary}" />
+                                </StackPanel>
+                                <TextBlock Text="{Binding WatchHeading}" FontSize="17" FontWeight="Bold" VerticalAlignment="Center" />
+                            </DockPanel>
+                            <TextBlock Text="{Binding WatchStatus}" FontSize="11" Foreground="#8B95A1" Margin="0,0,0,16" />
+                        </StackPanel>
+                        <Grid>
+                            <DataGrid ItemsSource="{Binding WatchItems}" SelectedItem="{Binding SelectedWatch}">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn ElementStyle="{StaticResource GridText}" Header="종목" Binding="{Binding Name}" Width="2*" />
+                                    <DataGridTextColumn ElementStyle="{StaticResource GridText}" Header="국가 · 분야" Binding="{Binding Detail}" Width="2*" />
+                                    <DataGridTextColumn ElementStyle="{StaticResource GridText}" Header="현재가" Binding="{Binding Price}" Width="*" />
+                                    <DataGridTemplateColumn Header="하루 등락" Width="*">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding Change}" Foreground="{Binding Color}" VerticalAlignment="Center" Margin="8,0" />
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+                                    <DataGridTextColumn ElementStyle="{StaticResource GridText}" Header="시세 기준 · 한국시간" Binding="{Binding State}" Width="2*" />
+                                </DataGrid.Columns>
+                            </DataGrid>
+                            <StackPanel Visibility="{Binding WatchEmpty,Converter={StaticResource Visible}}" VerticalAlignment="Center" HorizontalAlignment="Center">
+                                <TextBlock Text="☆" FontSize="42" Foreground="#C4C9D0" HorizontalAlignment="Center" />
+                                <TextBlock Text="아직 등록한 종목이 없어요" FontSize="20" FontWeight="SemiBold" Margin="0,14,0,8" />
+                                <TextBlock Text="종목 · 차트에서 그룹을 고르고 관심등록을 눌러주세요." Foreground="#8B95A1" />
+                            </StackPanel>
+                        </Grid>
+                    </DockPanel>
+                </Border>
+            </TabItem>
+            <TabItem Header="원본 틱">
+                <local:RawTickChartView DataContext="{Binding RawTicks}" />
+            </TabItem>
+        </TabControl>
+    </DockPanel>
+</Window>
