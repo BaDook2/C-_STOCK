@@ -1,6 +1,6 @@
-## 현재 작업 2026-10-31 — GitHub v0.1.4 Release 게시 [~]
-- [~] WPF 레이아웃 수정과 검증 기록만 `main`, `v0.1.1`~`v0.1.3`으로 push했다. API 키·DB·로컬 EXE는 포함되지 않았다. v0.1.1~v0.1.2는 실제 행 높이가 44px로 고정됐지만 GitHub 가상 화면에서 버튼 템플릿 좌표가 달라진 테스트 문제였고, v0.1.3은 CI 화면이 760px로 제한되어 1040px 창도 같은 높이로 잘리는 해상도 의존 테스트 문제였다.
-- [~] 44px 소스 행/스크롤 영역과 차트의 `*` 가변 행·Stretch 배치를 화면 좌표/물리 해상도와 무관하게 직접 검증한다. 다시 전체 회귀 후 `v0.1.4`로 실행해 Release의 `Stock.exe`와 `Stock.exe.sha256` 자산 및 체크섬을 확인한다.
+## 현재 작업 2026-10-31 — GitHub v0.1.4 Release 게시 [x]
+- [x] WPF 레이아웃 수정과 검증 기록만 `main`, `v0.1.1`~`v0.1.4`로 push했다. API 키·DB·로컬 EXE는 포함되지 않았다. v0.1.1~v0.1.2는 실제 행 높이가 44px로 고정됐지만 GitHub 가상 화면에서 버튼 템플릿 좌표가 달라진 테스트 문제였고, v0.1.3은 CI 화면이 760px로 제한되어 1040px 창도 같은 높이로 잘리는 해상도 의존 테스트 문제였다. v0.1.4에서는 44px 행/스크롤 영역과 차트의 `*` 가변 행·Stretch 배치를 구조로 검증한다.
+- [x] 로컬 빌드 경고0/오류0, UI 스모크 401개, 전체 회귀 1,077개를 통과했다. GitHub Actions run `41174068757`도 전체 테스트, self-contained 게시, EXE smoke, SHA256, Release 생성을 모두 통과했다. Release 자산은 `Stock.exe` 80,792,975 bytes와 `Stock.exe.sha256` 77 bytes이며, 다시 내려받아 계산한 SHA256 `3E8C82F178AD3537CFEB069F4E9697DEB1BCBC8D3A1E2B912B1766C9CF1C303D`가 게시 체크섬과 일치한다. 실제 브로커 호출·계좌 거래는 수행하지 않았다.
 
 ## 현재 작업 2026-10-31 — 루트 Stock.exe 최신 게시본 교체 [x]
 - [x] 루트 `Stock.exe`가 2026-10-24 게시본(SHA256 `B29DA7C…`)이고 `release/Stock.exe`가 2026-10-31 최신 게시본(SHA256 `DA99029…`)임을 확인했다. 기존 파일은 `artifacts/Stock-before-actions-layout-B29DA7CD.exe`에 보관하고 루트를 최신 게시본으로 교체했다.

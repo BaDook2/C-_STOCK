@@ -1,4 +1,12 @@
-# 최신 상태 — 2026-10-31 GitHub Actions Release WPF 레이아웃 회귀 수정
+# 최신 상태 — 2026-10-31 GitHub v0.1.4 Release 게시 완료
+
+`v0.1.4` 태그와 Release를 GitHub에 게시했다. Actions run `41174068757`은 Build, 전체 오프라인 회귀 1,077개, self-contained 단일 EXE 게시, 게시 EXE smoke, SHA256 작성, Release 업로드를 모두 통과했다. Release URL은 `https://github.com/BaDook2/C-_STOCK/releases/tag/v0.1.4`다.
+
+Release 자산은 `Stock.exe` 80,792,975 bytes와 `Stock.exe.sha256` 77 bytes다. 공개 Release에서 두 파일을 다시 내려받아 SHA256을 독립 계산했으며 `3E8C82F178AD3537CFEB069F4E9697DEB1BCBC8D3A1E2B912B1766C9CF1C303D`로 일치했다. API 키·계좌 DB·로컬 EXE는 Git 추적/Release에 포함하지 않았고 실제 브로커 네트워크 호출·계좌 거래도 수행하지 않았다.
+
+v0.1.1~v0.1.2의 실패는 GitHub 가상 화면에서 버튼 템플릿 좌표가 3px 달라지는 테스트 문제, v0.1.3의 실패는 760px CI 화면에서 1040px 창도 같은 높이로 잘리는 물리 해상도 의존 테스트 문제였다. 최종 테스트는 스크리닝 소스 행/스크롤 영역의 44px 고정 높이와 차트의 `*` 가변 행·Stretch 배치를 구조적으로 검사해 화면 해상도와 무관하게 실제 의도를 검증한다.
+
+# 이전 상태 — 2026-10-31 GitHub Actions Release WPF 레이아웃 회귀 수정
 
 첫 `v0.1.0` Release Actions에서 GitHub Windows runner의 가로 스크롤바가 관심종목 소스 행을 3px 키워 `watchlist groups never push screening controls downward (361.1 → 364.1)` 검사가 실패했다. 테스트 허용치를 완화하지 않고 `MainWindow.xaml`의 스크리닝 소스 선택 행과 관심그룹 ScrollViewer에 스크롤바 공간을 포함한 44px 고정 높이를 예약했다. 로컬 검사는 `362.1 → 362.1`로 유지된다.
 
