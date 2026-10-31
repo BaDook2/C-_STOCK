@@ -1,3 +1,15 @@
+## 현재 작업 2026-10-31 — GitHub v0.1.1 Release 게시 [~]
+- [~] WPF 레이아웃 회귀 수정과 검증 기록만 커밋해 `main`에 push하고, 새 `v0.1.1` 태그로 단일 EXE Release 워크플로를 실행한다. API 키·DB·로컬 EXE는 Git에 포함하지 않는다.
+- [ ] Actions 성공 후 GitHub Release의 `Stock.exe`와 `Stock.exe.sha256` 자산 및 체크섬을 확인한다.
+
+## 현재 작업 2026-10-31 — 루트 Stock.exe 최신 게시본 교체 [x]
+- [x] 루트 `Stock.exe`가 2026-10-24 게시본(SHA256 `B29DA7C…`)이고 `release/Stock.exe`가 2026-10-31 최신 게시본(SHA256 `DA99029…`)임을 확인했다. 기존 파일은 `artifacts/Stock-before-actions-layout-B29DA7CD.exe`에 보관하고 루트를 최신 게시본으로 교체했다.
+- [x] 교체된 루트와 `release/Stock.exe`는 모두 80,759,921 bytes, SHA256 `DA990294DE55DD9C51639DD1B8E8D64AF616CA11E42252E3C0289CC02C693D1D`로 일치한다. 루트 단독 smoke는 `ExitCode=0`, `Success/NoBrokerCalls=true`로 통과했다.
+
+## 현재 작업 2026-10-31 — GitHub Actions Release WPF 레이아웃 회귀 수정 [x]
+- [x] GitHub Actions의 WPF 환경에서 관심종목 그룹 가로 스크롤바가 소스 선택 행을 3px 키워 스크리닝 컨트롤이 아래로 이동하는 문제를, 스크롤바 공간을 포함한 44px 고정 높이 행으로 수정했다. 검사를 느슨하게 만들지 않고 실제 화면 좌표가 `362.1 → 362.1`로 유지되게 했다.
+- [x] Release 빌드 경고0/오류0, UI smoke 401개, 전체 1,077개를 통과했다. 게시본 `Stock.exe`는 80,759,921 bytes, SHA256 `DA990294DE55DD9C51639DD1B8E8D64AF616CA11E42252E3C0289CC02C693D1D`이며 단독 smoke가 `Success/NoBrokerCalls=true`로 통과했다. 실제 GitHub push·Release 재실행·브로커 호출·계좌 거래는 수행하지 않았다. 수정 커밋 후 새 `v0.1.1` 태그를 push하면 Release 워크플로를 새 코드로 다시 검증한다.
+
 ## 현재 작업 2026-10-31 — GitHub Release 단일 EXE 배포 [x]
 - [x] 개인 API 키·계좌 DB와 80MB 게시 EXE는 Git 추적에서 제외한 채, `v*` 버전 태그를 올리면 GitHub Actions가 Windows x64 독립 실행형 `Stock.exe`를 빌드·검증해 Release에 첨부하도록 구성했다.
 - [x] `.github/workflows/release.yml`, `docs/GitHubRelease.md`와 README의 최신 Release 안내를 추가했다. Release에는 단일 EXE와 SHA256 파일만 올리고 키·DB·로그·빌드 산출물은 계속 제외한다.

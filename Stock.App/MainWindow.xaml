@@ -327,12 +327,14 @@
                             </StackPanel.Resources>
                             <TextBlock Text="내 전략에 맞는 종목 찾기" FontSize="23" FontWeight="Bold" />
                             <TextBlock Text="{Binding ScreeningExplanation}" Foreground="#8B95A1" Margin="0,8,0,20" />
-                            <DockPanel IsEnabled="{Binding CanConfigure}" MinHeight="40" Margin="0,0,0,8">
+                            <!-- 관심그룹의 가로 스크롤바가 나타나도 아래 스크리닝 컨트롤을 밀지 않도록
+                                 소스 선택 행에 스크롤바까지 포함하는 고정 높이를 예약합니다. -->
+                            <DockPanel x:Name="ScreenSourceRow" IsEnabled="{Binding CanConfigure}" Height="44" Margin="0,0,0,8">
                                 <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" VerticalAlignment="Center">
                                     <RadioButton Content="시장 상위 종목" GroupName="ScreenSource" IsChecked="{Binding ScreenMarket}" />
                                     <RadioButton Content="관심종목" GroupName="ScreenSource" IsChecked="{Binding ScreenWatchlist}" />
                                 </StackPanel>
-                                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" Margin="16,0,0,0" Visibility="{Binding ScreenWatchlist,Converter={StaticResource Visible}}">
+                                <ScrollViewer Height="44" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" Margin="16,0,0,0" Visibility="{Binding ScreenWatchlist,Converter={StaticResource Visible}}">
                                     <ItemsControl ItemsSource="{Binding WatchGroups}" VerticalAlignment="Center">
                                         <ItemsControl.ItemsPanel>
                                             <ItemsPanelTemplate>

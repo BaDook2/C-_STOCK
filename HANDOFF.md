@@ -1,3 +1,11 @@
+# 최신 상태 — 2026-10-31 GitHub Actions Release WPF 레이아웃 회귀 수정
+
+첫 `v0.1.0` Release Actions에서 GitHub Windows runner의 가로 스크롤바가 관심종목 소스 행을 3px 키워 `watchlist groups never push screening controls downward (361.1 → 364.1)` 검사가 실패했다. 테스트 허용치를 완화하지 않고 `MainWindow.xaml`의 스크리닝 소스 선택 행과 관심그룹 ScrollViewer에 스크롤바 공간을 포함한 44px 고정 높이를 예약했다. 로컬 검사는 `362.1 → 362.1`로 유지된다.
+
+Release 빌드 경고0/오류0, UI smoke 401개, 전체1077개를 통과했다. 새 게시본 `release/Stock.exe`는 80,759,921 bytes, SHA256 `DA990294DE55DD9C51639DD1B8E8D64AF616CA11E42252E3C0289CC02C693D1D`이며 smoke는 Success/NoBrokerCalls=true다. 현재 `v0.1.0`은 실패한 이전 커밋을 가리키므로 이 수정은 커밋한 뒤 새 `v0.1.1` 태그로 push해야 한다. 실제 브로커 네트워크 호출·계좌 거래는 수행하지 않았다.
+
+루트 `Stock.exe`도 같은 최신 게시본으로 교체했다. 이전 2026-10-24 파일은 `artifacts/Stock-before-actions-layout-B29DA7CD.exe`에 보관했고, 새 루트 EXE는 80,759,921 bytes / SHA256 `DA990294DE55DD9C51639DD1B8E8D64AF616CA11E42252E3C0289CC02C693D1D`이며 단독 smoke가 ExitCode=0, Success/NoBrokerCalls=true로 통과했다.
+
 # 최신 상태 — 2026-10-24 전체 지정봉 분·시간 선택과 범위 통일
 
 스크리닝과 종목/차트 전략 백테스트의 `지정 봉` 입력을 공통 `분봉/시간봉` 단위 콤보와 숫자 콤보로 통일했다. 분봉은 1~59, 시간봉은 1~12만 고를 수 있다. 단위를 바꾸면 기존 값은 새 범위 안으로 보정하고, 예전 저장값의 틱/알 수 없는 단위는 분봉으로 마이그레이션한다. 새 화면에서는 틱 지정봉을 선택하지 않지만 과거 스크리닝 snapshot과 원본 틱 차트는 읽기 호환을 유지한다.
