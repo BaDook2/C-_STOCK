@@ -1,6 +1,6 @@
 ## 현재 작업 2026-10-31 — GitHub v0.1.1 Release 게시 [~]
-- [~] WPF 레이아웃 회귀 수정과 검증 기록만 커밋해 `main`에 push하고, 새 `v0.1.1` 태그로 단일 EXE Release 워크플로를 실행한다. API 키·DB·로컬 EXE는 Git에 포함하지 않는다.
-- [ ] Actions 성공 후 GitHub Release의 `Stock.exe`와 `Stock.exe.sha256` 자산 및 체크섬을 확인한다.
+- [~] WPF 레이아웃 회귀 수정과 검증 기록만 커밋해 `main`과 `v0.1.1`을 push했다. API 키·DB·로컬 EXE는 포함되지 않았다. v0.1.1 Actions는 탭 전환 직후 레이아웃이 idle에 도달하기 전 첫 좌표를 측정한 테스트 타이밍 문제(`359.1 → 362.1`)로 실패했다.
+- [~] 양쪽 좌표를 동일하게 UI idle 이후 측정하고 44px 고정 행 높이도 함께 검증하도록 수정한다. 전체 회귀 후 `v0.1.2`로 다시 실행해 Release의 `Stock.exe`와 `Stock.exe.sha256` 자산 및 체크섬을 확인한다.
 
 ## 현재 작업 2026-10-31 — 루트 Stock.exe 최신 게시본 교체 [x]
 - [x] 루트 `Stock.exe`가 2026-10-24 게시본(SHA256 `B29DA7C…`)이고 `release/Stock.exe`가 2026-10-31 최신 게시본(SHA256 `DA99029…`)임을 확인했다. 기존 파일은 `artifacts/Stock-before-actions-layout-B29DA7CD.exe`에 보관하고 루트를 최신 게시본으로 교체했다.
