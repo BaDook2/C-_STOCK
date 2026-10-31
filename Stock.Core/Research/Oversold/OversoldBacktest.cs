@@ -1,7 +1,7 @@
 ﻿using Stock.Core.Trading;
 namespace Stock.Core.Research.Oversold;
 /// <summary>One symbol, sequential point-in-time decisions and next tradable opening fills.</summary>
-public sealed class OversoldBacktest
+public sealed partial class OversoldBacktest
 {
     private sealed record Pending(OversoldSignal Signal,bool Buy,int EntryNumber,string[] ExitLegs,DateOnly TriggerDate);
     private sealed class PositionState

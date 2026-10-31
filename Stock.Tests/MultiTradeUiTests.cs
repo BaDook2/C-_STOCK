@@ -22,7 +22,7 @@ internal static partial class Program
     {
         using var db=new TradingStore(Path.Combine(Dir,"batch-ui.db"));var b=new BatchBroker{Now=DailyTime(2,9,0)};var feeds=new List<BatchFeed>();var requested=new List<Instrument[]>();
         var liveConfig=DailyConfig();liveConfig.UseEmergencyStop=true;liveConfig.MinimumAverageTradingValue=0;liveConfig.MovingAveragePeriods="1";liveConfig.MinimumSupportCount=1;liveConfig.UsePivotSupport=liveConfig.UseApproximateVolumeZone=false;
-        db.State("oversold-config-v1",liveConfig);db.State("oversold-facts-v1",DailyFacts(5));db.State("oversold-screen-bars",new ScreeningBarPreference(false,"1","틱"));
+        db.State("oversold-config-v1",liveConfig);db.State("oversold-facts-v1",DailyFacts(5));db.State("oversold-screen-bars",new ScreeningBarPreference(false,"1","분"));
         var raw=Enumerable.Range(0,2).SelectMany(day=>Enumerable.Range(0,2).Select(tick=>new MarketEvent(new(DailyStock.Symbol,Exchange.KRX),EventKind.Trade,DailyTime(day,9,0).AddSeconds(tick),DailyTime(day,9,0).AddSeconds(tick),"KIWOOM",day*2+tick+1){TradePrice=100,TradeSize=10,CumulativeVolume=10*(tick+1),PreviousClose=100})).ToArray();
         db.InsertEvents(raw);db.State("verified-tick-coverage:"+DailyStock.Key,new BarCoverage(raw[0].ExchangeTime,raw[^1].ExchangeTime,true,"KIWOOM",raw[0].Sequence,raw[^1].Sequence));
         var config=new StrategyConfiguration{Enabled=true,StrategyType=StrategyType.Box};config.Standard.Common.Investment=10000;config.Standard.Common.TradingStart="09:00";config.Standard.Common.TradingEnd="15:20";
@@ -35,20 +35,26 @@ internal static partial class Program
         Check(!vm.MultiSessionExists&&feeds.Count==0&&b.Requests.Count==0,"changing mode alone creates no feed or broker orders");
         multi.SeedSymbols([DailyStock]);multi.Actions["실행"].Execute(null);PumpUntil(()=>vm.MultiSessionExists&&actionNotices.Count>0||multi.Message.Contains("확인"));
         Check(vm.MultiSessionExists&&requested.Single().Single().Symbol==DailyStock.Symbol&&b.Requests.Count==0,"selected fake account starts only selected oversold symbol without immediate orders");Check(actionNotices.Count>0,"successful live start publishes a separate popup notice instead of relying on the footer");
-        for(int n=0;n<3;n++)
+        // The fixture starts with one completed warm-up bar.  The default short-crash
+        // lookback needs three bars, so close two live minute bars and observe one
+        // later trade before expecting the next-event order.
+        var liveOffsets=new[]{0,59,60,119,120,121};
+        for(int n=0;n<liveOffsets.Length;n++)
         {
-            var time=DailyTime(2,9,0).AddSeconds(n);b.Now=time;var instrument=new Instrument(DailyStock.Symbol,Exchange.KRX);
+            var time=DailyTime(2,9,0).AddSeconds(liveOffsets[n]);b.Now=time;var instrument=new Instrument(DailyStock.Symbol,Exchange.KRX);
             feeds.Single().Events.Writer.TryWrite(new(instrument,EventKind.Trade,time,time,"KIWOOM",n*2+1){TradePrice=80,TradeSize=10,CumulativeVolume=10*(n+1),PreviousClose=100});
             feeds.Single().Events.Writer.TryWrite(new(instrument,EventKind.Quote,time,time,"KIWOOM",n*2+2){Bid=80,Ask=81,BidSize=1000,AskSize=1000});
+            Thread.Sleep(300);Dispatcher.CurrentDispatcher.Invoke(()=>{},DispatcherPriority.Background);
         }
-        PumpUntil(()=>b.Requests.Count==1||!vm.MultiSessionExists,10);
-        Check(b.Requests.Count==1&&b.Requests[0].Symbol==DailyStock.Symbol,"app routes completed-bar signal to only the selected fake account");
+        var orderDeadline=DateTime.UtcNow.AddSeconds(5);while(b.Requests.Count==0&&vm.MultiSessionExists&&DateTime.UtcNow<orderDeadline){var frame=new DispatcherFrame();Dispatcher.CurrentDispatcher.BeginInvoke(DispatcherPriority.Background,new Action(()=>frame.Continue=false));Dispatcher.PushFrame(frame);Thread.Sleep(20);}var liveDetail=string.Join(" | ",multi.Rows.Select(r=>$"{r.State}/{r.Signal}/{r.Error}/owned={r.Owned}/pending={r.Pending}"));
+        Check(b.Requests.Count==1&&b.Requests[0].Symbol==DailyStock.Symbol,"app routes completed-bar signal to only the selected fake account · "+liveDetail);
         var stopping=vm.StopMulti();PumpUntil(()=>stopping.IsCompleted);stopping.GetAwaiter().GetResult();Check(!vm.MultiSessionExists,"explicit all-stop releases the selected account lease");
         multi.UseMock=true;multi.UseRealtime=true;Check(multi.RunCaption=="실시간 모의매매 시작"&&multi.Actions["실행"].CanExecute(null),"mock plus realtime selects the live-price virtual-account route");
         var noticesBeforePaper=actionNotices.Count;multi.Actions["실행"].Execute(null);PumpUntil(()=>vm.MultiSessionExists&&actionNotices.Count>noticesBeforePaper||multi.Message.Contains("확인"));Check(vm.MultiSessionExists&&feeds.Count==2&&b.Requests.Count==1,"realtime paper starts a market feed without sending a second broker order");Check(actionNotices.Count>noticesBeforePaper,"successful realtime paper start publishes a visible popup notice");
-        for(int n=0;n<8&&!db.States("trade-marker:").Any(s=>Serialization.Unpack<TradeMarker>(s.Json).Source==RealtimePaperStrategyBatch.MarkerSource);n++)
+        var paperOffsets=new[]{0,59,60,119,120,121,122};
+        for(int n=0;n<paperOffsets.Length&&!db.States("trade-marker:").Any(s=>Serialization.Unpack<TradeMarker>(s.Json).Source==RealtimePaperStrategyBatch.MarkerSource);n++)
         {
-            var time=DailyTime(2,9,1).AddSeconds(n);b.Now=time;var instrument=new Instrument(DailyStock.Symbol,Exchange.KRX);var price=n<4?80:79-(n-4);
+            var time=DailyTime(2,9,2).AddSeconds(paperOffsets[n]);b.Now=time;var instrument=new Instrument(DailyStock.Symbol,Exchange.KRX);var price=n<4?80:79-(n-4);
             feeds[1].Events.Writer.TryWrite(new(instrument,EventKind.Trade,time,time,"KIWOOM",200+n*2){TradePrice=price,TradeSize=1000,CumulativeVolume=1000*(n+1),PreviousClose=100});
             feeds[1].Events.Writer.TryWrite(new(instrument,EventKind.Quote,time,time,"KIWOOM",201+n*2){Bid=price,Ask=n<4?81:price,BidSize=1000,AskSize=1000});
             Thread.Sleep(400);Dispatcher.CurrentDispatcher.Invoke(()=>{},DispatcherPriority.Background);
@@ -72,7 +78,7 @@ internal static partial class Program
         multi.Groups[1].Selected=true;Check(multi.SelectedStocks().Length==2&&multi.Groups[0].Selected==true,"group selection checks unique stocks and updates overlapping groups");
         multi.Save();Check(db.State<MultiTradeDrafts>("multi-trade-draft") is {GroupIds.Length:>0} draft&&draft.Rows.Length==2,"batch selection and groups persist as one draft");
         multi.PrepareLaunchMode(true);Check(multi.UseMock&&multi.UseRealtime&&!multi.CanToggleMock&&!multi.CanToggleRealtime&&multi.LaunchContextText.Contains("가상 계좌"),"virtual account entry locks the popup to realtime paper trading");multi.PrepareLaunchMode(null);
-        string? notice=null;var noticeModel=new MultiTradeViewModel(new FixtureMarketData(),db,()=>Task.CompletedTask,_=>Task.CompletedTask,()=>Task.CompletedTask,(_,_)=>new TradingSettings(),()=>"가상 계좌",()=>true,realtimeMockStart:()=>Task.FromException(new InvalidOperationException("실시간 실행은 틱 또는 분 기준만 지원합니다.")),realtimeSupported:()=>true,strategyNames:()=>["전략 A","전략 B"]);noticeModel.NotificationRequested+=message=>notice=message;noticeModel.PrepareLaunchMode(true);noticeModel.Actions["실행"].Execute(null);PumpUntil(()=>notice!=null);Check(noticeModel.Presets.SequenceEqual(new[]{"전략 A","전략 B"})&&notice!.Contains("틱 또는 분"),"dialog actions publish strategy-specific failures for a separate information popup");
+        string? notice=null;var noticeModel=new MultiTradeViewModel(new FixtureMarketData(),db,()=>Task.CompletedTask,_=>Task.CompletedTask,()=>Task.CompletedTask,(_,_)=>new TradingSettings(),()=>"가상 계좌",()=>true,realtimeMockStart:()=>Task.FromException(new InvalidOperationException("실시간 실행은 분봉 또는 시간봉만 지원합니다.")),realtimeSupported:()=>true,strategyNames:()=>["전략 A","전략 B"]);noticeModel.NotificationRequested+=message=>notice=message;noticeModel.PrepareLaunchMode(true);noticeModel.Actions["실행"].Execute(null);PumpUntil(()=>notice!=null);Check(noticeModel.Presets.SequenceEqual(new[]{"전략 A","전략 B"})&&notice!.Contains("분봉 또는 시간봉"),"dialog actions publish strategy-specific failures for a separate information popup");
         if(selectionOnly){var selectedPopup=new MultiTradeDialog(multi){Owner=window,ShowActivated=false,Left=-20000,Top=0,WindowStartupLocation=WindowStartupLocation.Manual};selectedPopup.Show();selectedPopup.UpdateLayout();var editable=Descendants(selectedPopup).OfType<TextBox>().Where(t=>t.GetBindingExpression(TextBox.TextProperty)?.ParentBinding.Path.Path is "Budget" or "TotalBudget" or "DailyLoss").ToArray();var mock=Descendants(selectedPopup).OfType<CheckBox>().Single(c=>Equals(c.Content,"모의 · 실제 주문 없음"));var realtime=Descendants(selectedPopup).OfType<CheckBox>().Single(c=>Equals(c.Content,"실시간"));Check(editable.Length>=4&&editable.All(t=>t.IsEnabled)&&mock.IsEnabled&&realtime.IsEnabled,"per-symbol budgets and separate mock/realtime choices are editable before execution");Render((FrameworkElement)selectedPopup.Content,Path.Combine(output,"multi-trade-dialog.png"));selectedPopup.Close();Check(multi.SelectedStocks().Length==2,"closing and reopening the popup preserves app-level selection");window.DataContext=old;vm.Dispose();return;}
         vm.Actions["검색"].Execute(null);PumpUntil(()=>!vm.Busy);vm.From=new(2025,1,1);vm.To=new(2025,8,20);vm.RecurringAmount="100,000";vm.RecurringInitial="3,000,000";vm.RecurringFee="0.015";vm.Actions["정기매수실행"].Execute(null);PumpUntil(()=>!vm.Busy);
         var originalWidth=window.Width;var originalHeight=window.Height;var heights=new List<double>();

@@ -75,8 +75,8 @@ public sealed partial class WorkspaceViewModel
     {
         if(!RealtimeMockSupported||credentials==null||!MultiTrading.UseMock||!MultiTrading.UseRealtime)throw new InvalidOperationException("키움 국내 실제 시세 연결과 모의·실시간 체크를 확인하세요.");
         if(MultiSessionExists)throw new InvalidOperationException("이전 다중매매를 전체 중지한 뒤 시작하세요.");
-        if(ScreenDaily)throw new InvalidOperationException("전략 설정의 데이터 기준에서 틱 또는 분을 선택하세요. 일봉은 실시간 전략 실행 기준으로 사용할 수 없습니다.");
-        var spec=BarSpecification.Parse(ScreenBarValue,ScreenBarUnit switch{"틱"=>BarUnit.Tick,"분"=>BarUnit.Minute,_=>throw new InvalidOperationException("실시간 실행은 틱 또는 분 기준만 지원합니다.")});
+        if(ScreenDaily)throw new InvalidOperationException("전략 설정의 데이터 기준에서 분봉 또는 시간봉을 선택하세요. 일봉은 실시간 전략 실행 기준으로 사용할 수 없습니다.");
+        var spec=TimeBarSelection.Parse(ScreenBarValue,ScreenBarUnit);
         var facts=oversoldFacts.Snapshot();
         var now=multiClock();var today=DateOnly.FromDateTime(now.ToOffset(TimeSpan.FromHours(9)).DateTime);
         if(!facts.Sessions.Any(s=>s.Date==today&&now>=s.Open&&now<s.Close))throw new InvalidOperationException("오늘의 검증된 한국 시장 세션이 없습니다.");
@@ -88,7 +88,7 @@ public sealed partial class WorkspaceViewModel
             if(!HistoricalFacts.Tradable(facts.Status(item.Stock.Symbol,today,now))||facts.Risk(item.Stock.Symbol,today,now)!=false)throw new InvalidOperationException(item.Stock.Name+": 오늘의 일반주식·거래정지·관리·위험 상태를 확인할 수 없습니다.");
             var warmup=await ScreeningBars(item.Stock,spec,facts,now,Token);
             if(warmup.Length==0)throw new InvalidOperationException(item.Stock.Name+": 검증된 원본 체결로 만든 준비 봉이 없습니다.");
-            if(warmup.Length>20000)throw new InvalidOperationException(item.Stock.Name+": 준비 봉이 20,000개를 넘습니다. 더 큰 틱/분 기준을 선택하세요.");
+            if(warmup.Length>20000)throw new InvalidOperationException(item.Stock.Name+": 준비 봉이 20,000개를 넘습니다. 더 큰 분/시간 기준을 선택하세요.");
             configured.Add(item with{Oversold=new(LoadMultiOversoldPreset(item.Preset),spec,warmup,facts)});
         }
         plan=plan with{Items=configured.ToArray()};
@@ -121,8 +121,8 @@ public sealed partial class WorkspaceViewModel
     {
         if(!MultiSupported||credentials==null||MultiTrading.UseMock)throw new InvalidOperationException("선택한 키움 국내 실계좌와 모의 해제를 확인하세요.");
         if(MultiSessionExists||session!.AutomationClaimed)throw new InvalidOperationException("이전 다중매매를 전체 중지한 뒤 시작하세요.");
-        if(ScreenDaily)throw new InvalidOperationException("전략 설정의 데이터 기준에서 틱 또는 분을 선택하세요. 일봉으로 실시간 주문하지 않습니다.");
-        var spec=BarSpecification.Parse(ScreenBarValue,ScreenBarUnit switch{"틱"=>BarUnit.Tick,"분"=>BarUnit.Minute,_=>throw new InvalidOperationException("실시간 실행은 틱 또는 분 기준만 지원합니다.")});
+        if(ScreenDaily)throw new InvalidOperationException("전략 설정의 데이터 기준에서 분봉 또는 시간봉을 선택하세요. 일봉으로 실시간 주문하지 않습니다.");
+        var spec=TimeBarSelection.Parse(ScreenBarValue,ScreenBarUnit);
         var facts=oversoldFacts.Snapshot();
         var now=multiClock();var today=DateOnly.FromDateTime(now.ToOffset(TimeSpan.FromHours(9)).DateTime);
         if(!facts.Sessions.Any(s=>s.Date==today&&now>=s.Open&&now<s.Close))throw new InvalidOperationException("오늘의 검증된 한국 시장 세션이 없습니다.");
@@ -134,7 +134,7 @@ public sealed partial class WorkspaceViewModel
             if(!HistoricalFacts.Tradable(facts.Status(item.Stock.Symbol,today,now))||facts.Risk(item.Stock.Symbol,today,now)!=false)throw new InvalidOperationException(item.Stock.Name+": 오늘의 일반주식·거래정지·관리·위험 상태를 확인할 수 없습니다.");
             var warmup=await ScreeningBars(item.Stock,spec,facts,now,Token);
             if(warmup.Length==0)throw new InvalidOperationException(item.Stock.Name+": 검증된 원본 체결로 만든 준비 봉이 없습니다.");
-            if(warmup.Length>20000)throw new InvalidOperationException(item.Stock.Name+": 준비 봉이 20,000개를 넘습니다. 더 큰 틱/분 기준을 선택하세요.");
+            if(warmup.Length>20000)throw new InvalidOperationException(item.Stock.Name+": 준비 봉이 20,000개를 넘습니다. 더 큰 분/시간 기준을 선택하세요.");
             configured.Add(item with{Oversold=new(LoadMultiOversoldPreset(item.Preset),spec,warmup,facts)});
         }
         plan=plan with{Items=configured.ToArray()};

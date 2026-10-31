@@ -5,7 +5,7 @@ using Stock.Core.Trading;
 
 namespace Stock.App;
 
-public sealed record OversoldBacktestRequest(BarDataset Dataset,OversoldConfig Configuration,DateOnly From,DateOnly To,HistoricalFacts Facts);
+public sealed record OversoldBacktestRequest(BarDataset Dataset,OversoldConfig Configuration,DateOnly From,DateOnly To,HistoricalFacts Facts,BarSpecification? BarSpecification=null,StrategyBar[]? StrategyBars=null);
 
 public interface IOversoldBacktestService
 {
@@ -20,15 +20,20 @@ public sealed class OversoldBacktestService:IOversoldBacktestService
     public Task<OversoldResult> RunAsync(OversoldBacktestRequest request,CancellationToken cancellationToken)
     {
         request.Configuration.Validate();request.Facts.Validate();
-        var dataHash=TradingStore.Hash(Serialization.Pack(request.Dataset.CompletedBars));
+        if((request.BarSpecification==null&&request.StrategyBars!=null)||(request.BarSpecification!=null&&request.StrategyBars==null))throw new InvalidOperationException("지정봉 설정과 가격 자료를 함께 전달하세요.");
+        request.BarSpecification?.Validate();var dataHash=request.StrategyBars==null
+            ?TradingStore.Hash(Serialization.Pack(request.Dataset.CompletedBars))
+            :TradingStore.Hash(Serialization.Pack(request.StrategyBars));
         var configHash=TradingStore.Hash(Serialization.Pack(request.Configuration));
         var factsHash=TradingStore.Hash(Serialization.Pack(request.Facts));
-        var key=$"{request.Dataset.Stock.Key}|{request.From:yyyyMMdd}|{request.To:yyyyMMdd}|{dataHash}|{configHash}|{factsHash}";
+        var key=$"{request.Dataset.Stock.Key}|{request.From:yyyyMMdd}|{request.To:yyyyMMdd}|{request.BarSpecification}|{dataHash}|{configHash}|{factsHash}";
         if(cache.TryGetValue(key,out var saved))return Task.FromResult(Serialization.Unpack<OversoldResult>(Serialization.Pack(saved)));
         return Task.Run(()=>
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var result=new OversoldBacktest().Run(request.Dataset,request.Configuration,request.From,request.To,request.Facts,cancellationToken);
+            var result=request.BarSpecification is {} specification
+                ?new OversoldBacktest().Run(request.Dataset.Stock,request.StrategyBars!,specification,request.Configuration,request.From,request.To,request.Facts,cancellationToken)
+                :new OversoldBacktest().Run(request.Dataset,request.Configuration,request.From,request.To,request.Facts,cancellationToken);
             cache[key]=Serialization.Unpack<OversoldResult>(Serialization.Pack(result));
             return result;
         },cancellationToken);

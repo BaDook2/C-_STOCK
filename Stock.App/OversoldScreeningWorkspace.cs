@@ -5,7 +5,6 @@ using Stock.Core.Trading;
 namespace Stock.App;
 public sealed record ScreeningBarPreference(bool Daily,string Value,string Unit);
 public sealed record ScreeningPeriodPreference(DateTime From,DateTime To);
-public sealed record ScreeningBarUnitOption(string Value,string Label);
 public sealed partial class WorkspaceViewModel
 {
     private bool screenDaily=true;private string screenBarValue="1",screenBarUnit="분";
@@ -26,9 +25,10 @@ public sealed partial class WorkspaceViewModel
     public bool ScreenDaily {get=>!IsOnline||screenDaily;set{screenDaily=value;Changed();Changed(nameof(ScreenCustomBars));}}
     public bool ScreenCustomBars {get=>IsOnline&&!screenDaily;set{if(IsOnline)ScreenDaily=!value;else ScreenDaily=true;}}
     public string ScreenBarValue {get=>screenBarValue;set{screenBarValue=value;Changed();}}
-    public string ScreenBarUnit {get=>screenBarUnit;set{screenBarUnit=value;Changed();}}
-    public string[] ScreenBarUnits {get;}=["틱","분","시"];
-    public ScreeningBarUnitOption[] ScreenBarUnitOptions {get;}=[new("틱","틱봉"),new("분","분봉"),new("시","시간봉")];
+    public string ScreenBarUnit {get=>screenBarUnit;set{var normalized=TimeBarSelection.NormalizeUnit(value);if(screenBarUnit==normalized)return;screenBarUnit=normalized;screenBarValue=TimeBarSelection.NormalizeValue(screenBarValue,normalized);Changed();Changed(nameof(ScreenBarValue));Changed(nameof(ScreenBarValues));}}
+    public string[] ScreenBarUnits {get;}=["분","시"];
+    public TimeBarUnitOption[] ScreenBarUnitOptions=>TimeBarSelection.Options;
+    public string[] ScreenBarValues=>TimeBarSelection.Values(ScreenBarUnit);
     public OversoldScreeningRun? LatestScreening {get;private set;}
     private long screeningGeneration;
     private void PublishScreening(OversoldScreeningRun run,bool persist=true)
@@ -38,7 +38,7 @@ public sealed partial class WorkspaceViewModel
     }
     private void InitializeScreeningResults()
     {
-        if(store.State<ScreeningBarPreference>("oversold-screen-bars") is {} saved){screenDaily=saved.Daily;screenBarValue=saved.Value;screenBarUnit=saved.Unit;}
+        if(store.State<ScreeningBarPreference>("oversold-screen-bars") is {} saved){screenDaily=saved.Daily;screenBarUnit=TimeBarSelection.NormalizeUnit(saved.Unit);screenBarValue=TimeBarSelection.NormalizeValue(saved.Value,screenBarUnit);}
         if(store.State<ScreeningPeriodPreference>("oversold-screen-period") is {} period){screenFrom=period.From;screenTo=period.To;}
         if(store.State<string>("oversold-screen-latest") is {} id)LatestScreening=store.State<OversoldScreeningRun>(id);
         Actions["스크리닝결과"]=new(()=>{var dialog=new ScreeningResultDialog(()=>LatestScreening,ScreeningTradeDetails,(stock,run)=>OpenScreeningStock(stock,run));if(System.Windows.Application.Current?.MainWindow is {} owner&&owner.IsVisible)dialog.Owner=owner;dialog.Show();return Task.CompletedTask;},()=>LatestScreening!=null);

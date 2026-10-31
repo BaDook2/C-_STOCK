@@ -56,8 +56,8 @@ public sealed class OversoldLiveStrategy:ITradingStrategy
             if(bucket.Count==spec.Value){Emit(bucket[0].ExchangeTime,e.ExchangeTime,segment);bucket.Clear();}
             return;
         }
-        long span=checked((long)spec.Value*TimeSpan.TicksPerMinute);
-        if(span>(session.Close-session.Open).Ticks){error="시장 세션보다 긴 분봉은 사용할 수 없습니다.";return;}
+        long span=checked((long)spec.Value*(spec.Unit==BarUnit.Hour?TimeSpan.TicksPerHour:TimeSpan.TicksPerMinute));
+        if(span>(session.Close-session.Open).Ticks){error="시장 세션보다 긴 지정 봉은 사용할 수 없습니다.";return;}
         var start=session.Open.AddTicks((e.ExchangeTime-session.Open).Ticks/span*span);var end=start.AddTicks(span);
         if(bucket.Count>0&&start!=bucketStart)
         {

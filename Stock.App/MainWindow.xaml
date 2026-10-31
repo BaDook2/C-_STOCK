@@ -239,6 +239,15 @@
                                                     <DatePicker SelectedDate="{Binding To}" Width="125" />
                                                 </WrapPanel>
                                                 <StackPanel x:Name="BacktestButtons" Grid.Row="1" Orientation="Vertical" VerticalAlignment="Center">
+                                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                                                        <TextBlock Text="지정 봉" Foreground="#6B7684" FontSize="14" VerticalAlignment="Center"/>
+                                                        <RadioButton Content="일봉" GroupName="BacktestBar" IsChecked="{Binding BacktestDaily}" Margin="22,0,0,0" VerticalAlignment="Center" ToolTip="공개 일봉으로 백테스트합니다."/>
+                                                        <StackPanel Orientation="Horizontal" Margin="14,0,0,0" Visibility="{Binding IsOnline,Converter={StaticResource Visible}}" IsEnabled="{Binding CanUseMinutes}">
+                                                            <RadioButton Content="지정 봉" GroupName="BacktestBar" IsChecked="{Binding BacktestCustomBars}" VerticalAlignment="Center" ToolTip="연결 증권사의 공식 과거 분봉으로 분봉 또는 시간봉을 구성해 백테스트합니다."/>
+                                                            <ComboBox ItemsSource="{Binding BacktestBarValues}" SelectedItem="{Binding BacktestBarValue}" Width="64" Margin="8,0,4,0" IsEnabled="{Binding BacktestCustomBars}" ToolTip="분봉은 1~59, 시간봉은 1~12 중에서 선택합니다."/>
+                                                            <ComboBox ItemsSource="{Binding BacktestBarUnitOptions}" SelectedValue="{Binding BacktestBarUnit}" SelectedValuePath="Value" DisplayMemberPath="Label" Width="88" IsEnabled="{Binding BacktestCustomBars}" ToolTip="백테스트할 지정 봉의 단위를 선택합니다."/>
+                                                        </StackPanel>
+                                                    </StackPanel>
                                                     <StackPanel Orientation="Horizontal">
                                                         <TextBlock Text="전략" Foreground="#6B7684" FontSize="14" 
                                                                    VerticalAlignment="Center"/>
@@ -248,14 +257,14 @@
                                                     <Button
                                                         Margin="0,20,0,0"
                                                         Width="280"
-                                                        Content="백테스트" Command="{Binding Actions[백테스트]}" ToolTip="선택한 전략을 지정 기간의 일봉에 적용합니다." Padding="8,8"/>
+                                                        Content="백테스트" Command="{Binding Actions[백테스트]}" ToolTip="선택한 전략을 지정 기간의 일봉 또는 선택한 공식 분봉에 적용합니다." Padding="8,8"/>
                                                 </StackPanel>
                                             </Grid>
                                         </Border>
                                         <Border x:Name="InlineTestResult" BorderBrush="#E5E8EB" BorderThickness="1" CornerRadius="12" Padding="12" Margin="0,12,0,0">
                                             <StackPanel>
                                                 <TextBlock Text="{Binding SelectedOversoldPreset}" FontWeight="Bold" FontSize="14"/>
-                                                <TextBlock Text="선택한 저장 전략 · 위 기간의 일봉으로 실행" Foreground="#6B7684" TextWrapping="Wrap" FontSize="14" Margin="0,6"/>
+                                                <TextBlock Text="{Binding BacktestBarDescription}" Foreground="#6B7684" TextWrapping="Wrap" FontSize="14" Margin="0,6"/>
                                                 <TextBlock Text="{Binding OversoldResultSummary}" TextWrapping="Wrap" Margin="0,8"/>
                                                 <ItemsControl ItemsSource="{Binding OversoldCards}">
                                                     <ItemsControl.ItemTemplate>
@@ -353,8 +362,8 @@
                                 <RadioButton Content="일봉" GroupName="ScreenBars" IsChecked="{Binding ScreenDaily}" VerticalAlignment="Center" />
                                 <StackPanel x:Name="ScreenCustomBarOptions" Orientation="Horizontal" Visibility="{Binding IsOnline,Converter={StaticResource Visible}}">
                                     <RadioButton Content="지정 봉" GroupName="ScreenBars" IsChecked="{Binding ScreenCustomBars}" VerticalAlignment="Center" />
-                                    <TextBox Text="{Binding ScreenBarValue,UpdateSourceTrigger=PropertyChanged}" Width="90" IsEnabled="{Binding ScreenCustomBars}" ToolTip="임의 양의 정수. 각 지표의 기간은 선택한 봉 개수입니다." />
-                                    <ComboBox ItemsSource="{Binding ScreenBarUnitOptions}" SelectedValue="{Binding ScreenBarUnit}" SelectedValuePath="Value" DisplayMemberPath="Label" Width="90" IsEnabled="{Binding ScreenCustomBars}" ToolTip="온라인 연결에서 틱봉·분봉·시간봉을 선택합니다." />
+                                    <ComboBox ItemsSource="{Binding ScreenBarValues}" SelectedItem="{Binding ScreenBarValue}" Width="72" IsEnabled="{Binding ScreenCustomBars}" ToolTip="분봉은 1~59, 시간봉은 1~12 중에서 선택합니다." />
+                                    <ComboBox ItemsSource="{Binding ScreenBarUnitOptions}" SelectedValue="{Binding ScreenBarUnit}" SelectedValuePath="Value" DisplayMemberPath="Label" Width="90" IsEnabled="{Binding ScreenCustomBars}" ToolTip="온라인 연결에서 분봉 또는 시간봉을 선택합니다." />
                                 </StackPanel>
                                 <StackPanel Orientation="Horizontal">
                                     <TextBlock Text="시작일" VerticalAlignment="Center" Margin="10,0,4,0"/>

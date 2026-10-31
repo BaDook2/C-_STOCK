@@ -148,3 +148,11 @@ CurrentOversoldScreening은 과거 엔진의 기술적 계산을 재사용하면
 - `WorkspaceViewModel.ScreeningBars`의 작은 기간 캐시는 스크리닝 직후 상세 차트를 열 때 같은 네트워크 범위를 다시 받지 않게 한다. 캐시는 최대 128개, 유효기간 2분이며 원본 저장소를 대체하지 않는다.
 - 상세 차트는 immutable screening snapshot의 시작일~종료일로 봉과 모든 체결 표식을 함께 자른다.
 
+# 2026-10-24 전략 백테스트 지정 분봉
+
+- `WorkspaceViewModel.RunOversold`는 UI의 일봉/지정 N분 선택을 독립된 `OversoldBacktestBarPreference`로 보관한다. 분봉은 온라인 국내 계좌의 `ScreeningBars` 범위 조회·캐시를 재사용하며 필요한 최대 지표 기간만큼 시작일 이전 준비 봉을 함께 요청한다.
+- `OversoldBacktestService`가 일봉과 분봉의 단일 App 진입점이다. 캐시 키에는 `BarSpecification`과 실제 `StrategyBar` 해시가 포함되어 서로 다른 봉이나 자료를 혼용하지 않는다.
+- Core의 `OversoldBacktest` 분봉 overload는 완성 봉만 받아 `ClosedAt`에서 판단하고 다음 행의 `OpenTime`·Open 가격으로 체결한다. Pivot ID는 시각+순서를 사용하고 지표 기간은 봉 수, 보유·재진입 기간은 거래일 수로 계산한다.
+- 분봉 결과와 실제 표시 봉은 일봉 snapshot과 같은 해시 기반 state에 저장된다. 선택한 과거 결과를 다시 표시할 때 저장된 봉 규격·봉 배열·체결시각을 함께 복원한다.
+- 조회와 엔진 계산은 취소 가능한 비동기 경로다. 키움 OHLCV 분봉의 체결대금은 명시적으로 추정 자료로 표기하며, 실계좌 주문 경로를 변경하지 않는다.
+

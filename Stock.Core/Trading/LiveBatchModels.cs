@@ -30,9 +30,8 @@ public static class LiveBatchSupport
         if(item.Settings.Execution.Retry||item.Settings.Risk.FlattenOnStop)return "자동 재주문 또는 중지 시 강제청산은 지원하지 않습니다.";
         item.Oversold.Configuration.Validate();item.Oversold.BarSpecification.Validate();item.Oversold.Facts.Validate();
         if(!item.Oversold.Configuration.UseEmergencyStop)return "실계좌 실행에는 낙주 비상 손절이 필요합니다.";
-        if(item.Oversold.BarSpecification.Unit==Stock.Core.Research.Oversold.BarUnit.Hour)return "시간봉은 실시간 주문에서 지원하지 않습니다.";
         if(item.Oversold.Warmup.Length==0||item.Oversold.Warmup.Any(b=>!b.Price.IsComplete||b.TradingValue==null||b.TradingValue<0))return "실제 거래대금이 있는 확정 준비 봉이 필요합니다.";
-        if(item.Oversold.Warmup.Length>20000)return "준비 봉이 20,000개를 넘습니다. 더 큰 틱/분 기준을 선택하세요.";
+        if(item.Oversold.Warmup.Length>20000)return "준비 봉이 20,000개를 넘습니다. 더 큰 분/시간 기준을 선택하세요.";
         return null;
     }
     public static string? Reason(StockItem stock,TradingSettings settings)

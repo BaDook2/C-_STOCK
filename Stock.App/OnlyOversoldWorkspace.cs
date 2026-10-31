@@ -44,7 +44,7 @@ public sealed partial class WorkspaceViewModel
         activeOversoldPreset=store.State<string>(ActiveOversoldPresetKey);if(activeOversoldPreset==null||!Presets.Contains(activeOversoldPreset))activeOversoldPreset=Presets[0];
         if(store.State<OversoldConfig>(OversoldPresetPrefix+activeOversoldPreset)==null)store.State(OversoldPresetPrefix+activeOversoldPreset,oversoldConfig.Clone());
         selectedOversoldPreset=activeOversoldPreset;Preset=activeOversoldPreset;
-        Add("백테스트",RunOversold,()=>CanConfigure&&dataset?.Stock.Exchange==Exchange.KRX&&!IsTick);
+        Add("백테스트",RunOversold,()=>CanConfigure&&dataset?.Stock.Exchange==Exchange.KRX&&(BacktestDaily||CanUseMinutes));
         Add("연습시작",StartPractice,()=>CanConfigure&&IsOffline&&dataset!=null&&!IsTick);
         Add("스크리닝",ScreenOversold,()=>CanConfigure);
         Add("결과열기",()=>SelectedMatch==null?Task.CompletedTask:OpenScreeningStock(SelectedMatch.Stock),()=>CanConfigure&&SelectedMatch!=null);
@@ -77,7 +77,7 @@ public sealed partial class WorkspaceViewModel
     }
     private async Task ScreenOversold()
     {
-        var (first,last)=ScreenPeriod();var spec=ScreenDaily?null:BarSpecification.Parse(ScreenBarValue,ScreenBarUnit switch{"틱"=>BarUnit.Tick,"분"=>BarUnit.Minute,"시"=>BarUnit.Hour,_=>throw new InvalidOperationException("틱/분/시를 선택하세요.")});SaveOversold(!ScreenDaily);var cfg=oversoldConfig.Clone();var facts=oversoldFacts.Snapshot();StockItem[] items;string source;
+        var (first,last)=ScreenPeriod();var spec=ScreenDaily?null:TimeBarSelection.Parse(ScreenBarValue,ScreenBarUnit);SaveOversold(!ScreenDaily);var cfg=oversoldConfig.Clone();var facts=oversoldFacts.Snapshot();StockItem[] items;string source;
         if(ScreenWatchlist)
         {
             var groups=WatchGroups.Where(g=>g.IncludeInScreening).ToArray();if(groups.Length==0)throw new InvalidOperationException("스크리닝할 관심그룹을 하나 이상 선택하세요.");store.State("screen-watch-groups",groups.Select(g=>g.Id).ToArray());

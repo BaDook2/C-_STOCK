@@ -24,5 +24,13 @@ internal static partial class Program
         Check(broken.Evaluate(brokenContext).Buy==true,"verified tick segment yields the next-tick entry signal");
         var gap=Event(3) with{CumulativeVolume=100};broken.OnMarket(gap);brokenContext.Add(gap);
         Check(broken.Evaluate(brokenContext).Buy==null&&broken.Snapshot==null,"cumulative gap invalidates pending live signal before any order");
+        var minute=new OversoldLiveStrategy(stock,new(c,new(1,BarUnit.Minute),warm,facts));var minuteContext=new MarketContext(stock,settings);long minuteSequence=50;
+        MarketEvent MinuteEvent(int second,decimal price,decimal cumulative){var time=DailyTime(2,9,0).AddSeconds(second);return new(stock,EventKind.Trade,time,time,"TEST_MINUTE",++minuteSequence){TradePrice=price,TradeSize=10,CumulativeVolume=cumulative};}
+        foreach(var trade in new[]{MinuteEvent(0,100,10),MinuteEvent(59,80,20),MinuteEvent(60,80,30),MinuteEvent(61,80,40)}){minute.OnMarket(trade);minuteContext.Add(trade);}
+        Check(minute.Evaluate(minuteContext).Buy==true&&minute.Snapshot?.SignalTime==DailyTime(2,9,1),"one-minute live strategy closes the session-aligned minute and releases its signal only on a later trade");
+        var hourly=new OversoldLiveStrategy(stock,new(c,new(1,BarUnit.Hour),warm,facts));var hourContext=new MarketContext(stock,settings);long hourSequence=100;
+        MarketEvent HourEvent(int minute,int second,decimal price,decimal cumulative){var time=DailyTime(2,9,0).AddMinutes(minute).AddSeconds(second);return new(stock,EventKind.Trade,time,time,"TEST_HOUR",++hourSequence){TradePrice=price,TradeSize=10,CumulativeVolume=cumulative};}
+        foreach(var trade in new[]{HourEvent(0,0,100,10),HourEvent(59,59,80,20),HourEvent(60,0,80,30),HourEvent(60,1,80,40)}){hourly.OnMarket(trade);hourContext.Add(trade);}
+        Check(hourly.Evaluate(hourContext).Buy==true&&hourly.Snapshot?.SignalTime==DailyTime(2,10,0),"one-hour live strategy closes the session-aligned hour and releases its signal only on a later trade");
     }
 }

@@ -1,0 +1,77 @@
+name: Windows single-file release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v7
+
+      - name: Install .NET 10 SDK
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Restore
+        run: dotnet restore Stock.sln
+
+      - name: Build
+        run: dotnet build Stock.sln -c Release --no-restore -p:UseSharedCompilation=false
+
+      - name: Run complete offline test suite
+        shell: pwsh
+        run: |
+          $testExe = Resolve-Path "Stock.Tests/bin/Release/net10.0-windows10.0.19041.0/Stock.Tests.exe"
+          & $testExe (Join-Path $env:RUNNER_TEMP "stock-tests")
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Publish self-contained Stock.exe
+        run: >-
+          dotnet publish Stock.App/Stock.App.csproj
+          -c Release
+          -p:PublishProfile=Win64
+          -p:UseSharedCompilation=false
+          -o release
+
+      - name: Smoke-test published EXE
+        shell: pwsh
+        run: |
+          $exe = Resolve-Path "release/Stock.exe"
+          $result = Join-Path $env:RUNNER_TEMP "stock-release-smoke"
+          $process = Start-Process -FilePath $exe -ArgumentList @("--smoke-test", $result) -WindowStyle Hidden -Wait -PassThru
+          if ($process.ExitCode -ne 0) {
+            if (Test-Path (Join-Path $result "result.json")) { Get-Content (Join-Path $result "result.json") }
+            exit $process.ExitCode
+          }
+          $smoke = Get-Content (Join-Path $result "result.json") -Raw | ConvertFrom-Json
+          if (!$smoke.Success -or !$smoke.NoBrokerCalls) { throw "Published EXE smoke test failed or attempted a broker call." }
+
+      - name: Write SHA256 checksum
+        shell: pwsh
+        run: |
+          $hash = (Get-FileHash "release/Stock.exe" -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  Stock.exe" | Set-Content "release/Stock.exe.sha256" -Encoding ascii
+          Get-Content "release/Stock.exe.sha256"
+
+      - name: Create or update GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = "${{ github.ref_name }}"
+          gh release view $tag *> $null
+          if ($LASTEXITCODE -eq 0) {
+            gh release upload $tag "release/Stock.exe" "release/Stock.exe.sha256" --clobber
+          } else {
+            gh release create $tag "release/Stock.exe" "release/Stock.exe.sha256" --verify-tag --generate-notes --title "Stock $tag"
+          }

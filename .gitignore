@@ -5,6 +5,7 @@
 *.secrets.*
 artifacts/
 publish/
+release/
 TestResults/
 *.trx
 *.pdb
