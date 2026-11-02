@@ -49,7 +49,8 @@ public sealed partial class WorkspaceViewModel
     {
         captureTimer=new DispatcherTimer{Interval=LiveChartRefreshInterval};captureTimer.Tick+=(_,_)=>{FlushCapturedTicks();RefreshLiveChart();};captureTimer.Start();alert=popup??(_=>{});if(factory!=null)createBroker=factory;
         foreach(var row in store.States("chart-run:"))try{var r=Serialization.Unpack<SavedBacktest>(row.Json);r.Id=row.Key;History.Add(r);}catch{ /* A damaged legacy record must not hide other records. */ }
-        SelectedRun=History.FirstOrDefault();
+        // History is retained, but no previous run is selected automatically on startup.
+        SelectedRun=null;
         InitializeWatchlist();Replace(VisibleIndices,domesticIndices);
         tickSettings=store.State<TradingSettings>("image-tick-settings")??new TradingSettings{Scalping=new(){Enabled=false},Box=new(){Enabled=false},Rebound=new(){Enabled=false}};
         InitializeRecurring();InitializeOversold();

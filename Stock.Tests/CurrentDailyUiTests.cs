@@ -22,7 +22,7 @@ internal static partial class Program
         }
         public Task<DailySecurityStatus?> CurrentSecurity(StockItem stock,CancellationToken token)=>Task.FromResult<DailySecurityStatus?>(null);
         public Task<CurrentMarketSnapshot> Current(StockItem stock,CancellationToken token)
-        {QuoteCalls++;return Task.FromResult(new CurrentMarketSnapshot(stock,new(stock.Name,85,-15,-15,Now,"OPEN"),Now,100,110,79,12345,100001,"TEST_FIXTURE · 공개 지연",TimeSpan.FromSeconds(7)));}
+        {QuoteCalls++;return Task.FromResult(new CurrentMarketSnapshot(stock,new(stock.Name,85,-15,-15,Now,"OPEN"),Now,100,110,79,12345,100001,"TEST_FIXTURE · 공개 지연",TimeSpan.FromSeconds(3)));}
     }
     private static void CurrentDailyUiTests(MainWindow window,string output)
     {
@@ -34,7 +34,7 @@ internal static partial class Program
         var liveDailyChange=vm.ChangeText;
         vm.WeeklySelected=true;Check(vm.ChartBars[^1].Close==85&&vm.PriceText.Contains("85")&&vm.ChangeText==liveDailyChange,"weekly view keeps the live header change anchored to the previous daily close");
         vm.MonthlySelected=true;Check(vm.ChartBars[^1].Close==85&&vm.ChangeText==liveDailyChange,"monthly view keeps the same previous-close change instead of comparing monthly candles");vm.DailySelected=true;
-        Check(vm.PriceDate.Contains("시세")&&vm.PriceDate.Contains("진행 중")&&vm.DataInfo.Contains("조회 7초")&&!vm.PriceDate.Contains("15:30"),"header distinguishes quote observation from fixed daily close axis");
+        Check(vm.PriceDate.Contains("시세")&&vm.PriceDate.Contains("진행 중")&&vm.DataInfo.Contains("조회 3초")&&!vm.PriceDate.Contains("15:30"),"header distinguishes quote observation from fixed daily close axis and shows the offline three-second cadence");
         Check(provider.HistoryCalls==1&&provider.QuoteCalls==1,"live display refresh never downloads full history each second");
         var quoteDate=DateOnly.FromDateTime(provider.Now.ToOffset(TimeSpan.FromHours(9)).Date);vm.From=quoteDate.AddDays(-20).ToDateTime(TimeOnly.MinValue);vm.To=quoteDate.AddDays(-10).ToDateTime(TimeOnly.MinValue);Do("낙주백테스트");
         typeof(WorkspaceViewModel).GetMethod("RefreshDailyDisplay",BindingFlags.NonPublic|BindingFlags.Instance)!.Invoke(vm,null);

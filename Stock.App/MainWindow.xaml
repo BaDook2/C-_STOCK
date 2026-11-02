@@ -79,7 +79,7 @@
                                     <WrapPanel ToolTip="{Binding StockDetail}">
                                         <TextBlock Text="{Binding StockName}" FontSize="21" FontWeight="Bold"/>
                                         <TextBlock Text="{Binding StockCode}" Foreground="#8B95A1" Margin="8,6"/>
-                                        <Button Content="원본 1틱" Command="{Binding Actions[원본틱]}" Style="{StaticResource Secondary}" Padding="6,4"/>
+                                        <!-- 원본 틱은 전략/매매 엔진 내부에서 유지하되 화면 탐색 기능은 노출하지 않습니다. -->
                                     </WrapPanel>
                                     <TextBlock Text="{Binding PriceText}" FontSize="28" FontWeight="Bold" Foreground="{Binding PriceColor}"/>
                                     <TextBlock Text="{Binding ChangeText}" Foreground="{Binding PriceColor}"/>
@@ -134,13 +134,12 @@
                                 <StackPanel 
                                     Margin="140,0,0,0"
                                     Orientation="Horizontal" IsEnabled="{Binding CanConfigure}">
-                                    <ComboBox Width="30" ItemsSource="{Binding TickIntervals}" SelectedItem="{Binding SelectedTickInterval}" IsEnabled="{Binding CanUseIntraday}" ToolTip="{Binding IntradayHelp}" ToolTipService.ShowOnDisabled="True"  Margin="2" Tag="틱"/>
+                                    <!-- 표시용 틱 선택기는 숨기고 분봉·일봉·주봉·월봉만 제공합니다. -->
                                     <ComboBox Width="30" ItemsSource="{Binding MinuteIntervals}" SelectedItem="{Binding SelectedMinuteInterval}" IsEnabled="{Binding CanUseMinutes}" ToolTip="{Binding IntradayHelp}" ToolTipService.ShowOnDisabled="True"  Margin="2" Tag="분"/>
                                     <RadioButton Content="일봉" GroupName="ChartPeriod" IsChecked="{Binding DailySelected}" Padding="6,5"/>
                                     <RadioButton Content="주봉" GroupName="ChartPeriod" IsChecked="{Binding WeeklySelected}" Padding="6,5"/>
                                     <RadioButton Content="월봉" GroupName="ChartPeriod" IsChecked="{Binding MonthlySelected}" Padding="6,5"/>
                                 </StackPanel>
-                                <TextBlock Visibility="{Binding IsTick,Converter={StaticResource Visible}}" Text="{Binding TickStatus}" FontSize="10" Foreground="#6B7684" TextWrapping="Wrap"/>
                             </StackPanel>
                             <Grid Grid.Row="2">
                                 <local:CandleChart x:Name="PriceChart" EmptyMessage="{Binding ChartMessage}" TradeMarkers="{Binding DisplayTradeMarkers}" EquityCurve="{Binding ChartEquity}" DisplayBarCount="{Binding ChartWindowCount}" Period="{Binding ChartPeriod}" Bars="{Binding ChartBars}" MovingAverages="{Binding ShowMa}" Ichimoku="{Binding ShowCloud}" FastPeriod="5" SlowPeriod="20" Margin="0,8,0,4" />
@@ -198,25 +197,8 @@
                                         <TextBlock Text="{Binding VirtualTradingHelp}" Foreground="#6B7684" TextWrapping="Wrap" Margin="0,8,0,10" />
                                         <TextBlock Text="{Binding MultiStatus}" TextWrapping="Wrap" Foreground="#3182F6"/>
                                         <Button Content="가상 전략매매 전체 중지" Click="MultiStopClick" IsEnabled="{Binding MultiSessionExists}" Style="{StaticResource Secondary}" Margin="0,8,0,14"/>
-                                        <StackPanel Visibility="{Binding IsOffline,Converter={StaticResource Visible}}">
-                                            <TextBlock Text="가상 시작 금액 · 종목 통화" Foreground="#6B7684" />
-                                            <TextBox Text="{Binding Capital}" Margin="0,8,0,14" IsEnabled="{Binding CanConfigure}" />
-                                            <TextBlock Text="{Binding PaperSummary}" TextWrapping="Wrap" LineHeight="23" Margin="0,0,0,15" />
-                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Stretch">
-                                                <Button Content="{Binding NextStepCaption}" ToolTip="다음 거래일로 진행하고 대기 중인 가상 주문을 시가 기준으로 처리합니다." Command="{Binding Actions[다음]}" Style="{StaticResource Secondary}" />
-                                                <Button Margin="44,0,0,0" Content="▶" Command="{Binding Actions[재생]}" Padding="12,10" />
-                                                <Button Margin="44,0,0,0" Content="일시정지" Command="{Binding Actions[정지]}" Padding="12,10" Style="{StaticResource Secondary}" />
-                                            </StackPanel>
-                                            <TextBlock Text="주문 수량" Foreground="#6B7684" Margin="0,14,0,0" />
-                                            <TextBox Text="{Binding Quantity}" Margin="0,8,0,12" />
-                                            <Grid>
-                                                <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
-                                                <Button Content="가상 매수" Command="{Binding Actions[매수]}" Background="#F04452" />
-                                                <Button Grid.Column="1" Content="가상 매도" Command="{Binding Actions[매도]}" />
-                                            </Grid>
-                                            <Button Content="가상 대기 주문 취소" Command="{Binding Actions[주문취소]}" Style="{StaticResource Secondary}" Margin="0,10,0,12" />
-                                            <TextBlock Text="오프라인 가상 주문은 확정 일봉 판단 후 다음 시가로 체결됩니다." FontSize="14" Foreground="#8B95A1" TextWrapping="Wrap"/>
-                                        </StackPanel>
+                                        <!-- 오프라인 전용 일봉 재생/수동 가상주문 UI는 제거했습니다.
+                                             온라인과 동일한 실시간 가상 전략매매 상태·중지 UI만 공통으로 사용합니다. -->
                                     </StackPanel>
                                 </ScrollViewer>
                             </TabItem>
@@ -627,7 +609,7 @@
                     </DockPanel>
                 </Border>
             </TabItem>
-            <TabItem Header="원본 틱">
+            <TabItem Header="원본 틱" Visibility="Collapsed" IsEnabled="False">
                 <local:RawTickChartView DataContext="{Binding RawTicks}" />
             </TabItem>
         </TabControl>

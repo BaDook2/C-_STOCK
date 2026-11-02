@@ -14,6 +14,8 @@ public interface ICurrentMarketData
 /// <summary>One in-flight read, provider-aware throttling, injectable clock and latest-generation delivery.</summary>
 public sealed class SelectedQuotePump(ICurrentMarketData source,TimeProvider? clock=null):IDisposable
 {
+    public static readonly TimeSpan MinimumInterval=TimeSpan.FromSeconds(1);
+    public static readonly TimeSpan MaximumInterval=TimeSpan.FromSeconds(3);
     private readonly TimeProvider time=clock??TimeProvider.System;
     private readonly SemaphoreSlim gate=new(1,1);
     private CancellationTokenSource? cancellation;
@@ -41,8 +43,7 @@ public sealed class SelectedQuotePump(ICurrentMarketData source,TimeProvider? cl
                     if(version!=generation||stop.IsCancellationRequested)return;
                     if(snapshot.Stock.Key!=stock.Key)throw new InvalidOperationException("종목 응답 불일치");
                     update(snapshot);failures=0;
-                    interval=snapshot.PollInterval<TimeSpan.FromSeconds(1)?TimeSpan.FromSeconds(1):snapshot.PollInterval;
-                    if(snapshot.Quote.State!="OPEN")interval=TimeSpan.FromSeconds(Math.Max(30,interval.TotalSeconds));
+                    interval=snapshot.PollInterval<MinimumInterval?MinimumInterval:snapshot.PollInterval>MaximumInterval?MaximumInterval:snapshot.PollInterval;
                 }
                 catch(OperationCanceledException) when(stop.IsCancellationRequested){return;}
                 catch{if(version!=generation)return;failures++;interval=TimeSpan.FromSeconds(Math.Min(120,Math.Max(interval.TotalSeconds,Math.Pow(2,Math.Min(failures,6))*7)));error($"갱신 실패 · {interval.TotalSeconds:N0}초 후 재시도 · 이전 관측값 유지");}

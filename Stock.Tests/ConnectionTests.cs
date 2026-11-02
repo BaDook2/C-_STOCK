@@ -67,6 +67,8 @@ internal static partial class Program
         using var store=new TradingStore(Path.Combine(Dir,"new-ui.db"));var market=new CountingMarket();using var vm=new WorkspaceViewModel(_=>true,provider:market,store:store);var previous=window.DataContext;window.DataContext=vm;vm.ActiveTab=0;window.UpdateLayout();
         var workspaceTabs=((TabControl)window.FindName("WorkspaceTools")).Items.OfType<TabItem>().ToArray();var actualTab=workspaceTabs.Single(t=>Equals(t.Header,"실제 계좌 주문"));var virtualTab=workspaceTabs.Single(t=>Equals(t.Header,"가상 계좌 주문"));
         Check(actualTab.Visibility==Visibility.Collapsed&&virtualTab.Visibility==Visibility.Visible&&vm.WorkspaceToolTab==1,"offline mode hides actual account orders and opens the virtual account tab");
+        window.UpdateLayout();var visibleButtons=Descendants(window).OfType<Button>().ToArray();
+        Check(visibleButtons.Any(b=>Equals(b.Content,"실시간 가상 전략매매 설정"))&&!visibleButtons.Any(b=>Equals(b.Content,"가상 매수")||Equals(b.Content,"가상 매도")||Equals(b.Content,"가상 대기 주문 취소")),"offline virtual account uses the same realtime strategy controls and removes the legacy day-step manual account");
         var search=(TextBox)window.FindName("StockSearch");search.Text="삼성전자";search.RaiseEvent(new KeyEventArgs(Keyboard.PrimaryDevice,PresentationSource.FromVisual(window),0,Key.Return){RoutedEvent=Keyboard.KeyUpEvent});PumpUntil(()=>!vm.Busy);
         Check(market.Searches==1&&vm.SearchResults.Count>0,"Enter in stock name input searches once");
         var list=(ListBox)window.FindName("StockSearchResults");window.UpdateLayout();var row=(ListBoxItem)list.ItemContainerGenerator.ContainerFromIndex(0);

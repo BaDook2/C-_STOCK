@@ -1,4 +1,20 @@
-# 최신 상태 — 2026-10-31 GitHub v0.1.4 Release 게시 완료
+# 최신 상태 — 2026-11-02 차트 초기화·오프라인 시세·가상계좌 UI·틱 표시 숨김
+
+백테스트 실행 직후에는 현재 실행 결과와 매수·매도 표식을 보여주지만, 같은 종목을 다시 검색하거나 다른 종목을 선택하거나 앱을 재시작하면 차트의 백테스트 선택·표시·기간을 초기화한다. 저장된 테스트 기록은 유지하므로 사용자가 테스트 기록에서 명시적으로 다시 선택할 수 있다.
+
+오프라인 선택 종목 공개 시세는 3초마다 확인하고 화면 및 진행 일봉은 1초 UI 주기로 반영한다. 2026-11-02 장중 삼성전자 실제 앱에서 서버 관측 `09:32:00 → 09:32:06 → 09:32:12`, 수신 `09:32:05 → 09:32:11 → 09:32:17`, 가격 `221,000원 → 221,250원` 변화를 확인했다. 제공처가 새 시세를 약 6초 간격으로 낸 구간에도 앱은 3초 확인을 계속했다.
+
+오프라인 가상계좌 탭은 온라인과 동일한 실시간 가상 전략 상태·설정·전체 중지 UI를 사용한다. 연결된 실시간 시세가 없는 오프라인에서는 시작을 비활성화한다. 구형 일봉 재생·수동 가상 주문 UI와 표시 전용 틱 선택기·원본 1틱 버튼·원본 틱 탭은 숨겼고, 실시간 전략/가상체결에 필요한 원본 체결 처리와 저장 호환 모델은 유지했다.
+
+Release 빌드 경고0/오류0, 현재시세 대상 107개, WPF UI smoke 404개, 전체 회귀 1,080개를 통과했다. 게시본 `artifacts/v015-final-publish/Stock.exe`는 80,759,672 bytes, SHA256 `10E8B231441E1E6AF58DFB4793FAD49BEB54B5AEAE65D0A77851063A61631F2D`이고 단독 smoke는 `Success/NoBrokerCalls=true`다. GitHub `v0.1.5` 배포와 공개 자산 재검증은 아직 남아 있다. 실제 브로커 호출·계좌 거래는 수행하지 않았다.
+
+# 이전 상태 — 2026-11-02 GitHub Release 계좌 키 포함 여부 점검
+
+공개 `v0.1.4/Stock.exe`와 실제 로컬 DPAPI 저장소의 키움·토스 App Key/Secret을 값 노출 없이 필드별로 비교했다. 네 값 모두 공개 EXE 원시 바이트, 현재 Git 추적 파일, 전체 Git 패치 이력 및 삭제된 파일·바이너리를 포함한 모든 Git 객체에서 정확 일치 0건이다. Release workflow는 깨끗한 GitHub runner checkout에서 빌드하며 개인 키를 받지 않고 업로드용 `github.token`만 사용한다.
+
+다운로드한 EXE에서 기존 키가 보이는 것은 같은 PC/Windows 계정의 `%LOCALAPPDATA%\StockPaperTrading\KiwoomQuant\broker-keys`에 있던 `*.protected` DPAPI 암호문을 새 EXE도 읽기 때문이다. 키 파일은 EXE 옆이나 GitHub Release에 포함되지 않는다. 실제 키 값은 명령 출력·TASKS·HANDOFF 어디에도 기록하지 않았다.
+
+# 이전 상태 — 2026-10-31 GitHub v0.1.4 Release 게시 완료
 
 `v0.1.4` 태그와 Release를 GitHub에 게시했다. Actions run `41174068757`은 Build, 전체 오프라인 회귀 1,077개, self-contained 단일 EXE 게시, 게시 EXE smoke, SHA256 작성, Release 업로드를 모두 통과했다. Release URL은 `https://github.com/BaDook2/C-_STOCK/releases/tag/v0.1.4`다.
 

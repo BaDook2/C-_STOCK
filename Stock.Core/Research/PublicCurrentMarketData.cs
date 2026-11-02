@@ -39,7 +39,7 @@ public sealed partial class PublicMarketData
             var text=values.EnumerateArray().FirstOrDefault(v=>Text(v,"code")==code);
             return text.ValueKind==JsonValueKind.Object?Number(Text(text,"value")):null;
         }
-        return new(stock,quote,DateTimeOffset.UtcNow,Info("openPrice"),Info("highPrice"),Info("lowPrice"),Info("accumulatedTradingVolume"),null,"네이버 해외 공개 시세 · 지연 가능",TimeSpan.FromSeconds(7));
+        return new(stock,quote,DateTimeOffset.UtcNow,Info("openPrice"),Info("highPrice"),Info("lowPrice"),Info("accumulatedTradingVolume"),null,"네이버 해외 공개 시세 · 지연 가능",SelectedQuotePump.MaximumInterval);
     }
     private static decimal? Number(string value)=>decimal.TryParse(value,NumberStyles.Number,CultureInfo.InvariantCulture,out var n)?n:null;
     public static CurrentMarketSnapshot ParseCurrentPoll(StockItem stock,JsonElement root,DateTimeOffset received)
@@ -51,7 +51,9 @@ public sealed partial class PublicMarketData
         var observed=DateTimeOffset.FromUnixTimeMilliseconds(result.GetProperty("time").GetInt64());
         var quote=new MarketQuote(Text(row,"nm"),price,price-previous,(price/previous-1)*100,observed,Text(row,"ms"));
         var interval=Number(Text(result,"pollingInterval"))??7000;
-        return new(stock,quote,received,N("ov"),N("hv"),N("lv"),N("aq"),N("aa"),"네이버 KRX 공개 시세 · 지연 가능",TimeSpan.FromMilliseconds((double)Math.Max(1000,interval)),ExchangeTimestamp:false);
+        var requested=TimeSpan.FromMilliseconds((double)Math.Max(1000,interval));
+        var cadence=requested>SelectedQuotePump.MaximumInterval?SelectedQuotePump.MaximumInterval:requested;
+        return new(stock,quote,received,N("ov"),N("hv"),N("lv"),N("aq"),N("aa"),"네이버 KRX 공개 시세 · 지연 가능",cadence,ExchangeTimestamp:false);
     }
     public async Task<DailySecurityStatus?> CurrentSecurity(StockItem stock,CancellationToken token)
     {

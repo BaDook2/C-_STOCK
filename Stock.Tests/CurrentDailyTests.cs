@@ -42,7 +42,7 @@ internal static partial class Program
         Check(DailyQuoteMerger.Date(DateTimeOffset.Parse("2026-10-06T01:00:00+09:00"),Exchange.NASDAQ)==new DateOnly(2026,10,5),"US trading date uses exchange zone rather than Korea midnight");
         var json="""{"result":{"pollingInterval":7000,"time":1736038800000,"areas":[{"datas":[{"cd":"005930","nm":"검사","nv":85,"pcv":100,"ms":"OPEN","ov":90,"hv":92,"lv":80,"aq":1234,"aa":105678,"nxtOverMarketPriceInfo":{"overPrice":"999"}}]}]}}""";
         using var doc=JsonDocument.Parse(json);var parsed=PublicMarketData.ParseCurrentPoll(DailyStock,doc.RootElement,intraday);
-        Check(parsed.PollInterval==TimeSpan.FromSeconds(7)&&parsed.Quote.Price==85&&parsed.TradingValue==105678&&!parsed.ExchangeTimestamp,"public snapshot honors server polling interval and exact notional without NXT mixing");
+        Check(parsed.PollInterval==TimeSpan.FromSeconds(3)&&parsed.Quote.Price==85&&parsed.TradingValue==105678&&!parsed.ExchangeTimestamp,"public snapshot caps the selected-stock refresh cadence at three seconds and keeps exact notional without NXT mixing");
         using var basic=JsonDocument.Parse("""{"itemCode":"005930","stockEndType":"stock","stockExchangeType":{"name":"KOSPI"},"tradeStopType":{"name":"TRADING"}}""");
         var security=PublicMarketData.ParseCurrentSecurity(DailyStock,basic.RootElement,intraday);
         Check(security.Board==HistoricalBoard.Kospi&&security.Suspended==false&&security.Kind==HistoricalSecurityKind.Unknown&&security.Administrative==null,"public generic stock and missing warning never imply common non-admin security");
@@ -92,16 +92,16 @@ internal static partial class Program
         var clock=new ManualQuoteClock();var source=new QuoteFixture(quote);int updates=0,errors=0;
         using var pump=new SelectedQuotePump(source,clock);pump.Select(DailyStock,_=>updates++,_=>errors++);await AwaitQuote(()=>clock.Pending==1);
         pump.Select(DailyStock,_=>updates++,_=>errors++);Check(source.Calls==1&&updates==1,"reselecting same stock keeps a single polling loop");
-        clock.Advance(TimeSpan.FromSeconds(6));Check(source.Calls==1,"1-second UI cadence cannot bypass provider's seven-second cadence");
-        clock.Advance(TimeSpan.FromSeconds(1));await AwaitQuote(()=>source.Calls==2&&clock.Pending==1);Check(updates==2&&source.MaxActive==1,"next allowed poll has no overlapping request");
-        source.Fail=true;clock.Advance(TimeSpan.FromSeconds(7));await AwaitQuote(()=>errors==1&&clock.Pending==1);clock.Advance(TimeSpan.FromSeconds(7));Check(source.Calls==3,"failed provider backs off instead of continuing normal polling");
+        clock.Advance(TimeSpan.FromSeconds(2));Check(source.Calls==1,"one-second UI cadence cannot bypass the three-second public request cadence");
+        clock.Advance(TimeSpan.FromSeconds(1));await AwaitQuote(()=>source.Calls==2&&clock.Pending==1);Check(updates==2&&source.MaxActive==1,"next allowed three-second poll has no overlapping request");
+        source.Fail=true;clock.Advance(TimeSpan.FromSeconds(3));await AwaitQuote(()=>errors==1&&clock.Pending==1);clock.Advance(TimeSpan.FromSeconds(3));Check(source.Calls==3,"failed provider backs off instead of continuing normal polling");
         pump.Stop();clock.Advance(TimeSpan.FromMinutes(5));Check(source.Calls==3,"stopped loop never restarts on clock advance");
         source=new QuoteFixture(quote){Block=true};using var changing=new SelectedQuotePump(source,clock);var seen=new List<string>();
         changing.Select(DailyStock,s=>seen.Add(s.Stock.Key),_=>{});await AwaitQuote(()=>source.Calls==1);
         var other=DailyStock with{Symbol="000660"};changing.Select(other,s=>seen.Add(s.Stock.Key),_=>{});source.Block=false;source.Pending.SetResult(quote);
         await AwaitQuote(()=>seen.Count==1);Check(seen.Single()==other.Key&&source.MaxActive==1,"late cancelled symbol response ignored before new symbol delivery");
         changing.Stop();source=new QuoteFixture(quote with{Quote=quote.Quote with{State="CLOSE"}});using var closed=new SelectedQuotePump(source,clock);
-        closed.Select(DailyStock,_=>{},_=>{});await AwaitQuote(()=>clock.Pending==1);clock.Advance(TimeSpan.FromSeconds(29));Check(source.Calls==1,"closed and holiday market uses slower polling without synthesizing ticks");
+        closed.Select(DailyStock,_=>{},_=>{});await AwaitQuote(()=>clock.Pending==1);clock.Advance(TimeSpan.FromSeconds(2));Check(source.Calls==1,"closed market refresh still respects the selected-stock three-second request boundary");
         clock.Advance(TimeSpan.FromSeconds(1));await AwaitQuote(()=>source.Calls==2);closed.Stop();
     }
 }

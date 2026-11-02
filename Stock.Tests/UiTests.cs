@@ -33,9 +33,9 @@ internal static partial class Program
         if(vm.Matches.Count>0){vm.ActiveTab=1;vm.SelectedMatch=vm.Matches[0];Do("결과열기");var detail=Application.Current.Windows.OfType<ScreeningChartDialog>().Single();Check(vm.ActiveTab==1&&detail.Snapshot.Stock.Key==vm.SelectedMatch.Stock.Key,"screening selection opens a separate chart dialog");detail.Close();}
         vm.ShowCloud=true;vm.ShowMa=true;vm.IsOnline=true;PumpUntil(()=>!vm.Busy);Check(!vm.Actions["매수"].CanExecute(null),"online cannot order without account");Check(vm.IsOffline,"cancelled key dialog returns offline");
         Check(vm.Actions["키설정"].CanExecute(null),"key settings enabled offline");
-        Check(vm.History.Count>0&&vm.LatestResult!=null,"immediate result and saved history available");
+        Check(vm.History.Count>0&&vm.LatestResult==null&&vm.SelectedRun==null,"saved history remains available while a later search clears the visible backtest run");
         vm.ChartPeriod="주봉";Check(vm.ChartBars.Count<600&&vm.ChartBars.Count>70,"weekly chart aggregates daily history");vm.ChartPeriod="월봉";Check(vm.ChartBars.Count<30,"monthly chart aggregates daily history");vm.ChartPeriod="틱";Check(vm.ChartPeriod=="월봉"&&!vm.CanUseIntraday,"offline blocks live-only intervals");vm.ChartPeriod="일봉";
-        using(var reopened=new WorkspaceViewModel(_=>false,provider:new FixtureMarketData(),store:store)){Check(reopened.History.Count==vm.History.Count&&reopened.SelectedRun?.OversoldResultId!=null,"previous runs reload with fills after reopening");}
+        using(var reopened=new WorkspaceViewModel(_=>false,provider:new FixtureMarketData(),store:store)){Check(reopened.History.Count==vm.History.Count&&reopened.History.Any(r=>r.OversoldResultId!=null)&&reopened.SelectedRun==null&&!reopened.ShowBacktestTradeMarkers,"previous runs remain in history but never auto-select or auto-display after reopening");}
         string popup="";var key=new KiwoomCredentials{AppKey="fixture",SecretKey="fixture"};
         using(var invalid=new WorkspaceViewModel(_=>false,()=>key,new FixtureMarketData(),store,s=>popup=s,(c,e)=>new(c,e,new Handler(_=>Task.FromResult(Json("""{"return_code":8001}"""))),live:true)))
         {invalid.IsOnline=true;PumpUntil(()=>!invalid.Busy);Check(invalid.IsOffline&&popup=="실제 계좌 키가 아닙니다.","invalid live key shows exact popup and returns offline");}
