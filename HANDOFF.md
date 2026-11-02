@@ -6,7 +6,9 @@
 
 오프라인 가상계좌 탭은 온라인과 동일한 실시간 가상 전략 상태·설정·전체 중지 UI를 사용한다. 연결된 실시간 시세가 없는 오프라인에서는 시작을 비활성화한다. 구형 일봉 재생·수동 가상 주문 UI와 표시 전용 틱 선택기·원본 1틱 버튼·원본 틱 탭은 숨겼고, 실시간 전략/가상체결에 필요한 원본 체결 처리와 저장 호환 모델은 유지했다.
 
-Release 빌드 경고0/오류0, 현재시세 대상 107개, WPF UI smoke 404개, 전체 회귀 1,080개를 통과했다. 게시본 `artifacts/v015-final-publish/Stock.exe`는 80,759,672 bytes, SHA256 `10E8B231441E1E6AF58DFB4793FAD49BEB54B5AEAE65D0A77851063A61631F2D`이고 단독 smoke는 `Success/NoBrokerCalls=true`다. GitHub `v0.1.5` 배포와 공개 자산 재검증은 아직 남아 있다. 실제 브로커 호출·계좌 거래는 수행하지 않았다.
+Release 빌드 경고0/오류0, 현재시세 대상 107개, WPF UI smoke 404개, 전체 회귀 1,080개를 통과했다. 로컬 게시본과 교체된 루트 `Stock.exe`는 80,759,672 bytes, SHA256 `10E8B231441E1E6AF58DFB4793FAD49BEB54B5AEAE65D0A77851063A61631F2D`이고 단독 smoke는 `Success/NoBrokerCalls=true`다. 이전 루트 파일은 `artifacts/Stock-before-v015-DA990294.exe`에 보관했다.
+
+`main`과 `v0.1.5`를 GitHub에 push했다. Actions run `41368289534`는 전체 회귀, self-contained 게시, 게시 EXE smoke, SHA256, Release 업로드를 모두 통과했다. 공개 Release URL은 `https://github.com/BaDook2/C-_STOCK/releases/tag/v0.1.5`다. 공개 `Stock.exe`는 80,792,672 bytes이며 다시 내려받아 계산한 SHA256 `5472469A1168F67FF025E58E3D343BA56C80F546EAA5294B6D50500F1F0F04FA`가 공개 체크섬과 일치한다. 실제 브로커 호출·계좌 거래는 수행하지 않았다.
 
 # 이전 상태 — 2026-11-02 GitHub Release 계좌 키 포함 여부 점검
 
