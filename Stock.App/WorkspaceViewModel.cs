@@ -58,7 +58,7 @@ public sealed partial class WorkspaceViewModel : Observable,IDisposable
     public string[] Regions {get;}=["전체","국내","해외"];
     public string[] ScreeningMarkets {get;}=["코스피","코스닥","코스피+코스닥"];
     public string ScreeningMarketSelection {get=>screeningMarketSelection;set{if(!CanConfigure||value==screeningMarketSelection||!ScreeningMarkets.Contains(value))return;screeningMarketSelection=value;Sector="전체";Changed();UpdateSectors();}}
-    public int[] ScreeningSizes {get;}=[10,20,50,100];
+    public int[] ScreeningSizes {get;}=[10,25,50,100];
     public int ScreeningSize {get;set;}=10;
     private bool screenWatchlist;
     public bool ScreenWatchlist {get=>screenWatchlist;set{if(!CanConfigure||screenWatchlist==value)return;screenWatchlist=value;Changed();Changed(nameof(ScreenMarket));UpdateSectors();ScreenInfo=value?"관심그룹을 여러 개 선택하세요. 중복 종목은 한 번만 검사합니다.":"시가총액 상위 종목을 검사합니다.";}}
@@ -159,10 +159,10 @@ public sealed partial class WorkspaceViewModel : Observable,IDisposable
         Actions["취소"]=new ActionCommand(()=>{operation?.Cancel();return Task.CompletedTask;},()=>Busy);
         replayTimer=new DispatcherTimer{Interval=TimeSpan.FromMilliseconds(800)};replayTimer.Tick+=(_,_)=>{try{Step();}catch(Exception ex){replayTimer.Stop();Replaying=false;Status=ex.Message;}};
         this.connectionPrompt=connectionPrompt;this.defaultConnectionLoader=defaultConnectionLoader;this.saveConnection=saveConnection;this.accountFactory=accountFactory;this.sessionDirectory=sessionDirectory??MainViewModel.StateDirectory;
-        InitializeFeatures(alert,brokerFactory);showTradeMarkers=this.store.State<bool>("show-trade-markers");showLiveTradeMarkers=this.store.State<bool>("show-live-trade-markers");showBacktestTradeMarkers=false;ReloadTradeMarkers();InitializeOnlyOversold();
+        InitializeFeatures(alert,brokerFactory);showTradeMarkers=this.store.State<bool>("show-trade-markers");showLiveTradeMarkers=this.store.State<bool>("show-live-trade-markers");showBacktestTradeMarkers=false;ReloadTradeMarkers();InitializeOnlyOversold();InitializeRealtimeScreening();
     }
     private void Add(string key,Func<Task> fn,Func<bool> can)=>Actions[key]=new ActionCommand(()=>Run(fn),can);
-    private void Refresh(){Changed(nameof(CanOpenMulti));Changed(nameof(CanOpenRealtimePaper));Changed(nameof(VirtualTradingHelp));Changed(nameof(MultiSessionExists));multiTrading?.Refresh();Changed(nameof(CanConfigure));Changed(nameof(CanUseIntraday));Changed(nameof(CanUseMinutes));Changed(nameof(BacktestDaily));Changed(nameof(BacktestCustomBars));Changed(nameof(BacktestBarDescription));Changed(nameof(IntradayHelp));foreach(var c in Actions.Values)c.Refresh();}
+    private void Refresh(){Changed(nameof(CanOpenMulti));Changed(nameof(CanOpenRealtimePaper));Changed(nameof(VirtualTradingHelp));Changed(nameof(MultiSessionExists));Changed(nameof(CanStartRealtimeScreening));Changed(nameof(CanStopRealtimeScreening));multiTrading?.Refresh();Changed(nameof(CanConfigure));Changed(nameof(CanUseIntraday));Changed(nameof(CanUseMinutes));Changed(nameof(BacktestDaily));Changed(nameof(BacktestCustomBars));Changed(nameof(BacktestBarDescription));Changed(nameof(IntradayHelp));foreach(var c in Actions.Values)c.Refresh();}
     private async Task Run(Func<Task> fn)
     {if(executing)return;ResumeApiRequests();executing=true;operation=new();try{var task=fn();if(!task.IsCompleted)Busy=true;await task;}catch(OperationCanceledException){Status=apiPaused?"긴급중지로 진행 중인 작업을 취소했습니다.":"작업을 취소했습니다.";}catch(InvalidOperationException ex){Status=ex.Message;}catch(UnknownOrderException){Status="주문 응답을 확인하지 못했습니다. 재전송하지 말고 증권사 앱과 주문 내역을 확인하세요.";}catch(BrokerRejectedException ex){Status=ex.Message;}catch{Status="데이터 또는 계좌 연결에 실패했습니다. 잠시 후 다시 시도하세요.";}finally{operation.Dispose();operation=null;executing=false;if(Busy)Busy=false;else Refresh();}}
     private CancellationToken Token=>operation?.Token??CancellationToken.None;
@@ -173,7 +173,7 @@ public sealed partial class WorkspaceViewModel : Observable,IDisposable
         Status="긴급중지 처리 중 · 신규 주문과 데이터 요청을 중단했습니다.";
         try
         {
-            replayTimer.Stop();Replaying=false;paper?.Cancel();configuredPaper?.EmergencyStop();await StopMulti();
+            replayTimer.Stop();Replaying=false;paper?.Cancel();configuredPaper?.EmergencyStop();await StopRealtimeScreening(true);await StopMulti();
             if(IsOnline&&session!=null)await session.EmergencyStop();
             Status="긴급중지 완료 · 신규 주문과 API 로딩을 중단했습니다. 실제 취소 결과는 계좌 조회에서 확인하세요.";
         }
@@ -269,5 +269,5 @@ public sealed partial class WorkspaceViewModel : Observable,IDisposable
     private async Task Cancel(){if(IsOnline){if(SelectedOrder==null||session==null)return;if(!confirm(SelectedOrder.Name+"의 미체결 주문을 취소할까요?"))return;await session.Cancel(SelectedOrder.Number,SelectedOrder.Symbol);await RefreshAccount();}else{paper?.Cancel();CancelConfiguredPractice();}Changed(nameof(PaperSummary));}
     private void Disconnect(){StopTicks();broker?.Dispose();broker=null;session=null;Orders.Clear();Holdings.Clear();AccountInfo="실제 계좌 미연결";Changed(nameof(ConnectedAccountText));}
     private static void Replace<T>(ObservableCollection<T> c,IEnumerable<T> values){var a=values.ToArray();c.Clear();foreach(var v in a)c.Add(v);}
-    public void Dispose(){if(MultiSessionExists)throw new InvalidOperationException("StopMulti를 기다린 뒤 종료하세요.");DisposeFeatures();replayTimer.Stop();operation?.Cancel();broker?.Dispose();if(provider is IDisposable d)d.Dispose();try{tickWrites.GetAwaiter().GetResult();}finally{if(ownsStore)store.Dispose();}}
+    public void Dispose(){if(MultiSessionExists)throw new InvalidOperationException("StopMulti를 기다린 뒤 종료하세요.");DisposeRealtimeScreening();DisposeFeatures();replayTimer.Stop();operation?.Cancel();broker?.Dispose();if(provider is IDisposable d)d.Dispose();try{tickWrites.GetAwaiter().GetResult();}finally{if(ownsStore)store.Dispose();}}
 }

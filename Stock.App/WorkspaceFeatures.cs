@@ -48,7 +48,10 @@ public sealed partial class WorkspaceViewModel
     private void InitializeFeatures(Action<string>? popup,Func<KiwoomCredentials,Exchange,KiwoomBroker>? factory)
     {
         captureTimer=new DispatcherTimer{Interval=LiveChartRefreshInterval};captureTimer.Tick+=(_,_)=>{FlushCapturedTicks();RefreshLiveChart();};captureTimer.Start();alert=popup??(_=>{});if(factory!=null)createBroker=factory;
-        foreach(var row in store.States("chart-run:"))try{var r=Serialization.Unpack<SavedBacktest>(row.Json);r.Id=row.Key;History.Add(r);}catch{ /* A damaged legacy record must not hide other records. */ }
+        IReadOnlyList<(string Key,string Json)> savedRuns=[];
+        try{savedRuns=store.States("chart-run:");}
+        catch{ /* A damaged legacy history index must not prevent the application from opening. */ }
+        foreach(var row in savedRuns)try{var r=Serialization.Unpack<SavedBacktest>(row.Json);r.Id=row.Key;History.Add(r);}catch{ /* A damaged legacy record must not hide other records. */ }
         // History is retained, but no previous run is selected automatically on startup.
         SelectedRun=null;
         InitializeWatchlist();Replace(VisibleIndices,domesticIndices);
@@ -132,7 +135,7 @@ public sealed partial class WorkspaceViewModel
         async Task Read(Func<Task<MarketQuote>> read,Action<MarketQuote> set){try{var q=await read();if(!disposed)set(q);}catch(OperationCanceledException){}catch{failures++;}}
         try
         {
-            await Task.WhenAll(VisibleIndices.ToArray().Select(card=>RefreshIndexCard(card,market)).Append(item==null?Task.CompletedTask:Read(()=>market.Quote(item,ApiToken),q=>{if((selected??dataset?.Stock)?.Key==item.Key){StockQuote=q;Changed(nameof(StockQuote));}})));
+            await Task.WhenAll(VisibleIndices.ToArray().Select(card=>RefreshIndexCard(card,market)).Append(item==null?Task.CompletedTask:Read(()=>DisplayQuote(item),q=>{if((selected??dataset?.Stock)?.Key==item.Key){StockQuote=q;Changed(nameof(StockQuote));}})));
             if(disposed)return;
             var d=dataset;if(d?.Bars.Length>0){var b=d.CompletedBars.TakeLast(20).ToArray();if(b.Length==0)return;AverageVolume=$"{d.Stock.Name} · 최근 {b.Length:N0}거래일 일평균 {b.Average(x=>x.Volume):N0}주 · 기준 {b[^1].KoreaTime}";Changed(nameof(AverageVolume));}
             failures+=VisibleIndices.Count(c=>c.QuoteStatus!="");MarketStatus=$"{DateTimeOffset.UtcNow.ToOffset(TimeSpan.FromHours(9)):HH:mm:ss} 조회 · 5초마다 갱신 · "+(failures>0?$"{failures}개 조회 실패, 이전 값은 각 시세시각을 확인하세요.":"제공처 지연 가능 · 시세시각은 한국시간");

@@ -1,4 +1,5 @@
 using System.Windows.Threading;
+using Stock.Core;
 using Stock.Core.Research;
 using Stock.Core.Research.Oversold;
 using Stock.Core.Trading;
@@ -15,6 +16,12 @@ public sealed partial class WorkspaceViewModel
     private DateTimeOffset historyRetry;
     private DateTimeOffset lastStreamReceived,lastStreamTime;
     private bool LiveHeader=>displayedDaily?.Stock.Key==dataset?.Stock.Key&&displayedDaily!=null&&!Replaying&&paper==null&&!IsTick;
+    private async Task<MarketQuote> DisplayQuote(StockItem item)
+    {
+        if(IsOnline&&broker!=null)return (await new BrokerCurrentMarketData(broker,s=>store.State<BarDataset>("bars:"+s.Key)?.CompletedBars.LastOrDefault(b=>DailyDates.Of(b)<KoreaClock.Today)?.Close).Current(item,ApiToken)).Quote;
+        if(provider is ICurrentMarketData current)return (await current.Current(item,ApiToken)).Quote;
+        return await ((IMarketOverviewData)provider).Quote(item,ApiToken);
+    }
     private void StopDailyQuotes()
     {
         dailyGeneration++;dailyPump?.Dispose();dailyPump=null;dailyTimer?.Stop();dailyTimer=null;
@@ -23,10 +30,12 @@ public sealed partial class WorkspaceViewModel
     private void StartDailyQuotes(StockItem item)
     {
         StopDailyQuotes();historyDescription=DataInfo;
-        if(disposed||apiPaused||provider is not ICurrentMarketData current)return;
+        if(disposed||apiPaused)return;
+        var current=IsOnline&&broker!=null?new BrokerCurrentMarketData(broker,s=>dataset?.CompletedBars.LastOrDefault(b=>DailyDates.Of(b)<KoreaClock.Today)?.Close):provider as ICurrentMarketData;
+        if(current==null)return;
         var generation=dailyGeneration;
         dailyPump=new(current);
-        dailyPump.Select(item,s=>dispatcher.BeginInvoke(()=>{if(!disposed&&generation==dailyGeneration&&dataset?.Stock.Key==s.Stock.Key&&s.ReceivedAt-lastStreamReceived>TimeSpan.FromSeconds(10)){if(pendingDaily==null||s.Quote.TradeTime>=pendingDaily.Quote.TradeTime){pendingDaily=s;dailyFailure="";}}}),
+        dailyPump.Select(item,s=>dispatcher.BeginInvoke(()=>{if(!disposed&&generation==dailyGeneration&&dataset?.Stock.Key==s.Stock.Key&&s.ReceivedAt-lastStreamReceived>TimeSpan.FromSeconds(10)){if(pendingDaily==null||s.Quote.TradeTime>=pendingDaily.Quote.TradeTime){pendingDaily=s;dailyFailure="";RefreshDailyDisplay();}}}),
             message=>dispatcher.BeginInvoke(()=>{if(!disposed&&generation==dailyGeneration)dailyFailure=message;}));
         dailyTimer=new DispatcherTimer{Interval=TimeSpan.FromSeconds(1)};
         dailyTimer.Tick+=(_,_)=>RefreshDailyDisplay();dailyTimer.Start();

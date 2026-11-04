@@ -7,6 +7,7 @@ namespace Stock.Core.Trading;
 public sealed class RealtimePaperStrategyBatch
 {
     public const string MarkerSource="실시간 모의매매";
+    public const string PublicMarkerSource="공개시세 모의매매";
     private sealed class Row
     {
         public readonly LiveBatchItem Item;
@@ -16,9 +17,11 @@ public sealed class RealtimePaperStrategyBatch
         public readonly PaperBroker Broker;
         public readonly Dictionary<string,(string Reason,OversoldDecisionSnapshot? Snapshot)> Intents=[];
         public bool Enabled=true;
+        public DateTimeOffset? SuppressedBuySignal;
         public string Status="실제 체결·호가 준비",Signal="",Error="";
         public DateTimeOffset LastEvaluation;
         public int AppliedFills;
+        public CurrentMarketSnapshot? PublicSnapshot;
         public Row(LiveBatchItem item)
         {
             Item=item;
@@ -37,6 +40,7 @@ public sealed class RealtimePaperStrategyBatch
     private LiveBatchPlan? plan;
     private string status="중지";
     private bool armed;
+    private bool entryEnabled=true;
     private int orderSequence;
 
     public event Action<TradeMarker>? FillRecorded;
@@ -72,11 +76,22 @@ public sealed class RealtimePaperStrategyBatch
                 if(!facts.Sessions.Any(s=>s.Date==today&&now>=s.Open&&now<s.Close)||!HistoricalFacts.Tradable(facts.Status(item.Stock.Symbol,today,now))||facts.Risk(item.Stock.Symbol,today,now)!=false||item.Oversold.Warmup.Any(b=>b.ClosedAt>now))throw new InvalidOperationException(item.Stock.Name+": 현재 시장 세션·종목 상태·검증된 과거 봉이 부족합니다.");
             }
             rows.Clear();foreach(var item in selected)rows.Add(item.Stock.Key,new Row(item));
-            plan=snapshot;armed=true;status="실시간 모의매매 실행 중 · 실제 체결을 기다립니다.";Save();
+            plan=snapshot;armed=true;status=selected.Any(i=>i.Oversold!.PublicPaper)?"공개시세 모의매매 실행 중 · 완성봉과 새 관측 대기":"실시간 모의매매 실행 중 · 실제 체결을 기다립니다.";Save();
         }
     }
 
     public void FeedFault(string reason)=>RequestStop(null,"피드 중단: "+reason);
+    /// <summary>Blocks new and scale-in buys while keeping protective sell evaluation active.</summary>
+    public void SetEntryEnabled(bool enabled)
+    {
+        lock(sync)
+        {
+            entryEnabled=enabled;
+            foreach(var row in rows.Values)row.SuppressedBuySignal=row.Strategy.ReadySignalTime;
+            status=enabled?"자동매매 활성 · 이후 새 매수 신호만 실행":"자동매매 꺼짐 · 신규/추가매수 차단, 보유 보호 유지";
+            Save();
+        }
+    }
     public void RequestStop(string? key=null,string reason="사용자 중지 · 가상 보유분 자동청산 없음")
     {
         lock(sync)
@@ -109,6 +124,27 @@ public sealed class RealtimePaperStrategyBatch
             if(rows.Values.All(x=>!x.Enabled))armed=false;
         }
     }
+    public void OnPublicBar(string key,StrategyBar bar)
+    {
+        lock(sync)if(armed&&rows.TryGetValue(key,out var r)&&r.Enabled&&r.Item.Oversold!.PublicPaper)r.Strategy.OnPublicBar(bar);
+    }
+    /// <summary>Observation matching model: interval volume is only a participation cap, not a raw trade.</summary>
+    public void OnPublicSnapshot(CurrentMarketSnapshot snapshot)
+    {
+        lock(sync)
+        {
+            if(!armed||!rows.TryGetValue(snapshot.Stock.Key,out var r)||!r.Enabled||!r.Item.Oversold!.PublicPaper)return;
+            var now=clock();var previous=r.PublicSnapshot;
+            if(snapshot.Quote.State!="OPEN"||(now-snapshot.ReceivedAt).Duration()>TimeSpan.FromSeconds(20)||(now-snapshot.Quote.TradeTime).Duration()>TimeSpan.FromSeconds(20))return;
+            if(previous!=null&&snapshot.Quote.TradeTime<=previous.Quote.TradeTime)return;
+            var delta=previous!=null&&DailyQuoteMerger.Date(previous.Quote.TradeTime,Exchange.KRX)==DailyQuoteMerger.Date(snapshot.Quote.TradeTime,Exchange.KRX)?Math.Max(0,(snapshot.Volume??0)-(previous.Volume??0)):0;
+            r.PublicSnapshot=snapshot;
+            // This event stays inside the paper matcher. It is never saved as a real tick or
+            // passed into TickCoverageTracker, historical raw tick charts, or a broker API.
+            var observed=new MarketEvent(r.Context.Instrument,EventKind.Trade,snapshot.Quote.TradeTime,snapshot.ReceivedAt,"NAVER_OBSERVATION",snapshot.Quote.TradeTime.UtcTicks){TradePrice=snapshot.Quote.Price,TradeSize=delta,TimeQuality="공개 서버 관측 · 구간 누적량 기반 모의 체결"};
+            r.Broker.Process(observed);ApplyFills(r);r.Context.Add(observed);r.Context.Position=r.Broker.Positions.GetValueOrDefault(snapshot.Stock.Key);r.Strategy.OnPublicObservation(observed.ExchangeTime);
+        }
+    }
 
     public Task Pulse()
     {
@@ -121,13 +157,15 @@ public sealed class RealtimePaperStrategyBatch
             {
                 if(!r.Enabled)continue;
                 if(r.Context.Last==null){r.Status="첫 실제 체결 대기";continue;}
-                if(r.Context.Quote==null&&(clock()-r.Context.Last.ExchangeTime).TotalSeconds<30){r.Status="실제 호가 대기";continue;}
+                if(!r.Item.Oversold!.PublicPaper&&r.Context.Quote==null&&(clock()-r.Context.Last.ExchangeTime).TotalSeconds<30){r.Status="실제 호가 대기";continue;}
                 if(!Fresh(r)){r.Enabled=false;r.Status="중지";r.Error="체결/호가 지연 또는 정규 연속매매시간 종료";continue;}
                 if(r.Context.Now<=r.LastEvaluation)continue;r.LastEvaluation=r.Context.Now;
                 if(r.Broker.Orders.Any(o=>o.Active)){r.Status="가상 미체결 대기";continue;}
                 r.Context.Position=r.Broker.Positions.GetValueOrDefault(r.Item.Stock.Key);
                 var signal=r.Strategy.Evaluate(r.Context);r.Signal=signal.Reason;r.Status="실시간 조건 감시";
                 if(signal.Buy is not bool buy||signal.Price is not decimal price)continue;
+                if(buy&&(!entryEnabled||rowSignalIsSuppressed(r)))
+                {r.Status=entryEnabled?"활성화 이전 매수 신호 · 소급 주문 안 함":"매수 신호 감지 · 자동매매 꺼짐";continue;}
                 var owned=r.Context.Position?.Quantity??0;if(!buy&&owned<=0)continue;
                 if(buy&&totalLoss>=plan.DailyLossLimit){r.Status="전체 일 손실 한도 도달";continue;}
                 var advanced=r.Item.Settings.Advanced!;if(advanced.Execution.OrderType==OrderKind.Limit)price+=(buy?1:-1)*advanced.Execution.LimitOrderOffsetTicks*r.Context.Instrument.Tick(price);
@@ -145,6 +183,9 @@ public sealed class RealtimePaperStrategyBatch
         return Task.CompletedTask;
     }
 
+    private static bool rowSignalIsSuppressed(Row row)
+        =>row.SuppressedBuySignal is {} suppressed&&row.Strategy.ReadySignalTime is {} signal&&signal<=suppressed;
+
     private void ApplyFills(Row r)
     {
         while(r.AppliedFills<r.Broker.Fills.Count)
@@ -153,7 +194,7 @@ public sealed class RealtimePaperStrategyBatch
             var execution=new BrokerExecution(runId+":"+r.Item.Stock.Key+":"+index,fill.OrderId,r.Item.Stock.Symbol,fill.Buy,fill.Quantity,fill.Price,fill.Time);
             r.Strategy.OnExecution(execution,intent.Reason,intent.Snapshot);
             var markerId="trade-marker:"+TradingStore.Hash("paper-live:"+execution.Id);
-            var marker=new TradeMarker(markerId,r.Item.Stock.Key,fill.Time,fill.Buy,fill.Quantity,fill.Price,MarkerSource,"paper-live:"+runId);
+            var marker=new TradeMarker(markerId,r.Item.Stock.Key,fill.Time,fill.Buy,fill.Quantity,fill.Price,r.Item.Oversold!.PublicPaper?PublicMarkerSource:MarkerSource,"paper-live:"+runId);
             store.State(markerId,marker);FillRecorded?.Invoke(marker);r.Status=(fill.Buy?"모의 매수 ":"모의 매도 ")+fill.Quantity.ToString("N0")+"주 체결";
         }
     }
@@ -161,6 +202,7 @@ public sealed class RealtimePaperStrategyBatch
     private bool Fresh(Row r)
     {
         var now=clock();var c=r.Context;var seconds=Math.Min(10,r.Item.Settings.Execution.StaleSeconds);
+        if(r.Item.Oversold!.PublicPaper)return LiveBatchSupport.RegularSession(now)&&r.PublicSnapshot is {} s&&(now-s.ReceivedAt).Duration().TotalSeconds<=20&&(now-s.Quote.TradeTime).Duration().TotalSeconds<=20&&s.Quote.State=="OPEN";
         return LiveBatchSupport.RegularSession(now)&&c.Last!=null&&c.Quote!=null&&c.Quote.Bid>0&&c.Quote.Ask>=c.Quote.Bid&&(now-c.Last.ExchangeTime).Duration().TotalSeconds<=seconds&&(now-c.Quote.ExchangeTime).Duration().TotalSeconds<=seconds&&(now-c.Last.ReceivedTime).Duration().TotalSeconds<=seconds&&(now-c.Quote.ReceivedTime).Duration().TotalSeconds<=seconds;
     }
     private static decimal CostBuffer(Row r)=>r.Item.Settings.Execution.FeePercent+(r.Item.Settings.Execution.Kind==OrderKind.Market?Math.Max(2,r.Item.Settings.Execution.SlippagePercent):0);

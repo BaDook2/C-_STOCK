@@ -42,7 +42,7 @@ internal static partial class Program
         Check(DailyQuoteMerger.Date(DateTimeOffset.Parse("2026-10-06T01:00:00+09:00"),Exchange.NASDAQ)==new DateOnly(2026,10,5),"US trading date uses exchange zone rather than Korea midnight");
         var json="""{"result":{"pollingInterval":7000,"time":1736038800000,"areas":[{"datas":[{"cd":"005930","nm":"검사","nv":85,"pcv":100,"ms":"OPEN","ov":90,"hv":92,"lv":80,"aq":1234,"aa":105678,"nxtOverMarketPriceInfo":{"overPrice":"999"}}]}]}}""";
         using var doc=JsonDocument.Parse(json);var parsed=PublicMarketData.ParseCurrentPoll(DailyStock,doc.RootElement,intraday);
-        Check(parsed.PollInterval==TimeSpan.FromSeconds(3)&&parsed.Quote.Price==85&&parsed.TradingValue==105678&&!parsed.ExchangeTimestamp,"public snapshot caps the selected-stock refresh cadence at three seconds and keeps exact notional without NXT mixing");
+        Check(parsed.PollInterval==TimeSpan.FromSeconds(7)&&parsed.Quote.Price==85&&parsed.TradingValue==105678&&!parsed.ExchangeTimestamp,"public snapshot respects the server seven-second cadence and keeps exact notional without NXT mixing");
         using var basic=JsonDocument.Parse("""{"itemCode":"005930","stockEndType":"stock","stockExchangeType":{"name":"KOSPI"},"tradeStopType":{"name":"TRADING"}}""");
         var security=PublicMarketData.ParseCurrentSecurity(DailyStock,basic.RootElement,intraday);
         Check(security.Board==HistoricalBoard.Kospi&&security.Suspended==false&&security.Kind==HistoricalSecurityKind.Unknown&&security.Administrative==null,"public generic stock and missing warning never imply common non-admin security");
@@ -57,7 +57,7 @@ internal static partial class Program
             var other=DailyStock with{Symbol="000660",Name="SK하이닉스",ProviderCode="000660"};var watch=System.Diagnostics.Stopwatch.StartNew();await Task.WhenAll(parallelProvider.Current(DailyStock,CancellationToken.None),parallelProvider.Current(other,CancellationToken.None));watch.Stop();await parallelProvider.Current(DailyStock,CancellationToken.None);
             Check(maximum==2&&calls==2&&watch.Elapsed<TimeSpan.FromMilliseconds(500),"public current quotes use per-symbol cadence without a global seven-second queue");
         }
-        await QuotePumpTests(quote);
+        await QuotePumpTests(quote with{PollInterval=TimeSpan.FromSeconds(3)});
     }
 
     private sealed class ManualQuoteClock:TimeProvider

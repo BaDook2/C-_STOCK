@@ -75,7 +75,7 @@ public sealed partial class WorkspaceViewModel
     {
         if(disposed||apiPaused||watchRefreshing||provider is not IMarketOverviewData market||SelectedWatchGroup==null)return;
         var group=SelectedWatchGroup;var items=group.Items.ToArray();watchRefreshing=true;Refresh();WatchStatus="관심종목 시세를 확인하고 있습니다.";int failed=0;
-        try{foreach(var item in items){if(disposed||apiPaused||group!=SelectedWatchGroup)break;try{var q=await market.Quote(item.Stock,ApiToken);if(!disposed)item.Update(q);}catch(OperationCanceledException){break;}catch{failed++;if(!disposed)item.Failed();}}
+        try{foreach(var item in items){if(disposed||apiPaused||group!=SelectedWatchGroup)break;try{var q=await DisplayQuote(item.Stock);if(!disposed)item.Update(q);}catch(OperationCanceledException){break;}catch{failed++;if(!disposed)item.Failed();}}
             if(!disposed&&group==SelectedWatchGroup)WatchStatus=$"{group.Name} · {items.Length:N0}종목 · {DateTimeOffset.UtcNow.ToOffset(TimeSpan.FromHours(9)):HH:mm:ss} 조회"+(failed>0?$" · {failed:N0}개 조회 실패":" · 제공처 지연 가능");
         }finally{watchRefreshing=false;Refresh();if(!disposed&&group!=SelectedWatchGroup&&ActiveTab==6)_=RefreshWatchlist();}
     }

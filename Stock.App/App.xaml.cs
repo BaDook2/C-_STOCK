@@ -18,7 +18,15 @@ public partial class App : Application
         bool smoke=e.Args.Length==2&&(e.Args[0]=="--smoke-test"||e.Args[0]=="--public-smoke"||probe);
         if(smoke)ShutdownMode=ShutdownMode.OnExplicitShutdown;
         instance = new Mutex(true, "Local\\StockPaperTrading.SingleInstance"+(smoke?".Smoke":""), out bool first);
-        if (!first) { MessageBox.Show("STOCK 앱이 이미 실행 중입니다. 기존 창을 사용하세요."); Shutdown(); return; }
+        if (!first)
+        {
+            // A blocking MessageBox here created a second invisible Stock.exe process when the
+            // existing window was behind Explorer. Exit the duplicate immediately instead.
+            instance.Dispose();
+            instance=null;
+            Shutdown(0);
+            return;
+        }
         base.OnStartup(e);
         if(probe)await TickPerformanceProbe.Run(this,e.Args[1]);
         else if(smoke)await PublishedSmoke.Run(this,e.Args[1],e.Args[0]=="--public-smoke");

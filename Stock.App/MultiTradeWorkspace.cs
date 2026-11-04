@@ -12,11 +12,11 @@ public sealed partial class WorkspaceViewModel
     private bool IsMultiOrder(string number)=>session!=null&&store.State<LiveBatchJournal>("live-batch:"+session.Scope)?.Orders.Any(o=>o.Number==number)==true;
     private MultiTradeViewModel? multiTrading;private LiveStrategyBatch? liveBatch;private RealtimePaperStrategyBatch? realtimePaperBatch;private CancellationTokenSource? multiStop;private Task? multiTask;private bool mockBatchLocked,multiPaperActive;
     public bool MultiSessionExists=>multiTask is {IsCompleted:false}||mockBatchLocked;
-    public string MultiStatus {get;private set;}="모의는 과거 백테스트이며, 온라인에서 실시간을 함께 체크하면 실제 시세로 가상 체결합니다. 실계좌 실행은 검증된 시점별 자료와 연속 체결 데이터가 필요합니다.";
-    public bool CanOpenMulti=>CanConfigure&&(IsOffline||IsOnline&&session!=null);
-    public bool CanOpenRealtimePaper=>CanConfigure&&IsOnline;
-    public string VirtualTradingHelp=>IsOnline?RealtimeMockSupported?"실제 시세를 사용하지만 주문은 가상 계좌에서만 체결됩니다.":"현재 연결 계좌는 실시간 가상 전략매매 피드를 지원하지 않습니다.":"온라인 투자로 키움 국내 기본계좌를 연결하면 실시간 가상 전략매매를 시작할 수 있습니다.";
-    public MultiTradeViewModel MultiTrading=>multiTrading??=new(provider,store,StartMulti,StopMulti,ReviewMulti,LoadMultiPreset,()=>IsOffline?"오프라인 · 과거 모의 백테스트":broker==null?"연결된 실제 시세 계정이 없습니다.":broker.Name+" · "+broker.MaskedAccount+" · "+(MultiSupported?"실시간 모의 또는 선택한 국내 실계좌":"이 계좌의 자동매매 피드/체결 대사는 미지원"),()=>MultiSupported,()=>IsOffline,StartMockMulti,()=>LatestScreening?.FinalCandidates.AsEnumerable()??[],StartRealtimeMockMulti,()=>RealtimeMockSupported,()=>Presets);
+    public string MultiStatus {get;private set;}="오프라인은 네이버 KRX 공개시세, 온라인은 지원 증권사 시세로 가상 전략을 실행합니다.";
+    public bool CanOpenMulti=>CanConfigure&&!RealtimeScreeningRunning&&!RealtimeScreeningProtectionActive&&(IsOffline||IsOnline&&session!=null);
+    public bool CanOpenRealtimePaper=>CanConfigure;
+    public string VirtualTradingHelp=>IsOnline?RealtimeMockSupported?"연결 증권사 시세로 가상 계좌에서 매매합니다.":"현재 연결 계좌는 실시간 가상 전략매매 피드를 지원하지 않습니다.":"네이버 KRX 공개 현재가·분봉으로 실시간 모의매매합니다. 설정을 편집하고 저장할 수 있으며 실제 체결과 차이가 있습니다.";
+    public MultiTradeViewModel MultiTrading=>multiTrading??=new(provider,store,StartMulti,StopMulti,ReviewMulti,LoadMultiPreset,()=>IsOffline?"오프라인 · 네이버 KRX 공개시세 가상 계좌":broker==null?"연결된 실제 시세 계정이 없습니다.":broker.Name+" · "+broker.MaskedAccount+" · "+(MultiSupported?"실시간 모의 또는 선택한 국내 실계좌":"이 계좌의 자동매매 피드/체결 대사는 미지원"),()=>MultiSupported,()=>IsOffline,StartMockMulti,()=>LatestScreening?.FinalCandidates.AsEnumerable()??[],StartRealtimeMockMulti,()=>RealtimeMockSupported,()=>Presets);
     private bool MultiSupported=>IsOnline&&broker?.Id=="kiwoom"&&broker.IsLive&&broker.Exchange==Exchange.KRX&&broker is IExecutionHistoryBroker&&session!=null;
     private bool RealtimeMockSupported=>IsOnline&&credentials!=null&&broker?.Id=="kiwoom"&&broker.IsLive&&broker.Exchange==Exchange.KRX&&session!=null;
     public Task RunSelectedMockBatch()=>Run(StartMockMulti);
@@ -51,7 +51,11 @@ public sealed partial class WorkspaceViewModel
     }
     private TradingSettings LoadMultiPreset(string name,decimal equity)
     {
-        var cfg=LoadMultiOversoldPreset(name);if(!MultiTrading.UseMock&&!cfg.UseEmergencyStop)throw new InvalidOperationException("실계좌 실행 전 낙주 비상 손절을 켜세요.");
+        var cfg=LoadMultiOversoldPreset(name);return BuildOversoldTradingSettings(cfg,equity,!MultiTrading.UseMock);
+    }
+    private TradingSettings BuildOversoldTradingSettings(OversoldConfig cfg,decimal equity,bool requireEmergencyStop)
+    {
+        if(requireEmergencyStop&&!cfg.UseEmergencyStop)throw new InvalidOperationException("실계좌 실행 전 낙주 비상 손절을 켜세요.");
         var a=new StrategyConfiguration{Enabled=true,StrategyType=StrategyType.Box}.Resolve();
         a.Common.Investment=Math.Min(cfg.PlannedInvestment,LiveOrderLimit);
         a.Common.TradingStart="09:00";a.Common.TradingEnd="15:20";
@@ -73,7 +77,9 @@ public sealed partial class WorkspaceViewModel
     }
     private async Task StartRealtimeMockMulti()
     {
-        if(!RealtimeMockSupported||credentials==null||!MultiTrading.UseMock||!MultiTrading.UseRealtime)throw new InvalidOperationException("키움 국내 실제 시세 연결과 모의·실시간 체크를 확인하세요.");
+        if(!MultiTrading.UseMock||!MultiTrading.UseRealtime)throw new InvalidOperationException("가상 계좌의 모의·실시간 설정을 확인하세요.");
+        if(IsOffline){await StartPublicPaperMulti();return;}
+        if(!RealtimeMockSupported||credentials==null)throw new InvalidOperationException("설정은 오프라인에서도 저장할 수 있습니다. 실시간 실행에는 키움 국내 실제 체결·호가 시세 연결이 필요합니다. 공개 현재가만으로는 체결·호가 기반 전략을 실행할 수 없습니다.");
         if(MultiSessionExists)throw new InvalidOperationException("이전 다중매매를 전체 중지한 뒤 시작하세요.");
         if(ScreenDaily)throw new InvalidOperationException("전략 설정의 데이터 기준에서 분봉 또는 시간봉을 선택하세요. 일봉은 실시간 전략 실행 기준으로 사용할 수 없습니다.");
         var spec=TimeBarSelection.Parse(ScreenBarValue,ScreenBarUnit);
@@ -167,6 +173,7 @@ public sealed partial class WorkspaceViewModel
     }
     public async Task StopMulti(string? key=null)
     {
+        if(key==null&&(RealtimeScreeningRunning||RealtimeScreeningProtectionActive))await StopRealtimeScreening(false);
         if(multiPaperActive&&realtimePaperBatch is {} paper)
         {
             paper.Stop(key);

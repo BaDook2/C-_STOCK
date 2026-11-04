@@ -20,9 +20,34 @@ public partial class MainWindow : Window
     private async void OnClosing(object? sender,CancelEventArgs e)
     {
         if(DataContext is not WorkspaceViewModel vm)return;
-        if(closingAfterStop){vm.Dispose();return;}
+        if(closingAfterStop){FinishClose(vm);return;}
         if(vm.Busy){e.Cancel=true;MessageBox.Show(this,"작업 취소를 누르고 작업이 끝난 뒤 닫아주세요.");return;}
-        if(vm.MultiSessionExists){e.Cancel=true;IsEnabled=false;try{await vm.StopMulti();}catch{MessageBox.Show(this,"중지 후 취소 상태를 증권사에서 확인하세요.");}finally{IsEnabled=true;closingAfterStop=true;Close();}}else vm.Dispose();
+        if(vm.MultiSessionExists){e.Cancel=true;IsEnabled=false;try{await vm.StopMulti();}catch{MessageBox.Show(this,"중지 후 취소 상태를 증권사에서 확인하세요.");}finally{IsEnabled=true;closingAfterStop=true;Close();}}else FinishClose(vm);
+    }
+    private static void FinishClose(WorkspaceViewModel vm)
+    {
+        // UI tests own an explicit-shutdown Application and must keep the test process alive.
+        if(Application.Current is not App {ManualWindowStartup:false})
+        {
+            vm.Dispose();
+            return;
+        }
+
+        // Give broker, tick persistence and SQLite a clean shutdown first. A dedicated watchdog
+        // prevents an unexpectedly blocked provider/dispose call from leaving an invisible
+        // Stock.exe process behind and blocking the next launch through the single-instance mutex.
+        using var completed=new System.Threading.ManualResetEventSlim();
+        var watchdog=new System.Threading.Thread(()=>
+        {
+            if(!completed.Wait(TimeSpan.FromSeconds(10)))Environment.Exit(0);
+        }){IsBackground=true,Name="Stock shutdown watchdog"};
+        watchdog.Start();
+        try{vm.Dispose();}
+        finally
+        {
+            completed.Set();
+            Environment.Exit(0);
+        }
     }
     private async void ScreeningTradeClick(object sender,RoutedEventArgs e)
     {

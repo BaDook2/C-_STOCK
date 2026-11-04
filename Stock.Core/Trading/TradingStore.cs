@@ -12,7 +12,9 @@ public sealed class TradingStore : IDisposable
     {
         Path=path; Directory.CreateDirectory(System.IO.Path.GetDirectoryName(System.IO.Path.GetFullPath(path))!);
         db=new SqliteConnection(new SqliteConnectionStringBuilder{DataSource=path,Mode=SqliteOpenMode.ReadWriteCreate,DefaultTimeout=10}.ToString()); db.Open();
-        Exec("PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL; CREATE TABLE IF NOT EXISTS presets(name TEXT PRIMARY KEY,json TEXT NOT NULL); CREATE TABLE IF NOT EXISTS settings_history(id INTEGER PRIMARY KEY,at TEXT,name TEXT,old_json TEXT,new_json TEXT); CREATE TABLE IF NOT EXISTS events(id INTEGER PRIMARY KEY,market_key TEXT,source TEXT,at INTEGER,kind TEXT,digest TEXT UNIQUE,json TEXT); CREATE INDEX IF NOT EXISTS ix_events ON events(market_key,source,at); CREATE TABLE IF NOT EXISTS runs(id TEXT PRIMARY KEY,at TEXT,mode TEXT,settings TEXT,data_hash TEXT,result TEXT); CREATE TABLE IF NOT EXISTS audit(id INTEGER PRIMARY KEY,run_id TEXT,at TEXT,category TEXT,json TEXT); CREATE INDEX IF NOT EXISTS ix_audit ON audit(run_id,id); ");
+        // This is a single-process desktop store. DELETE journaling avoids stale WAL/SHM files
+        // making a previously valid user database unreadable after the app is closed and reopened.
+        Exec("PRAGMA journal_mode=DELETE; PRAGMA synchronous=FULL; PRAGMA busy_timeout=10000; CREATE TABLE IF NOT EXISTS presets(name TEXT PRIMARY KEY,json TEXT NOT NULL); CREATE TABLE IF NOT EXISTS settings_history(id INTEGER PRIMARY KEY,at TEXT,name TEXT,old_json TEXT,new_json TEXT); CREATE TABLE IF NOT EXISTS events(id INTEGER PRIMARY KEY,market_key TEXT,source TEXT,at INTEGER,kind TEXT,digest TEXT UNIQUE,json TEXT); CREATE INDEX IF NOT EXISTS ix_events ON events(market_key,source,at); CREATE TABLE IF NOT EXISTS runs(id TEXT PRIMARY KEY,at TEXT,mode TEXT,settings TEXT,data_hash TEXT,result TEXT); CREATE TABLE IF NOT EXISTS audit(id INTEGER PRIMARY KEY,run_id TEXT,at TEXT,category TEXT,json TEXT); CREATE INDEX IF NOT EXISTS ix_audit ON audit(run_id,id); ");
         Exec("CREATE TABLE IF NOT EXISTS state(key TEXT PRIMARY KEY,json TEXT NOT NULL); CREATE INDEX IF NOT EXISTS ix_events_raw_tick ON events(market_key,source,kind,at,id);");
         using var migration=db.CreateCommand();migration.CommandText="PRAGMA user_version";if(Convert.ToInt32(migration.ExecuteScalar())<2)Exec("PRAGMA user_version=2");
     }
@@ -73,7 +75,22 @@ public sealed class TradingStore : IDisposable
     public bool DeleteState(string key)
     {lock(gate){using var c=db.CreateCommand();c.CommandText="DELETE FROM state WHERE key=$k";c.Parameters.AddWithValue("$k",key);return c.ExecuteNonQuery()>0;}}
     public IReadOnlyList<(string Key,string Json)> States(string prefix)
-    {lock(gate){using var c=db.CreateCommand();c.CommandText="SELECT key,json FROM state WHERE substr(key,1,length($p))=$p ORDER BY rowid DESC";c.Parameters.AddWithValue("$p",prefix);using var r=c.ExecuteReader();var rows=new List<(string,string)>();while(r.Read())rows.Add((r.GetString(0),r.GetString(1)));return rows;}}
+    {
+        lock(gate)
+        {
+            // Do not apply SQLite text functions to legacy keys. Older builds persisted a
+            // few locale-corrupted names which some e_sqlite3 versions report as SQLITE_CORRUPT
+            // while evaluating substr(), even though the table and payloads remain readable.
+            using var c=db.CreateCommand();c.CommandText="SELECT key,json FROM state ORDER BY rowid DESC";
+            using var r=c.ExecuteReader();var rows=new List<(string,string)>();
+            while(r.Read())
+            {
+                var key=r.GetString(0);
+                if(key.StartsWith(prefix,StringComparison.Ordinal))rows.Add((key,r.GetString(1)));
+            }
+            return rows;
+        }
+    }
     public void Dispose(){lock(gate)db.Dispose();}
 }
 public static class MarketCsv

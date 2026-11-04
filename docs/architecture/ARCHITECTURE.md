@@ -19,7 +19,7 @@ CandleChart는 이미 가져온 PriceBar를 렌더링하며 API나 DB를 호출�
 
 ## DB 구조
 
-TradingStore는 SQLite WAL 모드. 기존 presets/settings_history/events/runs/audit와 범용 state(key,json)를 관리한다. 새 화면의 workspace-v2.db에서 state는 종목 목록, bars:<종목>, chart-settings, chart-preset:<이름>, chart-run:<ID>를 보관한다. 실행 결과에는 설정, 데이터 해시, 초기자금, 손익, 체결, 자산곡선을 저장한다.
+TradingStore는 단일 프로세스 WPF 수명에 맞춰 SQLite DELETE journal 모드를 사용한다. 기존 presets/settings_history/events/runs/audit와 범용 state(key,json)를 관리한다. 새 화면의 workspace-v2.db에서 state는 종목 목록, bars:<종목>, chart-settings, chart-preset:<이름>, chart-run:<ID>를 보관한다. 실행 결과에는 설정, 데이터 해시, 초기자금, 손익, 체결, 자산곡선을 저장한다. 종료 시 연결을 정리하고 WAL/SHM 파일을 남기지 않으며, 다음 실행에서 대형 state를 다시 읽는 회귀를 별도로 검증한다.
 기존 stock.db는 보존한다. 실제 주문 write-ahead 저널은 계좌 해시를 포함한 별도 JSON으로 원자적으로 저장하며 실전/모의 접두사를 구분한다. 실시간 가격의 매번 조회를 DB로 수행하지 않는다. 새 화면의 데이터는 일봉이며 실시간 스트리밍 화면은 아니다.
 
 ## 외부 API
@@ -140,6 +140,20 @@ CurrentOversoldScreening은 과거 엔진의 기술적 계산을 재사용하면
 `RealtimePaperStrategyBatch`는 실제 키움 `MarketEvent`와 기존 `OversoldLiveStrategy`/`DataQualityGate`를 재사용하고 종목별 `PaperBroker`만 소유한다. 따라서 실제 브로커 주문 API를 호출하지 않는다. 전략 신호 이벤트 다음의 실제 이벤트부터 가상 체결하고, 체결시각·가격을 `TradeMarker` source `실시간 모의매매`로 저장한다. `MultiTradeWorkspace`의 단일 WebSocket 수신 루프는 원본 이벤트 저장, 전략 평가, 선택 종목 차트의 `ObserveMultiMarket` 갱신을 함께 수행한다. 차트는 저장된 동일 표식을 틱·분·일·주 집계에 매핑하며 실시간 모드 전환과 무관하게 실시간 모의 표식을 다시 읽는다.
 
 실시간 모의와 실계좌 모두 종목별 상태, 주문 단계 중복 방지, 피드 신선도, 정규장, 시점별 상태·위험, 검증 준비 봉을 요구한다. 전체 중지는 피드를 종료하고 신규 실행을 막지만 보유분을 임의 청산하지 않는다. 실시간 모의 정지는 가상 미체결만 취소한다.
+
+## 공개시세 가상매매 및 가격 경로 (2026-11-04)
+
+오프라인 MultiTradeWorkspace는 PublicPaperWorkspace로 연결된다. PublicMinuteMarketData → StrategyBarAggregator → OversoldLiveStrategy.OnPublicBar로 완성봉을 공급하고 SelectedQuotePump → OnPublicSnapshot → 기존 PaperBroker로 관측 기반 모의 체결을 처리한다. 공개 관측은 실제 원본 틱으로 저장하지 않는다. 모의 전용 facts 가정과 거래대금 추정은 plan에 명시되며 LiveStrategyBatch에서 PublicPaper plan을 거부한다. 상세 사용법은 docs/ui/PublicPaperTrading.md, 응답 계약은 docs/api/NaverPublic.md다.
+
+선택 종목/관심종목 가격은 오프라인 ICurrentMarketData(네이버 KRX), 온라인 BrokerCurrentMarketData(연결 계좌)로 라우팅한다. 공급자 pollingInterval을 줄이지 않고 새 응답을 Dispatcher에서 즉시 반영한다. 키움 WebSocket도 온라인에서만 공유하며 연결 실패를 공개 가격으로 대체하지 않는다.
+
+## 실시간 스크리닝 서비스 (2026-11-03)
+
+`MainWindow → WorkspaceViewModel.RealtimeScreeningWorkspace → RealtimeOversoldScreeningService → OversoldLiveStrategy`가 일반 스크리닝과 같은 저장 전략을 사용한다. `OversoldLiveStrategy`의 연구 전용 모드는 최신 `EntryEvaluation`과 신호 시각만 내보내고 주문을 직접 실행하지 않는다. `RealtimeOversoldScreeningService`가 종목별 독립 상태, 조건 근접도, 자료 상태와 신호 중복 방지를 관리한다.
+
+신호 연구와 주문 실행은 분리한다. 새 화면의 자동매매 체크는 `RealtimePaperStrategyBatch`에만 연결되어 실제 브로커 제출 없이 가상 체결을 만든다. 체크 해제는 `EntryEnabled=false`로 신규·추가 진입만 막고 보호 청산은 유지한다. 다시 체크해도 해제 중 발생한 신호를 소급 실행하지 않는다. 기존 실계좌 `LiveStrategyBatch → RemoteTradingSession → OrderGuard`는 별도 다량 전략 창과 명시 확인 경계에 그대로 남는다.
+
+실행 상태는 View가 아니라 application-level Workspace 수명에 속한다. 종목 준비 동시성은 4, feed 구독은 20종목 단위 shard, 원본 이벤트 저장은 기존 128개 batch, UI projection은 500ms throttle을 사용한다. 최대 100종목을 감시하며 종목별 예외를 격리한다. 연결 끊김이나 지연은 연구 실행과 자동 진입을 즉시 차단하고, 긴급중지는 실시간 스크리닝과 기존 다량 실행을 함께 중지한다. 새 경로의 지원 봉은 키움 국내 분봉·시간봉 완성봉이며 실제 장중 연결은 사용자 계좌를 임의 사용하지 않아 가짜 feed로 검증한다.
 # 2026-10-23 스크리닝 시장·지정봉 조회 경계
 
 - `StockItem.Board`가 공개 상위 목록의 KOSPI/KOSDAQ 구분을 보존한다. 스크리닝은 종목 검색의 국내/해외 선택과 분리된 `ScreeningMarketSelection`을 사용한다.

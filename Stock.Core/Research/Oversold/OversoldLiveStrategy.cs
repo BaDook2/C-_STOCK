@@ -1,28 +1,44 @@
 using Stock.Core.Trading;
 namespace Stock.Core.Research.Oversold;
 
-public sealed record OversoldLiveConfiguration(OversoldConfig Configuration,BarSpecification BarSpecification,StrategyBar[] Warmup,HistoricalFacts Facts);
+public sealed record OversoldLiveConfiguration(OversoldConfig Configuration,BarSpecification BarSpecification,StrategyBar[] Warmup,HistoricalFacts Facts,bool ResearchOnly=false,bool PublicPaper=false);
 public sealed record OversoldPositionSnapshot(int Quantity,int Entries,decimal Average,decimal LastEntry,decimal Peak,bool TakeProfit1,bool TakeProfit2);
 /// <summary>Common detector/position rules driven by completed bars; holdings change only on broker executions.</summary>
 public sealed class OversoldLiveStrategy:ITradingStrategy
 {
-    private readonly OversoldConfig config;private readonly BarSpecification spec;private readonly HistoricalFacts facts;private readonly Instrument instrument;
+    private readonly OversoldConfig config;private readonly BarSpecification spec;private readonly HistoricalFacts facts;private readonly Instrument instrument;private readonly bool requestedResearchOnly;
     private readonly OversoldIndicatorCache cache;private readonly OversoldEntryDetector detector=new();private readonly TickCoverageTracker coverage=new();
     private readonly ISupportProvider[] providers=[new MovingAverageSupportProvider(),new ConfirmedPivotHighProvider(true),new ApproximateVolumeZoneProvider()];
     private readonly List<decimal?> values=[];private readonly List<MarketEvent> bucket=[];private readonly List<MarketEvent> unverified=[];private readonly HashSet<string> filledEntryOrders=[],executionIds=[];
     private readonly DailyMarketSession[] sessions;private SupportCluster? initialCluster;private SupportCandidate[] candidates=[];
     private int quantity,entries,peakQuantity,harvestBasis,firstDay,lastExit=-1;private decimal average,lastEntry,peak;private decimal? priorCenter;private bool tp1,tp2,harvest;
-    private DateTimeOffset lastBarTime,bucketStart,bucketEnd,segmentStart;private long lastBarSequence,liveSequence;private OversoldSignal? pendingSignal,readySignal;private MarketEvent? latest;private string error="";
+    private DateTimeOffset lastBarTime,bucketStart,bucketEnd,segmentStart,observedAt;private long lastBarSequence,liveSequence;private OversoldSignal? pendingSignal,readySignal;private MarketEvent? latest;private EntryEvaluation? latestEntryEvaluation;private string error="";
+    private readonly bool publicPaper;
     public string Name=>"국내 과매도·낙주 반등";
     public OversoldDecisionSnapshot? Snapshot=>readySignal?.Snapshot;
+    public EntryEvaluation? LatestEntryEvaluation=>latestEntryEvaluation;
+    public DateTimeOffset LastAnalyzedAt=>lastBarTime;
+    public DateTimeOffset? ReadySignalTime=>readySignal?.SignalTime;
     public int EntryStage=>entries+1;
     public OversoldPositionSnapshot Position=>new(quantity,entries,average,lastEntry,peak,tp1,tp2);
     public string Stage=>pendingSignal?.Reason??"감시";
     public OversoldLiveStrategy(Instrument instrument,OversoldLiveConfiguration requested)
     {
-        this.instrument=instrument;config=requested.Configuration.Clone();config.Validate();spec=requested.BarSpecification;spec.Validate();facts=requested.Facts.Snapshot();sessions=facts.Sessions.OrderBy(s=>s.Open).ToArray();cache=new(config,true);
+        this.instrument=instrument;config=requested.Configuration.Clone();config.Validate();spec=requested.BarSpecification;spec.Validate();facts=requested.Facts.Snapshot();requestedResearchOnly=requested.ResearchOnly;sessions=facts.Sessions.OrderBy(s=>s.Open).ToArray();cache=new(config,true);
         foreach(var bar in requested.Warmup.OrderBy(b=>b.ClosedAt).ThenBy(b=>b.Sequence))EvaluateBar(bar,false);
-        pendingSignal=null;
+        pendingSignal=null;publicPaper=requested.PublicPaper;
+    }
+    /// <summary>Completed public candles drive the same detector, never reconstructed ticks.</summary>
+    public void OnPublicBar(StrategyBar bar)
+    {
+        if(!publicPaper)throw new InvalidOperationException("공개 봉은 공개시세 가상 계좌에서만 사용할 수 있습니다.");
+        if(bar.ClosedAt<=lastBarTime||!bar.Price.IsComplete)return;
+        EvaluateBar(bar,true);
+    }
+    public void OnPublicObservation(DateTimeOffset time)
+    {
+        if(!publicPaper)throw new InvalidOperationException("공개시세 가상 계좌가 아닙니다.");
+        observedAt=time;readySignal=pendingSignal!=null&&time>pendingSignal.SignalTime?pendingSignal:null;
     }
     public void OnMarket(MarketEvent e)
     {
@@ -87,7 +103,8 @@ public sealed class OversoldLiveStrategy:ITradingStrategy
         if(quantity==0)
         {
             detector.Observe(bar.Price,day,config);
-            var entry=detector.Evaluate(bar.Price,day,sessions[day].Date,config,indicators,candidates,facts.Status(instrument.Symbol,sessions[day].Date,bar.ClosedAt),facts.Risk(instrument.Symbol,sessions[day].Date,bar.ClosedAt),values.TakeLast(config.AverageTradingValueLookbackDays).ToArray(),lastExit,priorCenter);
+            var entry=detector.Evaluate(bar.Price,day,sessions[day].Date,config,indicators,candidates,facts.Status(instrument.Symbol,sessions[day].Date,bar.ClosedAt),facts.Risk(instrument.Symbol,sessions[day].Date,bar.ClosedAt),values.TakeLast(config.AverageTradingValueLookbackDays).ToArray(),lastExit,priorCenter,currentResearch:requestedResearchOnly);
+            latestEntryEvaluation=entry;
             if(entry.Enter){reason="Entry1";buy=true;selected=entry.Selected;}
         }
         else
@@ -114,7 +131,7 @@ public sealed class OversoldLiveStrategy:ITradingStrategy
     public StrategySignal Evaluate(MarketContext context)
     {
         if(error!="")throw new InvalidOperationException(error);
-        if(readySignal==null||latest==null||latest.ExchangeTime<=readySignal.SignalTime)return new(Name,null,null,"완성봉 이후 실제 체결 대기");
+        if(readySignal==null||(publicPaper?observedAt:latest?.ExchangeTime??default)<=readySignal.SignalTime)return new(Name,null,null,publicPaper?latestEntryEvaluation?.Reason??"완성봉 이후 새 시세 대기":"완성봉 이후 새 시세 대기");
         return new(Name,readySignal.Action=="Buy",context.Price,readySignal.Reason);
     }
     public int OrderQuantity(decimal price)

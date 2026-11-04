@@ -32,5 +32,18 @@ internal static partial class Program
         var marker=recorded.Single();var minute=ChartPeriods.FromTrades(tickBars,"1분");var daily=new[]{DailyBar(2,79)};var weekly=ChartPeriods.Aggregate(daily,"주봉");
         Check(CandleChart.TradeBarIndex(tickBars,marker,"1틱")>=0&&CandleChart.TradeBarIndex(minute,marker,"1분")>=0&&CandleChart.TradeBarIndex(daily,marker,"일봉")>=0&&CandleChart.TradeBarIndex(weekly,marker,"주봉")>=0,"one exact paper fill maps to tick, minute, daily and weekly chart bars");
         batch.Stop();Check(!batch.Snapshot().Running&&batch.Snapshot().Rows.Single().Owned>0,"stopping live paper blocks new orders without inventing liquidation");
+
+        var blocked=new RealtimePaperStrategyBatch(store,()=>now);blocked.Start(plan);blocked.SetEntryEnabled(false);
+        void BlockedEvent(int n,decimal price=80)
+        {
+            now=DailyTime(2,9,0).AddSeconds(n);var instrument=new Instrument(DailyStock.Symbol,Exchange.KRX);
+            blocked.OnMarket(new(instrument,EventKind.Trade,now,now,"KIWOOM",n*2+1){TradePrice=price,TradeSize=1000,CumulativeVolume=1000*(n+1),PreviousClose=100});
+            blocked.OnMarket(new(instrument,EventKind.Quote,now,now,"KIWOOM",n*2+2){Bid=price,Ask=price+1,BidSize=1000,AskSize=1000});blocked.Pulse().GetAwaiter().GetResult();
+        }
+        BlockedEvent(10);BlockedEvent(11);BlockedEvent(12);
+        Check(blocked.Snapshot().Rows.Single() is {Pending:0,Owned:0} blockedRow&&blockedRow.Status.Contains("자동매매 꺼짐"),"unchecked realtime auto-trading records the signal but creates no virtual order");
+        blocked.SetEntryEnabled(true);BlockedEvent(13);
+        Check(blocked.Snapshot().Rows.Single() is {Pending:0,Owned:0},"re-enabling realtime auto-trading never submits the signal that existed while disabled");
+        blocked.Stop();
     }
 }

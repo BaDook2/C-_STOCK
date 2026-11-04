@@ -15,7 +15,7 @@ public interface ICurrentMarketData
 public sealed class SelectedQuotePump(ICurrentMarketData source,TimeProvider? clock=null):IDisposable
 {
     public static readonly TimeSpan MinimumInterval=TimeSpan.FromSeconds(1);
-    public static readonly TimeSpan MaximumInterval=TimeSpan.FromSeconds(3);
+    public static readonly TimeSpan MaximumInterval=TimeSpan.FromSeconds(60);
     private readonly TimeProvider time=clock??TimeProvider.System;
     private readonly SemaphoreSlim gate=new(1,1);
     private CancellationTokenSource? cancellation;
@@ -35,6 +35,7 @@ public sealed class SelectedQuotePump(ICurrentMarketData source,TimeProvider? cl
         {
             while(!stop.IsCancellationRequested)
             {
+                var started=time.GetUtcNow();
                 try
                 {
                     await gate.WaitAsync(stop.Token);
@@ -43,11 +44,14 @@ public sealed class SelectedQuotePump(ICurrentMarketData source,TimeProvider? cl
                     if(version!=generation||stop.IsCancellationRequested)return;
                     if(snapshot.Stock.Key!=stock.Key)throw new InvalidOperationException("종목 응답 불일치");
                     update(snapshot);failures=0;
-                    interval=snapshot.PollInterval<MinimumInterval?MinimumInterval:snapshot.PollInterval>MaximumInterval?MaximumInterval:snapshot.PollInterval;
+                    interval=snapshot.PollInterval<MinimumInterval?MinimumInterval:snapshot.PollInterval;
+                    var age=time.GetUtcNow()-snapshot.ReceivedAt;
+                    if(age>=TimeSpan.Zero&&age<interval)started=snapshot.ReceivedAt;
                 }
                 catch(OperationCanceledException) when(stop.IsCancellationRequested){return;}
                 catch{if(version!=generation)return;failures++;interval=TimeSpan.FromSeconds(Math.Min(120,Math.Max(interval.TotalSeconds,Math.Pow(2,Math.Min(failures,6))*7)));error($"갱신 실패 · {interval.TotalSeconds:N0}초 후 재시도 · 이전 관측값 유지");}
-                await Task.Delay(interval,time,stop.Token);
+                var wait=interval-(time.GetUtcNow()-started);
+                if(wait>TimeSpan.Zero)await Task.Delay(wait,time,stop.Token);
             }
         }
         catch(OperationCanceledException){}
@@ -66,6 +70,8 @@ public static class DailyQuoteMerger
         var q=snapshot.Quote;var day=Date(q.TradeTime,snapshot.Stock.Exchange);
         if(q.Price<=0||q.TradeTime>now.AddMinutes(1)||day!=Date(now,snapshot.Stock.Exchange))return history.ToArray();
         var old=history.LastOrDefault(b=>Date(b.Time,snapshot.Stock.Exchange)==day);
+        if(snapshot.Volume==null&&old!=null&&snapshot.Source.Contains("OHLCV 미제공",StringComparison.Ordinal))
+            snapshot=snapshot with{Open=old.Open,High=Math.Max(old.High,q.Price),Low=Math.Min(old.Low,q.Price),Volume=old.Volume};
         if(snapshot.Open is not >0||snapshot.High is not >0||snapshot.Low is not >0||snapshot.Volume is not >=0)return history.ToArray();
         // A later valid official completed candle is never downgraded by a cached poll.
         if(old is {IsComplete:true}&&PublicMarketData.IsDailyComplete(old,snapshot.Stock.Exchange,now))return history.ToArray();

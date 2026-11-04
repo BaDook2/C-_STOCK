@@ -14,7 +14,7 @@ public sealed class KiwoomCredentials
     public required string SecretKey { get; init; }
     public void Validate(){if(string.IsNullOrWhiteSpace(AppKey)||string.IsNullOrWhiteSpace(SecretKey))throw new InvalidOperationException("앱의 로컬 연결 설정에서 키움 App Key와 Secret을 입력하세요.");}
 }
-public sealed class KiwoomBroker : IAccountBroker,IExecutionHistoryBroker,IMinuteHistoryBroker,IRangedMinuteHistoryBroker,IRangedMinuteIntervalHistoryBroker,ITickHistoryBroker
+public sealed class KiwoomBroker : IAccountBroker,IExecutionHistoryBroker,IMinuteHistoryBroker,IRangedMinuteHistoryBroker,IRangedMinuteIntervalHistoryBroker,ITickHistoryBroker,ICurrentMarketData
 {
     public string Id=>"kiwoom";
     public string Name=>"키움증권";
@@ -41,6 +41,16 @@ public sealed class KiwoomBroker : IAccountBroker,IExecutionHistoryBroker,IMinut
         var pages=await Query(Us?"usa20100":"ka10001",Us?"/api/us/mrkcond":"/api/dostk/stkinfo",Us?(object)new{stex_tp=Code,stk_cd=symbol}:new{stk_cd=symbol});
         var price=Math.Abs(Num(pages[0],"cur_prc"));if(price<=0)throw new InvalidOperationException("증권사 현재가를 확인하지 못해 주문하지 않았습니다.");return price;
     }
+    public async Task<CurrentMarketSnapshot> Current(StockItem stock,CancellationToken cancellation)
+    {
+        if(stock.Exchange!=Exchange)throw new InvalidOperationException("연결 계좌의 시세 지원 시장과 다릅니다.");
+        var pages=await Query(Us?"usa20100":"ka10001",Us?"/api/us/mrkcond":"/api/dostk/stkinfo",Us?(object)new{stex_tp=Code,stk_cd=stock.Symbol}:new{stk_cd=stock.Symbol},cancellation);
+        var row=pages[0];decimal? N(string key)=>KiwoomTickParser.Number(row,key) is {} n?Math.Abs(n):null;
+        var price=N("cur_prc")??0;if(price<=0)throw new InvalidOperationException("증권사 현재가를 확인하지 못했습니다.");
+        var change=KiwoomTickParser.Number(row,"pred_pre")??0;var previous=price-change;var now=DateTimeOffset.UtcNow;
+        return new(stock,new(stock.Name,price,change,previous>0?(price/previous-1)*100:0,now,LiveBatchSupport.RegularSession(now)?"OPEN":"CLOSE"),now,N("open_pric"),N("high_pric"),N("low_pric"),N("trde_qty"),null,"키움증권 REST 현재가",TimeSpan.FromSeconds(1),ExchangeTimestamp:false);
+    }
+    public Task<Stock.Core.Research.Oversold.DailySecurityStatus?> CurrentSecurity(StockItem stock,CancellationToken cancellation)=>Task.FromResult<Stock.Core.Research.Oversold.DailySecurityStatus?>(null);
     private async Task<HttpResponseMessage> Send(HttpRequestMessage request,CancellationToken cancellation=default)
     {await gate.WaitAsync(cancellation);try{var delay=TimeSpan.FromMilliseconds(650)-(DateTimeOffset.UtcNow-previous);if(delay>TimeSpan.Zero)await Task.Delay(delay,cancellation);previous=DateTimeOffset.UtcNow;return await http.SendAsync(request,cancellation);}finally{gate.Release();}}
     public async Task<string> GetTokenAsync()

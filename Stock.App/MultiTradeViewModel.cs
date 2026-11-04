@@ -16,7 +16,7 @@ public sealed class MultiTradeRow:Observable
     public void Apply(LiveBatchRowStatus s){State=s.Status;Signal=s.Signal;Owned=s.Owned;Pending=s.Pending;Error=s.Error;profit=s.Profit;Changed(nameof(Profit));}
 }
 public sealed record MultiTradeDraft(StockItem Stock,string Preset,string Budget,bool Selected);
-public sealed record MultiTradeDrafts(MultiTradeDraft[] Rows,string TotalBudget,string DailyLoss){public string[] GroupIds {get;init;}=[];public bool UseRealtime {get;init;}}
+public sealed record MultiTradeDrafts(MultiTradeDraft[] Rows,string TotalBudget,string DailyLoss){public string[] GroupIds {get;init;}=[];public bool UseRealtime {get;init;}public string PublicBarValue {get;init;}="1";public string PublicBarUnit {get;init;}="분";}
 public sealed class MultiTradeMember:Observable
 {
     private readonly Action<StockItem,bool> changed;private bool selected;public StockItem Stock {get;}public string Name=>Stock.Name;
@@ -38,12 +38,18 @@ public sealed class MultiTradeViewModel:Observable
     public ObservableCollection<MultiTradeRow> Rows {get;}=[];public ObservableCollection<MultiTradeGroup> Groups {get;}=[];public ObservableCollection<StockItem> Results {get;}=[];public ObservableCollection<string> Presets {get;}=[];
     public Dictionary<string,ActionCommand> Actions {get;}=[];public string Query {get;set;}="삼성전자";public string Region {get;set;}="국내";public string[] Regions {get;}=["국내","해외"];
     public StockItem? SelectedResult {get;set;}public MultiTradeRow? SelectedRow {get;set;}public string TotalBudget {get;set;}="5,000,000";public string DailyLoss {get;set;}="100,000";
+    public string PublicBarValue {get;set;}="1";
+    private string publicBarUnit="분";
+    public string PublicBarUnit {get=>publicBarUnit;set{publicBarUnit=TimeBarSelection.NormalizeUnit(value);PublicBarValue=TimeBarSelection.NormalizeValue(PublicBarValue,publicBarUnit);Changed();Changed(nameof(PublicBarValue));Changed(nameof(PublicBarValues));}}
+    public string[] PublicBarValues=>TimeBarSelection.Values(PublicBarUnit);
+    public TimeBarUnitOption[] PublicBarUnits=>TimeBarSelection.Options;
+    public string RealtimeAvailabilityText=>mockMode()?"네이버 KRX 공개 현재가와 완성 분봉으로 모의매매합니다. 공개 현재가는 서버 관측값이며 응답의 갱신 간격을 따릅니다. 종목상태·위험 미확인은 모의용 가정, 분봉 거래대금은 추정입니다. 실제 체결·성과와 다를 수 있습니다.":"실시간 가상 전략은 연결 증권사 시세를 받아 가상 계좌에만 주문합니다.";
     public event Action<string>? NotificationRequested;
-    public string Account=>account();public bool CanEdit=>!busy&&!running;public bool IsLocked=>!CanEdit;public bool CanToggleMock=>CanEdit&&!modeLocked;public bool CanToggleRealtime=>CanEdit&&UseMock&&!modeLocked;public bool UseMock {get=>useMock;set{if(!CanToggleMock||useMock==value)return;useMock=value;if(!value)useRealtime=true;Changed();Changed(nameof(UseRealtime));Reload();}}public bool UseRealtime {get=>useRealtime;set{if(!CanToggleRealtime||useRealtime==value)return;useRealtime=value;Changed();Reload();}}public bool CanUseLiveBudget=>CanEdit;public string RunCaption=>UseMock?(UseRealtime?"실시간 모의매매 시작":"종목별 모의 백테스트"):supported()?"실제 계좌 일괄수행":"실제 실행 지원 전";public string LaunchContextText=>modeLocked?(UseMock?"가상 계좌 주문에서 열었습니다. 실제 주문 없이 실시간 시세로 전략을 실행합니다.":"실제 계좌 주문에서 열었습니다. 선택 계좌로만 전략 주문을 실행합니다."):"모의/실제 실행 방식을 직접 선택합니다.";public string Message {get=>message;private set{message=value;Changed();}}public bool Running=>running;
+    public string Account=>account();public bool CanEdit=>!busy&&!running;public bool IsLocked=>!CanEdit;public bool CanToggleMock=>CanEdit&&!modeLocked;public bool CanToggleRealtime=>CanEdit&&UseMock&&!modeLocked;public bool UseMock {get=>useMock;set{if(!CanToggleMock||useMock==value)return;useMock=value;if(!value)useRealtime=true;Changed();Changed(nameof(UseRealtime));Reload();}}public bool UseRealtime {get=>useRealtime;set{if(!CanToggleRealtime||useRealtime==value)return;useRealtime=value;Changed();Reload();}}public bool CanUseLiveBudget=>CanEdit;public string RunCaption=>UseMock?(UseRealtime?"실시간 모의매매 시작":"종목별 모의 백테스트"):supported()?"실제 계좌 일괄수행":"실제 실행 지원 전";public string LaunchContextText=>modeLocked?(UseMock?mockMode()?"가상 계좌 전략을 오프라인에서 설정합니다. 실제 계좌 주문은 전송하지 않습니다.":"가상 계좌 주문에서 열었습니다. 실제 주문 없이 실시간 시세로 전략을 실행합니다.":"실제 계좌 주문에서 열었습니다. 선택 계좌로만 전략 주문을 실행합니다."):"모의/실제 실행 방식을 직접 선택합니다.";public string Message {get=>message;private set{message=value;Changed();}}public bool Running=>running;
     public MultiTradeViewModel(IPublicMarketData provider,TradingStore store,Func<Task> start,Func<string?,Task> stop,Func<Task> review,Func<string,decimal,TradingSettings> presetLoader,Func<string> account,Func<bool> supported,Func<bool>? mockMode=null,Func<Task>? mockStart=null,Func<IEnumerable<StockItem>>? screeningSeed=null,Func<Task>? realtimeMockStart=null,Func<bool>? realtimeSupported=null,Func<IEnumerable<string>>? strategyNames=null)
     {
         this.provider=provider;this.store=store;this.start=start;this.stop=stop;this.review=review;this.presetLoader=presetLoader;this.account=account;this.supported=supported;this.mockMode=mockMode??(()=>false);this.mockStart=mockStart??(()=>Task.CompletedTask);this.screeningSeed=screeningSeed??(()=>[]);this.realtimeMockStart=realtimeMockStart??(()=>Task.CompletedTask);this.realtimeSupported=realtimeSupported??supported;this.strategyNames=strategyNames??(()=>["국내 과매도·낙주 반등"]);
-        var saved=store.State<MultiTradeDrafts>("multi-trade-draft");if(saved!=null){TotalBudget=saved.TotalBudget;DailyLoss=saved.DailyLoss;useRealtime=saved.UseRealtime;foreach(var id in saved.GroupIds)groupIds.Add(id);foreach(var r in saved.Rows){var row=new MultiTradeRow{Stock=r.Stock,Preset=r.Preset,Budget=r.Budget,Selected=r.Selected};Rows.Add(row);BindRow(row);}}
+        var saved=store.State<MultiTradeDrafts>("multi-trade-draft");if(saved!=null){TotalBudget=saved.TotalBudget;DailyLoss=saved.DailyLoss;useRealtime=saved.UseRealtime;PublicBarUnit=saved.PublicBarUnit;PublicBarValue=TimeBarSelection.NormalizeValue(saved.PublicBarValue,PublicBarUnit);foreach(var id in saved.GroupIds)groupIds.Add(id);foreach(var r in saved.Rows){var row=new MultiTradeRow{Stock=r.Stock,Preset=r.Preset,Budget=r.Budget,Selected=r.Selected};Rows.Add(row);BindRow(row);}}
         Add("검색",async()=>{var found=await provider.Search(Query,Region,default);Results.Clear();foreach(var s in found)Results.Add(s);SelectedResult=Results.FirstOrDefault();Changed(nameof(SelectedResult));},()=>CanEdit);
         Add("추가",()=>{var stock=SelectedResult??throw new InvalidOperationException("검색 결과에서 종목을 선택하세요.");if(Rows.Any(r=>r.Stock.Key==stock.Key))throw new InvalidOperationException("이미 추가한 종목입니다.");var row=new MultiTradeRow{Stock=stock,Preset=Presets.FirstOrDefault()??"국내 과매도·낙주 반등"};Rows.Add(row);BindRow(row);SyncSelected(stock,true);return Task.CompletedTask;},()=>CanEdit);
         Add("삭제",()=>{if(SelectedRow!=null){var stock=SelectedRow.Stock;Rows.Remove(SelectedRow);selectedKeys.Remove(stock.Key);SyncMembers(stock.Key);}return Task.CompletedTask;},()=>CanEdit);
@@ -119,7 +125,7 @@ public sealed class MultiTradeViewModel:Observable
     {
         if(!CanEdit)return;modeLocked=mock.HasValue;
         if(mock.HasValue){useMock=mock.Value;useRealtime=true;}
-        Changed(nameof(LaunchContextText));Refresh();
+        Changed(nameof(LaunchContextText));Changed(nameof(RealtimeAvailabilityText));Refresh();
     }
     public void Apply(LiveBatchStatus s){running=s.Running;Message=s.Status;foreach(var r in Rows){var state=s.Rows.FirstOrDefault(x=>x.Key==r.Stock.Key);if(state!=null)r.Apply(state);}Refresh();}
     public StockItem[] SelectedStocks()=>Rows.Where(r=>r.Selected).Select(r=>r.Stock).DistinctBy(s=>s.Key).ToArray();
@@ -135,7 +141,7 @@ public sealed class MultiTradeViewModel:Observable
         return new(items.ToArray(),Money(TotalBudget,"전체 투자 한도"),Money(DailyLoss,"일 손실 한도"));
     }
     private static decimal Money(string text,string name)=>decimal.TryParse(text,NumberStyles.Number,CultureInfo.InvariantCulture,out var n)&&n>0&&n<=1e12m?n:throw new InvalidOperationException(name+"는 양수로 입력하세요.");
-    public void Save()=>store.State("multi-trade-draft",new MultiTradeDrafts(Rows.Select(r=>new MultiTradeDraft(r.Stock,r.Preset,r.Budget,r.Selected)).ToArray(),TotalBudget,DailyLoss){GroupIds=groupIds.ToArray(),UseRealtime=UseRealtime});
+    public void Save()=>store.State("multi-trade-draft",new MultiTradeDrafts(Rows.Select(r=>new MultiTradeDraft(r.Stock,r.Preset,r.Budget,r.Selected)).ToArray(),TotalBudget,DailyLoss){GroupIds=groupIds.ToArray(),UseRealtime=UseRealtime,PublicBarUnit=PublicBarUnit,PublicBarValue=PublicBarValue});
     public void ResetToMock(){useMock=true;useRealtime=false;modeLocked=false;Reload();Changed(nameof(UseMock));Changed(nameof(UseRealtime));Changed(nameof(LaunchContextText));}
-    public void Refresh(){Changed(nameof(CanEdit));Changed(nameof(IsLocked));Changed(nameof(CanToggleMock));Changed(nameof(CanToggleRealtime));Changed(nameof(UseMock));Changed(nameof(UseRealtime));Changed(nameof(CanUseLiveBudget));Changed(nameof(RunCaption));Changed(nameof(Running));Changed(nameof(Account));Changed(nameof(LaunchContextText));foreach(var c in Actions.Values)c.Refresh();}
+    public void Refresh(){Changed(nameof(CanEdit));Changed(nameof(IsLocked));Changed(nameof(CanToggleMock));Changed(nameof(CanToggleRealtime));Changed(nameof(UseMock));Changed(nameof(UseRealtime));Changed(nameof(CanUseLiveBudget));Changed(nameof(RunCaption));Changed(nameof(Running));Changed(nameof(Account));Changed(nameof(LaunchContextText));Changed(nameof(RealtimeAvailabilityText));foreach(var c in Actions.Values)c.Refresh();}
 }

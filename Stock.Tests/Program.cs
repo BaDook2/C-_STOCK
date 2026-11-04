@@ -21,17 +21,21 @@ internal static partial class Program
     [STAThread]public static int Main(string[] args)
     {
         Directory.CreateDirectory(Dir);
+        if(args.Contains("--public-paper-checks")){try{PublicPaperTests();Console.WriteLine($"PASS: {passed} public paper checks");return 0;}catch(Exception ex){Console.Error.WriteLine(ex);return 1;}}
+        if(args.Length==2&&args[0]=="--public-quote-monitor"){try{PublicQuoteMonitor(args[1]).GetAwaiter().GetResult();return 0;}catch(Exception ex){Console.Error.WriteLine(ex);return 1;}}
         if(args.Length==2&&args[0]=="--ui-smoke"){try{UiSmoke(args[1]);Console.WriteLine($"PASS: {passed} UI smoke checks");return 0;}catch(Exception ex){Console.Error.WriteLine(ex);return 1;}}
         if(args.Length==2&&args[0]=="--multi-ui"){try{Directory.CreateDirectory(args[1]);SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(Dispatcher.CurrentDispatcher));var app=new Stock.App.App{ManualWindowStartup=true};app.InitializeComponent();using var db=new TradingStore(Path.Combine(Dir,"multi-ui-shell.db"));using var vm=new WorkspaceViewModel(_=>false,provider:new FixtureMarketData(),store:db);var window=new MainWindow(vm){ShowActivated=false,Left=-20000,Top=0,WindowStartupLocation=WindowStartupLocation.Manual};window.Show();MultiTradeUiTests(window,args[1],true);window.Close();app.Shutdown();Console.WriteLine($"PASS: {passed} multi UI checks");return 0;}catch(Exception ex){Console.Error.WriteLine(ex);return 1;}}
         if(args.Contains("--multi-mock")){try{MockMultiTests().GetAwaiter().GetResult();Console.WriteLine($"PASS: {passed} mock batch checks");return 0;}catch(Exception ex){Console.Error.WriteLine(ex);return 1;}}
         if(args.Length==2&&args[0]=="--raw-tick-checks"){try{RawTickChecks(args[1]);return 0;}catch(Exception ex){Console.Error.WriteLine(ex);return 1;}}
         if(args.Length==2&&args[0]=="--oversold-ui"){try{Directory.CreateDirectory(args[1]);SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(Dispatcher.CurrentDispatcher));var app=new Stock.App.App{ManualWindowStartup=true};app.InitializeComponent();using var db=new TradingStore(Path.Combine(Dir,"daily-ui-shell.db"));using var vm=new WorkspaceViewModel(_=>false,provider:new FixtureMarketData(),store:db);var window=new MainWindow(vm){ShowActivated=false,Left=-20000,Top=0,WindowStartupLocation=WindowStartupLocation.Manual};window.Show();OversoldUiTests(window,args[1]);OnlyOversoldUiTests(window,args[1]);ParameterScopeUiTests(window,args[1]);FixedEditorUiTests(window,args[1]);ScreeningUiTests(window,args[1]);CurrentDailyUiTests(window,args[1]);window.Close();app.Shutdown();Console.WriteLine($"PASS: {passed} daily UI checks");return 0;}catch(Exception ex){Console.Error.WriteLine(ex);return 1;}}
         if(args.Contains("--current-daily-checks")){try{CurrentDailyTests().GetAwaiter().GetResult();OversoldTests();Console.WriteLine($"PASS: {passed} current daily checks");return 0;}catch(Exception ex){Console.Error.WriteLine(ex);return 1;}}
-        if(args.Contains("--expansion-checks")){try{StrategyBarTests();OversoldScreeningTests();OversoldRuntimeFixtureTests();RealtimePaperBatchTests();OversoldTests();Console.WriteLine($"PASS: {passed} expansion checks");return 0;}catch(Exception ex){Console.Error.WriteLine(ex);return 1;}}
+        if(args.Contains("--expansion-checks")){try{StrategyBarTests();OversoldScreeningTests();OversoldRuntimeFixtureTests();RealtimeScreeningTests();RealtimePaperBatchTests();OversoldTests();Console.WriteLine($"PASS: {passed} expansion checks");return 0;}catch(Exception ex){Console.Error.WriteLine(ex);return 1;}}
+        if(args.Contains("--realtime-screening-checks")){try{RealtimeScreeningTests();RealtimePaperBatchTests();Console.WriteLine($"PASS: {passed} realtime screening checks");return 0;}catch(Exception ex){Console.Error.WriteLine(ex);return 1;}}
         if(args.Contains("--oversold-checks")){try{OversoldTests();Console.WriteLine($"PASS: {passed} oversold checks");return 0;}catch(Exception ex){Console.Error.WriteLine(ex);return 1;}}
+        if(args.Contains("--store-lifecycle-checks")){try{StoreLifecycleTests();Console.WriteLine($"PASS: {passed} store lifecycle checks");return 0;}catch(Exception ex){Console.Error.WriteLine(ex);return 1;}}
         if(args.Length==2&&args[0]=="--public-oversold-verification"){try{PublicOversoldVerification(args[1]).GetAwaiter().GetResult();return 0;}catch(Exception ex){Console.Error.WriteLine(ex);return 1;}}
         if(args.Length==2&&args[0]=="--public-screening-performance"){try{Directory.CreateDirectory(args[1]);SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(Dispatcher.CurrentDispatcher));var app=new Stock.App.App{ManualWindowStartup=true};app.InitializeComponent();PublicScreeningPerformance(args[1]);app.Shutdown();return 0;}catch(Exception ex){Console.Error.WriteLine(ex);return 1;}}
-        try{CurrentDailyTests().GetAwaiter().GetResult();StrategyBarTests();OversoldScreeningTests();OversoldRuntimeFixtureTests();RealtimePaperBatchTests();OversoldTests();LiveBatchTests().GetAwaiter().GetResult();LiveExecutionApiTests().GetAwaiter().GetResult();CoreTests();StrategyConfigurationTests();PipelineTests();RecurringTests();ResearchTests().GetAwaiter().GetResult();BrokerTests().GetAwaiter().GetResult();ConnectionTests().GetAwaiter().GetResult();TossBrokerTests().GetAwaiter().GetResult();UiSmoke(args.Length>0?args[0]:Path.Combine(Dir,"ui"));Console.WriteLine($"PASS: {passed} checks; no broker network calls or account transactions.");return 0;}
+        try{PublicPaperTests();CurrentDailyTests().GetAwaiter().GetResult();StrategyBarTests();OversoldScreeningTests();OversoldRuntimeFixtureTests();RealtimeScreeningTests();RealtimePaperBatchTests();OversoldTests();LiveBatchTests().GetAwaiter().GetResult();LiveExecutionApiTests().GetAwaiter().GetResult();CoreTests();StrategyConfigurationTests();PipelineTests();RecurringTests();ResearchTests().GetAwaiter().GetResult();BrokerTests().GetAwaiter().GetResult();ConnectionTests().GetAwaiter().GetResult();TossBrokerTests().GetAwaiter().GetResult();UiSmoke(args.Length>0?args[0]:Path.Combine(Dir,"ui"));Console.WriteLine($"PASS: {passed} checks; no broker network calls or account transactions.");return 0;}
         catch(Exception ex){Console.Error.WriteLine(ex);return 1;}
     }
     private static void Check(bool ok,string message){if(!ok)throw new Exception("FAIL: "+message);passed++;Console.WriteLine("PASS: "+message);}
@@ -42,6 +46,7 @@ internal static partial class Program
     private static TradingSettings Settings(){var s=new TradingSettings();s.Scalping.Enabled=s.Box.Enabled=s.Rebound.Enabled=false;s.Execution.SlippagePercent=0;s.Execution.FeePercent=.1m;s.Execution.ParticipationPercent=50;s.Execution.LatencyMs=0;return s;}
     private static void CoreTests()
     {
+        StoreLifecycleTests();
         var s=new TradingSettings();s.Validate();Check(true,"typed defaults validate");s.Scalping.RelativeVolume=-1;Throws<InvalidOperationException>(s.Validate,"negative strategy threshold blocked");s=new();s.Scalping.CurrentSeconds=s.Scalping.AverageSeconds;Throws<InvalidOperationException>(s.Validate,"overlapping volume baseline invalid");s=new();s.Data.Universe="NASDAQ:AAPL,NASDAQ:AAPL";Throws<InvalidOperationException>(s.Validate,"duplicate universe rejected");s=new();s.Backtest.To=s.Backtest.From;Throws<InvalidOperationException>(s.Validate,"empty backtest range rejected");
         var db=Path.Combine(Dir,"state.db");using(var store=new TradingStore(db)){s=new();store.Save("기본",s);s.Scalping.RelativeVolume=4.5m;store.Save("기본",s);store.Save("보수형",s);Check(store.History().Count==3,"SQLite full before/after history");Check(store.Presets().Count==2,"save as preset");store.InsertEvents([Trade(1),Quote(2)]);Check(store.InsertEvents([Trade(1)])==0,"event persistence idempotence");}
         using(var store=new TradingStore(db)){Check(store.Load("기본").Scalping.RelativeVolume==4.5m,"settings survive process-style reopen");var events=store.ReadEvents(Us.Key,"TEST",Epoch,Epoch.AddSeconds(10));Check(events.Count==2&&events[1].TradeSize==null,"nullable quote not treated as trade volume");var csv=Path.Combine(Dir,"data.csv");MarketCsv.Export(csv,events);Check(Serialization.Pack(MarketCsv.Import(csv))==Serialization.Pack(events),"CSV lossless roundtrip");File.AppendAllText(csv,"invalid\n");Throws<InvalidOperationException>(()=>MarketCsv.Import(csv),"bad CSV fails before import transaction");}
@@ -61,6 +66,22 @@ internal static partial class Program
         ctx=new(Us,s);var rebound=new ReboundStrategy();ctx.Add(Trade(0,10));rebound.Evaluate(ctx);ctx.Add(Trade(1,9));rebound.Evaluate(ctx);ctx.Add(Trade(2,8));Check(rebound.Evaluate(ctx).Buy==null,"drop candidate never buys immediately");ctx.Add(Trade(3,8.1m));Check(rebound.Evaluate(ctx).Buy==null,"bounce needs configured confirmation");ctx.Add(Trade(4,8.3m));Check(rebound.Evaluate(ctx).Buy==true,"confirmed bounce emits buy");
         s=Settings();s.Filters.First(f=>f.Name=="시가총액").Enabled=true;ctx=new(Us,s);ctx.Add(Trade(0));Check(new CommonScanner(s).Reject(ctx)!.Contains("데이터 없음"),"required missing fundamental filter blocks entry");s.Filters.ForEach(f=>f.Enabled=false);s.Data.ExcludedSymbols=Us.Key;Check(new CommonScanner(s).Reject(ctx)=="수동 악재 제외","manual bad-news exclusion");
         PaperAndRiskTests();BacktestTests();
+    }
+    private static void StoreLifecycleTests()
+    {
+        var path=Path.Combine(Dir,"store-lifecycle.db");
+        for(int cycle=0;cycle<3;cycle++)
+        {
+            using(var store=new TradingStore(path))
+            {
+                if(cycle==0)for(int i=0;i<40;i++)store.State($"chart-run:{i}",new{Payload=new string('x',50000),Index=i});
+                Check(store.States("chart-run:").Count==40,$"SQLite state survives close/reopen cycle {cycle+1}");
+            }
+            using var verify=new Microsoft.Data.Sqlite.SqliteConnection(new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder{DataSource=path,Mode=Microsoft.Data.Sqlite.SqliteOpenMode.ReadOnly}.ToString());
+            verify.Open();using var command=verify.CreateCommand();command.CommandText="PRAGMA journal_mode";
+            Check(string.Equals(Convert.ToString(command.ExecuteScalar()),"delete",StringComparison.OrdinalIgnoreCase),$"SQLite restart-safe journal mode cycle {cycle+1}");
+            Check(!File.Exists(path+"-wal")&&!File.Exists(path+"-shm"),$"SQLite restart leaves no WAL/SHM sidecars cycle {cycle+1}");
+        }
     }
     private static void PaperAndRiskTests()
     {

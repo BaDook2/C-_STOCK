@@ -9,7 +9,8 @@
     <CheckBox Content="모의 · 실제 주문 없음" IsChecked="{Binding UseMock,Mode=TwoWay}" IsEnabled="{Binding CanToggleMock}" ToolTip="체크하면 가상 계좌를 사용합니다. 실시간 해제 시 과거 백테스트, 실시간 체크 시 실제 시세 기반 모의매매입니다."/>
     <CheckBox Content="실시간" IsChecked="{Binding UseRealtime,Mode=TwoWay}" IsEnabled="{Binding CanToggleRealtime}" ToolTip="모의와 함께 체크하면 키움 실제 체결·호가를 받아 전략을 실시간으로 판단하고 가상 체결합니다. 모의를 해제한 실제 계좌 자동매매는 항상 실시간입니다." Margin="18,0,0,0"/>
    </WrapPanel>
-   <TextBlock Text="모의 실시간은 틱·분 기준과 실제 시세 연결이 필요합니다. 모의를 해제하면 선택한 키움 국내 실계좌에서만 실행하며 시작 전에 주문 내용을 다시 확인합니다." TextWrapping="Wrap" Foreground="#526174" Margin="0,4,0,14"/>
+   <TextBlock Text="{Binding RealtimeAvailabilityText}" TextWrapping="Wrap" Foreground="#526174" Margin="0,4,0,14"/>
+   <WrapPanel IsEnabled="{Binding CanEdit}" Margin="0,0,0,10"><TextBlock Text="공개시세 모의 분석 봉" VerticalAlignment="Center"/><ComboBox ItemsSource="{Binding PublicBarValues}" SelectedItem="{Binding PublicBarValue}" Width="70" Margin="10,0,6,0"/><ComboBox ItemsSource="{Binding PublicBarUnits}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding PublicBarUnit}" Width="100"/><TextBlock Text="오프라인 실행에 적용 · 완성봉 이후 새 관측으로 가상 체결" VerticalAlignment="Center" Margin="12,0,0,0" Foreground="#6B7684"/></WrapPanel>
   </StackPanel>
   <Border Grid.Row="1" Style="{StaticResource Card}" Padding="16" Margin="0,0,0,12" IsEnabled="{Binding CanEdit}">
   <Grid>

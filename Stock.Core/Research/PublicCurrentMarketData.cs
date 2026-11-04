@@ -20,8 +20,14 @@ public sealed partial class PublicMarketData
         await slot.Gate.WaitAsync(token);
         try
         {
-            if(slot.Snapshot!=null&&DateTimeOffset.UtcNow<slot.NextRead)return slot.Snapshot;
-            try{var snapshot=await ReadCurrent(stock,token);slot.Snapshot=snapshot;slot.NextRead=DateTimeOffset.UtcNow+snapshot.PollInterval;return snapshot;}
+            if(slot.Snapshot!=null&&DateTimeOffset.UtcNow<slot.NextRead)
+            {
+                var remaining=slot.NextRead-DateTimeOffset.UtcNow;
+                if(remaining>TimeSpan.FromMilliseconds(50))return slot.Snapshot;
+                if(remaining>TimeSpan.Zero)await Task.Delay(remaining,token);
+            }
+            var started=DateTimeOffset.UtcNow;
+            try{var snapshot=await ReadCurrent(stock,token);slot.Snapshot=snapshot;slot.NextRead=started+snapshot.PollInterval;return snapshot;}
             catch{slot.NextRead=DateTimeOffset.UtcNow.AddSeconds(30);throw;}
         }
         finally{slot.Gate.Release();}
@@ -52,7 +58,7 @@ public sealed partial class PublicMarketData
         var quote=new MarketQuote(Text(row,"nm"),price,price-previous,(price/previous-1)*100,observed,Text(row,"ms"));
         var interval=Number(Text(result,"pollingInterval"))??7000;
         var requested=TimeSpan.FromMilliseconds((double)Math.Max(1000,interval));
-        var cadence=requested>SelectedQuotePump.MaximumInterval?SelectedQuotePump.MaximumInterval:requested;
+        var cadence=requested;
         return new(stock,quote,received,N("ov"),N("hv"),N("lv"),N("aq"),N("aa"),"네이버 KRX 공개 시세 · 지연 가능",cadence,ExchangeTimestamp:false);
     }
     public async Task<DailySecurityStatus?> CurrentSecurity(StockItem stock,CancellationToken token)

@@ -1,3 +1,37 @@
+# 최신 상태 — 2026-11-04 공개시세 실시간 가상매매·Release 준비
+
+오프라인 가상계좌의 실시간 시작을 PublicPaperWorkspace에 연결했다. 공개 1분봉 준비/분당 갱신과 네이버 KRX 현재가 pollingInterval을 따르는 종목별 펌프를 사용한다. 실제 관측은 10:09:27/34/41/48 KST, 준비 분봉 3,885개였다. 실제 앱에서도 삼성전자 기본 전략 시작→조건 감시 유지→전체중지를 확인했다. 공개 체결 source는 공개시세 모의매매이며 원본 틱으로 저장하지 않는다. 모의 전용 상태 가정·분봉 거래대금 추정을 명시했고 LiveStrategyBatch에서는 PublicPaper plan을 거부한다. 온라인 가격은 BrokerCurrentMarketData와 연결 증권사 REST/지원 WebSocket을 사용하고 공개 가격으로 fallback하지 않는다.
+
+전체 1,115검사, 최종 공개 모의9/다량 UI31, Release 경고0/오류0 및 게시 smoke 종료0을 통과했다. 로컬 루트/release EXE는 80,792,718 bytes / SHA256 64BAE6A3A3B0184F249D711033C53A89CB8432715EE6F5F636880B7FFAFA4DB3. 이전 EXE는 artifacts/Stock-before-public-paper-869920F7.exe. 실제 주문은 전송하지 않았다. v0.1.6 태그로 Actions 게시를 진행하며 결과를 TASKS에 기록한다. 동작/제약은 docs/ui/PublicPaperTrading.md 및 docs/api/NaverPublic.md가 최신이다.
+
+# 이전 상태 — 2026-11-03 실시간 스크리닝·가상 자동매매
+
+기존 `스크리닝` 탭에 `일반 스크리닝 / 실시간 스크리닝` 모드를 추가했다. 실시간 모드는 온라인 키움 국내 연결, 시장별 상위 10·25·50·100, 저장된 과매도·낙주 전략 snapshot, 분봉/시간봉 완성봉을 사용한다. 별도 메인 탭이나 중복 전략 엔진은 없다. `RealtimeOversoldScreeningService`가 기존 `OversoldLiveStrategy`를 연구 전용으로 재사용해 종목별 조건 접근도, 충족/미충족, 관찰/집중/매수신호, 자료 상태와 주문 상태를 분리해 관리한다. 접근도는 조건 근접도이며 확률이 아니다.
+
+`자동매매 시작`은 기본 OFF다. 새 화면에서는 안전하게 `RealtimePaperStrategyBatch` 가상 체결만 연결하며 실제 증권사 주문을 보내지 않는다. 시작 전 체크 또는 실행 중 체크의 활성 시각 이후 새 신호만 주문할 수 있고 과거 신호는 소급하지 않는다. 해제하면 신규 진입·추가매수만 막고 이미 보유한 가상 포지션의 보호 청산은 계속한다. 실행 상태는 View가 아니라 Workspace 수명에 속해 탭을 이동해도 유지된다. 종목 준비 4개 병렬, feed 20종목 shard, UI 500ms throttle, 종목별 오류 격리, 연결 장애·긴급중지 차단을 적용했다.
+
+실시간 스크리닝/가상 주문 경계 18개, 대상 WPF 223개, 전체 회귀 1,106개를 통과했다. Release 빌드 경고0/오류0, 1분봉 7,800개 부하 1,591ms·총 할당 334.0MB·보유 증가 34.3MB, 게시 EXE smoke `Success/NoBrokerCalls=true`다. 실제 장중 키움 연결·실계좌 주문은 사용자 계좌를 임의 사용하지 않아 실행하지 않았다.
+
+# 최신 상태 — 2026-11-03 Stock.exe 종료·재실행 복구 완료
+
+재실행 시 `SQLite Error 11`이 발생한 사용자 DB는 원본·복구본을 `%LOCALAPPDATA%/StockPaperTrading/KiwoomQuant/recovery-20261102-225114`와 `recovery-20261102-231500`에 보존했다. `TradingStore`를 DELETE journal로 전환하고 prefix state 조회를 안전한 전체 조회+메모리 필터로 변경했다. 대형 상태 40건의 세 번 close/reopen과 WAL/SHM 미잔류 회귀를 통과했다.
+
+단일 인스턴스 중복 실행 분기에서 차단 안내 `MessageBox`를 제거하고 두 번째 프로세스가 즉시 정상 종료되게 했다. 최종 루트 `Stock.exe`를 실제 Windows 프로세스로 실행해 창과 기존 PID가 유지되는 상태에서 다시 실행했고, 두 번째 프로세스만 종료되어 프로세스 수가 1개로 유지됨을 확인했다. 정상 종료 후 새 PID로 재실행했으며 두 번의 종료 뒤 `Get-Process` 0개와 현재 `workspace-v2.db` WAL/SHM 0개를 확인했다. 2026-09-27의 별도 구형 `stock.db-wal/shm`은 사용자 자료라 변경하지 않았다. 루트와 `release/Stock.exe`는 80,785,064 bytes / SHA256 `869920F7DC3AB7001416E82290CFAECFC94A54ECAC6D7AEE6E69C353D2599ACC`로 일치한다. 이전 루트는 `artifacts/Stock-before-realtime-screening-0018043F.exe`, 중복 실행 수정 전 게시본은 `artifacts/Stock-before-duplicate-exit-fix-3B42BE6C.exe`에 보관했다.
+
+# 이전 상태 — 2026-11-02 오프라인 가상 전략 설정 접근
+
+종목/차트의 `가상 계좌 주문 > 실시간 가상 전략매매 설정`을 오프라인 테스트에서도 열 수 있다. 종목·전략·예산·관심그룹을 기존 다량 전략 창에서 편집하고 `목록 저장`으로 동일한 `multi-trade-draft`를 복원한다. 가상 계좌 창은 모의+실시간으로 고정해 실제 계좌 주문 경로를 사용하지 않는다.
+
+오프라인 공개 현재가는 서버 관측 가격·누적 거래량 수준이며 개별 체결·호가가 아니다. 따라서 기존 낙주 실시간 전략 엔진을 가짜 체결로 대체하지 않았다. 오프라인 시작을 누르면 실제 체결·호가 피드 요구사항을 팝업으로 안내하고 피드/주문/가상 체결을 만들지 않는다. 지원되는 키움 국내 연결의 온라인 가상 매매 실행은 그대로 유지된다.
+
+Release 빌드 경고 0/오류 0, 다량 전략 UI 31개, 전체 회귀 1,083개 통과. `release/Stock.exe`와 루트 `Stock.exe`는 80,759,783 bytes, SHA256 `5D5BB61D976A1B9A24B66EA149D3ED182AAE07C1B07670FB1FEE79DE22287F7B`로 일치하고 양쪽 단독 smoke가 `Success/NoBrokerCalls=true`다. 이전 루트는 `artifacts/Stock-before-offline-virtual-10E8B231.exe`에 보관했다. GitHub push/Release는 수행하지 않았다.
+
+# 이전 상태 — 2026-11-02 Stock.exe 종료 후 재실행 SQLite 손상 수정 진행 기록
+
+루트 `Stock.exe`를 파일 탐색기에서 실제 더블클릭하면 첫 실행은 열리지만 종료 후 다음 실행에서 `TradingStore.States("chart-run:")`가 `SQLite Error 11: database disk image is malformed`를 내며 창이 즉시 종료되는 현상을 반복 재현했다. Python SQLite의 `quick_check`는 `ok`이고 이벤트 4,063건·실행 2건·상태 37건을 모두 읽지만, 앱에 포함된 Microsoft.Data.Sqlite 10.0.12 런타임은 WAL 전환 후 다음 프로세스에서 DB를 손상으로 판정한다.
+
+원본·페이지 백업·VACUUM 논리 재작성본은 `%LOCALAPPDATA%/StockPaperTrading/KiwoomQuant/recovery-20261102-225114`에 보존했다. `TradingStore`를 단일 프로세스 데스크톱 앱에 맞는 DELETE journal로 전환하고, 2MB 상태 저장 후 세 차례 close/reopen 및 WAL/SHM 미잔류 회귀를 추가 중이다. 기존 오프라인 가상 전략 설정 변경은 건드리지 않는다.
+
 # 최신 상태 — 2026-11-02 차트 초기화·오프라인 시세·가상계좌 UI·틱 표시 숨김
 
 백테스트 실행 직후에는 현재 실행 결과와 매수·매도 표식을 보여주지만, 같은 종목을 다시 검색하거나 다른 종목을 선택하거나 앱을 재시작하면 차트의 백테스트 선택·표시·기간을 초기화한다. 저장된 테스트 기록은 유지하므로 사용자가 테스트 기록에서 명시적으로 다시 선택할 수 있다.
@@ -324,5 +358,3 @@ Tests는 자체 콘솔 검사이므로 dotnet test 성공만으로 검사 완료
 
 ## 새 채팅에 붙일 요청
 이 프로젝트의 AGENTS.md, TASKS.md 맨 위 현재 목록, HANDOFF.md를 읽고 10/06 현재 일봉 스크리닝·장중 갱신 작업을 이어서 완성해줘. 먼저 HANDOFF에 기록된 테스트 컴파일 오류를 해결하고 빌드/대상 및 전체 회귀/WPF/단독 EXE를 검증해줘. 검증된 경우에만 루트 Stock.exe를 갱신하고 TASKS/VALIDATION을 수정해줘. 실제 주문·인증키 변경·사용자 데이터 삭제와 [!] 자동매매 연결은 임의로 실행하지 마.
-
-
