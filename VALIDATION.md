@@ -2,6 +2,8 @@
 
 ## 2026-11-04 공개시세 가상매매·온라인 가격 경로
 
+- GitHub v0.1.6 / commit b428a6c, Actions run41753050716 전 단계 성공. 서버 전체1,115검사, 빌드0경고/0오류 및 게시 smoke 성공. 공개 Stock.exe80,825,765 bytes를 재다운로드해 SHA256 A75C60065B0A0087FCED78E8C8A18413CBE400A73FA22CC9A20B578476E11C33과 공개 체크섬 일치를 확인했다. Release https://github.com/BaDook2/C-_STOCK/releases/tag/v0.1.6 .
+
 - 전체 1,115검사 통과: artifacts/public-paper-regression-20261104.log. 최종 코드의 공개 모의9개, 다량 전략 WPF31개도 통과했다. Release 경고0/오류0. 수동 앱을 열어둔 빌드 1회는 DLL 잠금으로 실패했고 정상 종료 후 재빌드가 경고0/오류0으로 성공했다.
 - 네이버 공개 현재가 실제 관측 10:09:27/34/41/48 KST, pollingInterval=7초, 준비 분봉3,885개. artifacts/public-quotes-final-20261104/observations.json. 공개시세 재조회 경계와 중복 응답을 구분해 기록한다.
 - 실제 WPF 앱에서 오프라인 삼성전자 검색, 7초 현재 관측 갱신, 기본 전략 실시간 모의 시작→감시→전체중지→정상 종료 확인. 장중 실제 전략 진입은 발생하지 않았다. 신호·주문·다음 관측 가상 체결과 중복/지연 차단은 고정 fixture로 검증했다.

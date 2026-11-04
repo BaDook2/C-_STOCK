@@ -1,9 +1,9 @@
-## 현재 작업 2026-11-04 — 공개시세 실시간 가상매매·시세 경로·Release [~]
+## 현재 작업 2026-11-04 — 공개시세 실시간 가상매매·시세 경로·Release [x]
 - [x] 네이버 KRX 공개 현재가와 공개 1분봉 준비자료로 오프라인 가상 전략 실행을 연결했다. 모의 전용 facts/거래대금 추정과 공개시세 모의 체결 표식을 기록하고 실계좌 plan에서 거부한다. 팝업에 분/시간과 숫자 선택을 추가해 저장한다.
 - [x] 공개 응답 pollingInterval(확인값 7,000ms)을 존중하고 새 응답을 즉시 UI에 반영한다. 종목별 cache 경계 때문에 같은 응답을 재사용하고 다시 7초 대기하던 경우도 보완했다. 온라인은 연결 증권사 REST/지원 피드만 사용한다.
 - [x] 전체 회귀 1,115개, 최종 공개 모의 9개/다량 WPF 31개, Release 빌드 경고0/오류0, 게시 EXE smoke 종료0 및 Success/NoBrokerCalls=true. 실제 앱에서 삼성전자 공개시세 7초 갱신, 오프라인 기본 전략 시작·감시 유지·전체 중지를 확인했다. 실주문 없음.
 - [x] 루트 및 release/Stock.exe 80,792,718 bytes / SHA256 `64BAE6A3A3B0184F249D711033C53A89CB8432715EE6F5F636880B7FFAFA4DB3`로 교체했다. 이전 루트는 artifacts/Stock-before-public-paper-869920F7.exe 보존. 기존 실시간 스크리닝/재실행 수정도 이번 게시본에 포함한다.
-- [~] v0.1.6 커밋·태그 push 및 GitHub Actions Release 검증 진행. docs/ui/PublicPaperTrading.md·docs/api/NaverPublic.md가 동작/제약의 최신 설명이다.
+- [x] 커밋 b428a6c와 v0.1.6 태그를 push했다. Actions run 41753050716의 빌드0경고/0오류, 전체1,115검사, self-contained 게시, EXE smoke, SHA256, Release 업로드가 모두 성공했다. 공개 Stock.exe 80,825,765 bytes를 다시 내려받아 SHA256 `A75C60065B0A0087FCED78E8C8A18413CBE400A73FA22CC9A20B578476E11C33`이 공개 체크섬과 일치함을 확인했다. Release: https://github.com/BaDook2/C-_STOCK/releases/tag/v0.1.6 . docs/ui/PublicPaperTrading.md·docs/api/NaverPublic.md가 동작/제약의 최신 설명이다.
 
 ## 현재 작업 2026-11-03 — 실시간 스크리닝·가상 자동매매 연동 [x]
 - [x] 기존 `스크리닝` 탭 안에 일반/실시간 모드를 추가했다. 실시간 모드는 국내 시장별 상위 10·25·50·100, 저장 전략 snapshot, 분봉/시간봉 완성봉을 사용하고 별도 메인 탭이나 중복 전략 엔진을 만들지 않는다.

@@ -1,8 +1,10 @@
-# 최신 상태 — 2026-11-04 공개시세 실시간 가상매매·Release 준비
+# 최신 상태 — 2026-11-04 공개시세 실시간 가상매매·v0.1.6 Release 완료
 
 오프라인 가상계좌의 실시간 시작을 PublicPaperWorkspace에 연결했다. 공개 1분봉 준비/분당 갱신과 네이버 KRX 현재가 pollingInterval을 따르는 종목별 펌프를 사용한다. 실제 관측은 10:09:27/34/41/48 KST, 준비 분봉 3,885개였다. 실제 앱에서도 삼성전자 기본 전략 시작→조건 감시 유지→전체중지를 확인했다. 공개 체결 source는 공개시세 모의매매이며 원본 틱으로 저장하지 않는다. 모의 전용 상태 가정·분봉 거래대금 추정을 명시했고 LiveStrategyBatch에서는 PublicPaper plan을 거부한다. 온라인 가격은 BrokerCurrentMarketData와 연결 증권사 REST/지원 WebSocket을 사용하고 공개 가격으로 fallback하지 않는다.
 
-전체 1,115검사, 최종 공개 모의9/다량 UI31, Release 경고0/오류0 및 게시 smoke 종료0을 통과했다. 로컬 루트/release EXE는 80,792,718 bytes / SHA256 64BAE6A3A3B0184F249D711033C53A89CB8432715EE6F5F636880B7FFAFA4DB3. 이전 EXE는 artifacts/Stock-before-public-paper-869920F7.exe. 실제 주문은 전송하지 않았다. v0.1.6 태그로 Actions 게시를 진행하며 결과를 TASKS에 기록한다. 동작/제약은 docs/ui/PublicPaperTrading.md 및 docs/api/NaverPublic.md가 최신이다.
+전체 1,115검사, 최종 공개 모의9/다량 UI31, Release 경고0/오류0 및 게시 smoke 종료0을 통과했다. 로컬 루트/release EXE는 80,792,718 bytes / SHA256 64BAE6A3A3B0184F249D711033C53A89CB8432715EE6F5F636880B7FFAFA4DB3. 이전 EXE는 artifacts/Stock-before-public-paper-869920F7.exe. 실제 주문은 전송하지 않았다. 동작/제약은 docs/ui/PublicPaperTrading.md 및 docs/api/NaverPublic.md가 최신이다.
+
+커밋 b428a6c와 v0.1.6 태그를 push했고 Actions run 41753050716의 전 단계가 성공했다. 서버도 전체1,115검사와 빌드0경고/0오류를 확인했다. Release https://github.com/BaDook2/C-_STOCK/releases/tag/v0.1.6 의 공개 EXE는 80,825,765 bytes이며 재다운로드 SHA256 A75C60065B0A0087FCED78E8C8A18413CBE400A73FA22CC9A20B578476E11C33이 공개 .sha256과 일치했다. 로컬 및 GitHub runner 게시본은 동일 소스이며 빌드 환경에 따른 파일 해시는 별도로 기록한다. 계좌키/DB/로컬 EXE는 Git에 포함하지 않았다.
 
 # 이전 상태 — 2026-11-03 실시간 스크리닝·가상 자동매매
 
