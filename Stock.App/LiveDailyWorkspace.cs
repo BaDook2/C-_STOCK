@@ -15,7 +15,7 @@ public sealed partial class WorkspaceViewModel
     private bool dailyHistoryRefreshing;
     private DateTimeOffset historyRetry;
     private DateTimeOffset lastStreamReceived,lastStreamTime;
-    private bool LiveHeader=>displayedDaily?.Stock.Key==dataset?.Stock.Key&&displayedDaily!=null&&!Replaying&&paper==null&&!IsTick;
+    private bool LiveHeader=>displayedDaily?.Stock.Key==dataset?.Stock.Key&&displayedDaily!=null&&!Replaying&&paper==null;
     private async Task<MarketQuote> DisplayQuote(StockItem item)
     {
         if(IsOnline&&broker!=null)return (await new BrokerCurrentMarketData(broker,s=>store.State<BarDataset>("bars:"+s.Key)?.CompletedBars.LastOrDefault(b=>DailyDates.Of(b)<KoreaClock.Today)?.Close).Current(item,ApiToken)).Quote;

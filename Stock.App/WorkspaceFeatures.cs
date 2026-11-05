@@ -73,7 +73,7 @@ public sealed partial class WorkspaceViewModel
     }
     private void BuildTickFields(){TickFields.Clear();foreach(var (name,target) in new (string,object)[]{("① 호가 스캘핑",tickSettings.Scalping),("② 틱 박스권",tickSettings.Box),("③ 틱 급락 반등",tickSettings.Rebound),("지지선 · 실제 틱 매물대",tickSettings.Analysis),("기존 공통 리스크",tickSettings.Risk),("기존 주문 모델",tickSettings.Execution)})foreach(var p in target.GetType().GetProperties().Where(p=>p.GetCustomAttribute<SettingAttribute>()!=null))TickFields.Add(new(target,p,true){GroupLabel=name});}
     private void ChangeMode(bool value)
-    {online=value;multiTrading?.ResetToMock();ResetConfiguredPractice();if(!value&&ChartPeriods.Intraday(chartPeriod)){chartPeriod="일봉";ChartBars=visibleDaily;Changed(nameof(ChartPeriod));Changed(nameof(DailySelected));Changed(nameof(IsTick));Changed(nameof(SelectedTickInterval));Changed(nameof(SelectedMinuteInterval));Changed(nameof(ChartMessage));}paper=null;replayIndex=-1;Trades.Clear();if(!value&&WorkspaceToolTab==0)WorkspaceToolTab=1;else if(value&&WorkspaceToolTab==1)WorkspaceToolTab=0;Changed(nameof(IsOnline));Changed(nameof(IsOffline));Changed(nameof(ScreenDaily));Changed(nameof(ScreenCustomBars));Changed(nameof(BacktestDaily));Changed(nameof(BacktestCustomBars));Changed(nameof(BacktestBarDescription));Changed(nameof(ModeDescription));Changed(nameof(OrderHeading));Changed(nameof(ConnectedAccountText));Changed(nameof(PaperSummary));ReloadTradeMarkers();Refresh();if(dataset!=null)StartDailyQuotes(dataset.Stock);}
+    {online=value;multiTrading?.ResetToMock();ResetConfiguredPractice();if(!value&&ChartPeriods.Intraday(chartPeriod)){chartPeriod="일봉";ChartBars=visibleDaily;Changed(nameof(ChartPeriod));Changed(nameof(DailySelected));Changed(nameof(IsTick));Changed(nameof(SelectedTickInterval));Changed(nameof(SelectedMinuteInterval));Changed(nameof(ChartMessage));}paper=null;replayIndex=-1;Trades.Clear();if(!value&&WorkspaceToolTab==0)WorkspaceToolTab=1;else if(value&&WorkspaceToolTab==1)WorkspaceToolTab=0;Changed(nameof(IsOnline));Changed(nameof(IsOffline));Changed(nameof(ScreenDaily));Changed(nameof(ScreenCustomBars));Changed(nameof(ShowScreenCustomBars));Changed(nameof(CanAutoTradeRealtimeScreening));Changed(nameof(BacktestDaily));Changed(nameof(BacktestCustomBars));Changed(nameof(BacktestBarDescription));Changed(nameof(ModeDescription));Changed(nameof(OrderHeading));Changed(nameof(ConnectedAccountText));Changed(nameof(PaperSummary));ReloadTradeMarkers();Refresh();if(dataset!=null)StartDailyQuotes(dataset.Stock);}
     private Task EnterOnline()
     {
         BrokerConnection? saved=null;
@@ -87,25 +87,27 @@ public sealed partial class WorkspaceViewModel
         // Block before awaiting feed/cancellation completion. Durable pending-order records remain.
         liveBatch?.RequestStop(null,"API 키 초기화 · 신규 주문 차단");
         var current=session;var revoke=current?.Revoke()??Task.CompletedTask;
-        try{await StopMulti();}
+        try{await StopRealtimeScreening(true);await StopMulti();}
         finally{await revoke;replayTimer.Stop();Replaying=false;StopTicks();Disconnect();credentials=null;connection=null;ChangeMode(false);}
     }
     private async Task ConfigureKeys(bool enterOnline,BrokerConnection? supplied=null)
     {
-        if(session is {} oldSession)await oldSession.Revoke();await StopMulti();replayTimer.Stop();Replaying=false;StopTicks();Disconnect();ChangeMode(false);credentials=null;connection=null;
+        if(session is {} oldSession)await oldSession.Revoke();await StopRealtimeScreening(true);await StopMulti();replayTimer.Stop();Replaying=false;StopTicks();Disconnect();ChangeMode(false);credentials=null;connection=null;
         var legacy=supplied==null&&connectionPrompt==null?prompt():null;
         var c=supplied??(connectionPrompt!=null?connectionPrompt():legacy==null?null:new BrokerConnection{Brokerage=Brokerage.Kiwoom,AppKey=legacy.AppKey,Secret=legacy.SecretKey});
         if(c==null){Changed(nameof(IsOnline));Changed(nameof(IsOffline));return;}
         IAccountBroker? candidate=null;
         try
         {
-            candidate=CreateAccount(c,c.Brokerage==Brokerage.Kiwoom?selected?.Exchange??Exchange.KRX:Exchange.KRX);
+            // Authenticate the account on the domestic endpoint. The chart's selected market
+            // must not turn a valid saved key into a failed initial connection.
+            candidate=CreateAccount(c,Exchange.KRX);
             if(!candidate.IsLive)throw new LiveKeyRejectedException();
             await candidate.ConnectAsync();
             if(connectionPrompt!=null)await candidate.GetBalanceAsync();
             if(apiPaused)throw new OperationCanceledException("긴급중지로 계좌 연결을 취소했습니다.");
             connection=c;credentials=c.Brokerage==Brokerage.Kiwoom?c.Kiwoom():null;broker=candidate;candidate=null;
-            if(enterOnline){ChangeMode(true);session=new(broker,LiveSettings(),store,sessionDirectory);await RefreshAccount();}
+            if(enterOnline){ChangeMode(true);session=new(broker,LiveSettings(broker.Exchange),store,sessionDirectory);await RefreshAccount();}
             else AccountInfo=broker.Name+" · 실제 계좌 키 확인 완료 · 오프라인 테스트 유지";
             Status=broker.Name+" 실제 계좌 키를 확인했습니다.";
             try{saveConnection?.Invoke(c);if(saveConnection!=null)Status+=" 키를 암호화해 저장했어요.";}catch{Status+=" 키 저장에는 실패했습니다. 다음 실행 때 다시 입력하세요.";alert(Status);}

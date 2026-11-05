@@ -32,7 +32,7 @@ public sealed partial class WorkspaceViewModel
             if(RealtimeScreeningRunning||RealtimeScreeningProtectionActive){Changed();return;}
             realtimeScreenMode=value;
             if(value&&ScreenDaily)ScreenCustomBars=true;
-            Changed();Changed(nameof(RegularScreeningMode));
+            Changed();Changed(nameof(RegularScreeningMode));Changed(nameof(ShowScreenCustomBars));Changed(nameof(ScreenDaily));Changed(nameof(ScreenCustomBars));NotifyRealtimeState();
         }
     }
     public bool RealtimeAutoTrade
@@ -52,7 +52,8 @@ public sealed partial class WorkspaceViewModel
     }
     public bool RealtimeScreeningRunning=>realtimeScreening?.Snapshot().Running==true;
     public bool RealtimeScreeningProtectionActive=>realtimeScreenTask is {IsCompleted:false}&&!RealtimeScreeningRunning;
-    public bool CanStartRealtimeScreening=>RealtimeScreeningMode&&!RealtimeScreeningRunning&&!RealtimeScreeningProtectionActive&&CanConfigure&&RealtimeMockSupported&&ScreenCustomBars;
+    public bool CanStartRealtimeScreening=>RealtimeScreeningMode&&!RealtimeScreeningRunning&&!RealtimeScreeningProtectionActive&&CanConfigure&&ScreenCustomBars&&(IsOffline&&provider is ICurrentMarketData&&provider is IPublicMinuteMarketData&&provider is IPublicCurrentBatchData||RealtimeMockSupported);
+    public bool CanAutoTradeRealtimeScreening=>RealtimeMockSupported;
     public bool CanStopRealtimeScreening=>RealtimeScreeningRunning||RealtimeScreeningProtectionActive;
     public string RealtimeScreenInfo {get=>realtimeScreenInfo;private set{realtimeScreenInfo=value;Changed();}}
     public string RealtimeScreenConnection {get=>realtimeScreenConnection;private set{realtimeScreenConnection=value;Changed();}}
@@ -89,6 +90,7 @@ public sealed partial class WorkspaceViewModel
             foreach(var oldPaper in realtimeScreenPapers)oldPaper.Stop();
             realtimeScreenPapers.Clear();
         }
+        if(IsOffline){await StartPublicRealtimeScreening();return;}
         if(!RealtimeMockSupported||credentials==null||broker==null)throw new InvalidOperationException("온라인 투자에서 키움 국내 실시간 계좌를 먼저 연결하세요.");
         if(MultiSessionExists)throw new InvalidOperationException("기존 다량 전략 실행을 먼저 전체 중지하세요.");
         if(!ScreenCustomBars)throw new InvalidOperationException("실시간 스크리닝은 완성 시점을 확인할 수 있는 분봉 또는 시간봉을 선택하세요.");
@@ -138,7 +140,9 @@ public sealed partial class WorkspaceViewModel
         realtimeScreenPapers.Clear();
         try
         {
-            foreach(var chunk in prepared.Where(item=>LiveBatchSupport.Reason(item)==null).Chunk(20))
+            foreach(var chunk in prepared.Where(item=>LiveBatchSupport.Reason(item)==null
+                &&HistoricalFacts.Tradable(item.Oversold!.Facts.Status(item.Stock.Symbol,today,now))
+                &&item.Oversold.Facts.Risk(item.Stock.Symbol,today,now)==false).Chunk(20))
             {
                 var items=chunk.ToArray();if(items.Length==0)continue;
                 var total=items.Sum(i=>i.Budget);var paper=new RealtimePaperStrategyBatch(store,multiClock);
@@ -241,6 +245,7 @@ public sealed partial class WorkspaceViewModel
                 var warmup=await ScreeningBars(stock,specification,facts,now,Token);
                 if(warmup.Length==0)throw new InvalidOperationException("검증된 준비 봉이 없습니다.");
                 if(warmup.Length>20000)warmup=warmup.TakeLast(20000).ToArray();
+                facts=LiveBatchSupport.WithObservedWarmupSessions(facts,warmup);
                 var budget=Math.Max(config.PlannedInvestment,1);var settings=BuildOversoldTradingSettings(config,budget,false);
                 var item=new LiveBatchItem(stock,strategyName,settings,budget){Oversold=new(config.Clone(),specification,warmup,facts)};
                 return(stock,item,"");
@@ -258,12 +263,12 @@ public sealed partial class WorkspaceViewModel
         foreach(var row in snapshot.Rows)
         {
             var order=orders.GetValueOrDefault(row.Key);
-            var orderText=order==null?(snapshot.AutoTradingEnabled?"자동매매 불가 · 상태/위험 확인":"자동매매 꺼짐"):order.Status+(string.IsNullOrWhiteSpace(order.Error)?"":" · "+order.Error);
+            var orderText=IsOffline?"공개시세 · 신호만":order==null?(snapshot.AutoTradingEnabled?"자동매매 불가 · 상태/위험 확인":"자동매매 꺼짐"):order.Status+(string.IsNullOrWhiteSpace(order.Error)?"":" · "+order.Error);
             RealtimeScreeningRows.Add(new(row.Code,row.Name,row.Price is {} p?$"{DisplayNumber.Price(p)}원":"—",row.ChangePercent is {} c?$"{c:+0.00;-0.00;0.00}%":"—",$"{row.Proximity:N1}점",$"{row.MetConditions:N0}/{row.TotalConditions:N0}",row.UnmetConditions,row.StrategyState,row.LastAnalyzedAt?.ToOffset(TimeSpan.FromHours(9)).ToString("HH:mm:ss")??"—",row.DataState,orderText,row.Error));
         }
         foreach(var failed in failures)RealtimeScreeningRows.Add(failed);
         RealtimeScreenConnection=snapshot.ConnectionState;
-        RealtimeScreenInfo=$"{snapshot.Status} · {snapshot.Rows.Count:N0}종목 · 집중 {snapshot.Rows.Count(r=>r.Focused):N0} · 신호 {snapshot.Rows.Count(r=>r.BuySignal):N0} · 접근도는 발동 확률이 아닙니다.";
+        RealtimeScreenInfo=$"{snapshot.Status} · {snapshot.Rows.Count:N0}종목 · 집중 {snapshot.Rows.Count(r=>r.Focused):N0} · 신호 {snapshot.Rows.Count(r=>r.BuySignal):N0} · 접근도는 발동 확률이 아닙니다."+(IsOffline?" · 공개시세 신호 표시만 · 체결/호가 아님 · 지연 가능":"");
         if(realtimeScreenAutoTrade!=snapshot.AutoTradingEnabled){realtimeScreenAutoTrade=snapshot.AutoTradingEnabled;Changed(nameof(RealtimeAutoTrade));}
         NotifyRealtimeState();
     }

@@ -32,6 +32,10 @@ KiwoomMarketDataProvider: 기존 WebSocket 틱·호가 엔진용. 현재 새 UI�
 
 명령 실행 예외는 상태 메시지로 표시한다. 공개 조회 실패·누락은 결과에서 제외하고 표시한다. 주문 응답 불명은 계좌 차단 상태로 유지하고 재전송하지 않는다. 테스트는 외부 주문을 전송하지 않으며 공개 시세 읽기 통합 검사와 오프라인 가짜 응답 검사를 분리한다.
 
+## 2026-11-04 공개 실시간 스크리닝 경로
+
+StockViewer와 같은 공개 `domestic/stock`·`worldstock/stock` 폴링 형식을 `PublicMarketData`에 적용한다. 국내 `IPublicCurrentBatchData`는 종목 최대 20개를 한 요청으로 받아 행별로 분리한다. 응답의 갱신 간격과 거래/관측 시각을 별도로 유지한다. `PublicRealtimeScreeningWorkspace`는 공개 완성 분봉과 현재가를 `RealtimeOversoldScreeningService`의 연구 전용 `OversoldLiveStrategy`에 공급한다. 원본 틱 DB·실계좌 세션·가상 주문 배치에는 전달하지 않는다. 키움 최초 키 검증은 차트 선택 시장이 아닌 KRX 계좌 경로를 사용한다.
+
 ## 2026-09-28 확장
 WorkspaceFeatures는 WorkspaceViewModel의 모드 인증, 시장 갱신, 기록, 차트 주기, 틱 구독을 분리한 partial 구현이다. IMarketOverviewData는 지수/종목 스냅샷을 제공한다. 탭 활성 시 5초 DispatcherTimer로 조회하며 중복 호출은 건너뛰고 수명 취소 토큰으로 종료한다. 일평균 거래량은 메모리의 확정 일봉 20개로 계산한다.
 ChartPeriods는 주·월 OHLCV를 집계한다. SavedBacktest는 기존 chart-run: JSON과 호환되며 TradingStore.States로 목록을 복원한다. UI 정수 표시와 원본 decimal 계산을 분리한다.

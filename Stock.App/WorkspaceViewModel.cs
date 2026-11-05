@@ -69,7 +69,7 @@ public sealed partial class WorkspaceViewModel : Observable,IDisposable
     public int ActiveTab {get=>activeTab;set{activeTab=value;Changed();if(!apiPaused&&value==5)_=RefreshMarket();if(!apiPaused&&value==6)_=RefreshWatchlist();if(value==7&&RawTicks==null)OpenRawTickChart();}}
     public bool Busy {get=>busy;private set{busy=value;Changed();Refresh();}}
     public bool CanConfigure=>!Busy&&!Replaying;
-    public bool IsOnline {get=>online;set{if(!CanConfigure||online==value)return;if(value)_=Run(EnterOnline);else _=Run(async()=>{await StopMulti();Disconnect();ChangeMode(false);});}}
+    public bool IsOnline {get=>online;set{if(!CanConfigure||online==value)return;if(value)_=Run(EnterOnline);else _=Run(async()=>{await StopRealtimeScreening(true);await StopMulti();Disconnect();ChangeMode(false);});}}
     public bool IsOffline {get=>!online;set{if(value)IsOnline=false;}}
     public string ModeDescription=>IsOnline?"수동 주문과 검증된 낙주 전략 실시간 실행은 선택한 실제 계좌에서만 처리합니다.":"인증키 없이 실제 과거 가격으로 연습해요. 주문은 가상 계좌에서만 처리됩니다.";
     public string ConnectedAccountText=>IsOnline&&broker!=null?$"연결 · {broker.Name}{(string.IsNullOrWhiteSpace(broker.MaskedAccount)?"":" "+broker.MaskedAccount)}":"";
@@ -252,8 +252,25 @@ public sealed partial class WorkspaceViewModel : Observable,IDisposable
         ScreenInfo+=" · 최근 확정 일봉 / "+source;Log("스크리닝 완료. 종목을 선택하고 차트 열기를 누르세요.");
     }
     private async Task ConnectSelected()
-    {await StopMulti();if(!IsOnline||connection==null)throw new InvalidOperationException("온라인 투자에서 실제 계좌 키를 설정하세요.");if(selected==null)throw new InvalidOperationException("먼저 거래할 종목을 검색해서 선택하세요.");if(connection.Brokerage!=Brokerage.Kiwoom&&selected.Exchange!=Exchange.KRX)throw new InvalidOperationException("선택한 증권사의 해외주식 주문은 아직 이 앱에서 지원하지 않습니다. 국내 종목을 선택하세요.");var candidate=CreateAccount(connection,selected.Exchange);try{await candidate.ConnectAsync();var next=new RemoteTradingSession(candidate,LiveSettings(),store,sessionDirectory);await next.Refresh(KoreaClock.Today);broker?.Dispose();broker=candidate;session=next;}catch{candidate.Dispose();throw;}await RefreshAccount();}
-    private TradingSettings LiveSettings(){var kr=broker?.Exchange==Exchange.KRX;if(LiveOrderLimit<=0)throw new InvalidOperationException("1회 주문 한도를 입력하세요.");var s=new TradingSettings();s.Risk.MaxOrderCash=LiveOrderLimit;s.Risk.MaxSymbolCash=LiveOrderLimit*5;s.Risk.MaxTradeLoss=LiveOrderLimit*.1m;s.Risk.MaxDailyLoss=kr?500000:500;s.Risk.MaxDailyLossPercent=5;return s;}
+    {
+        await StopMulti();
+        if(!IsOnline||connection==null)throw new InvalidOperationException("온라인 투자에서 실제 계좌 키를 설정하세요.");
+        if(selected==null)throw new InvalidOperationException("먼저 거래할 종목을 검색해서 선택하세요.");
+        if(connection.Brokerage!=Brokerage.Kiwoom&&selected.Exchange!=Exchange.KRX)throw new InvalidOperationException("선택한 증권사의 해외주식 주문은 아직 이 앱에서 지원하지 않습니다. 국내 종목을 선택하세요.");
+        var candidate=CreateAccount(connection,selected.Exchange);
+        try
+        {
+            await candidate.ConnectAsync();
+            var next=new RemoteTradingSession(candidate,LiveSettings(candidate.Exchange),store,sessionDirectory);
+            try{await next.Refresh(KoreaClock.Today);}
+            catch(InvalidOperationException ex) when(connection.Brokerage==Brokerage.Kiwoom&&selected.Exchange!=Exchange.KRX)
+            {throw new InvalidOperationException("키움 실전 키 인증은 성공했지만 해외 계좌 잔고 조회가 거부됐습니다. 키움 해외주식 API 권한·계좌 등록을 확인하세요. "+ex.Message,ex);}
+            broker?.Dispose();broker=candidate;session=next;
+        }
+        catch{candidate.Dispose();throw;}
+        await RefreshAccount();
+    }
+    private TradingSettings LiveSettings(Exchange market){var kr=market==Exchange.KRX;if(LiveOrderLimit<=0)throw new InvalidOperationException("1회 주문 한도를 입력하세요.");var s=new TradingSettings();s.Risk.MaxOrderCash=LiveOrderLimit;s.Risk.MaxSymbolCash=LiveOrderLimit*5;s.Risk.MaxTradeLoss=LiveOrderLimit*.1m;s.Risk.MaxDailyLoss=kr?500000:500;s.Risk.MaxDailyLossPercent=5;return s;}
     private async Task RefreshAccount(){if(session==null)return;await broker!.ConnectAsync();await session.Refresh(KoreaClock.Today);Replace(Orders,session.Orders);PersistLiveFills();Replace(Holdings,session.Balance!.Holdings);AccountInfo=$"{broker.Name} · 실제 계좌 {broker.MaskedAccount} · {session.Balance.Currency}\n현금 {session.Balance.Cash:N0} · 선택 시장 평가 {session.Balance.Total:N0}"+(session.Unknown?"\n미확인 주문 있음 · 신규 주문 차단":"");}
     private async Task Place(bool buy)
     {

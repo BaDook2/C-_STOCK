@@ -22,8 +22,9 @@ public sealed partial class WorkspaceViewModel
         if(last>KoreaClock.Today)throw new InvalidOperationException("미래 날짜는 스크리닝할 수 없습니다.");
         return(first,last);
     }
-    public bool ScreenDaily {get=>!IsOnline||screenDaily;set{screenDaily=value;Changed();Changed(nameof(ScreenCustomBars));}}
-    public bool ScreenCustomBars {get=>IsOnline&&!screenDaily;set{if(IsOnline)ScreenDaily=!value;else ScreenDaily=true;}}
+    public bool ScreenDaily {get=>!IsOnline&&!RealtimeScreeningMode||screenDaily;set{screenDaily=value;Changed();Changed(nameof(ScreenCustomBars));}}
+    public bool ScreenCustomBars {get=>(IsOnline||RealtimeScreeningMode)&&!screenDaily;set{if(IsOnline||RealtimeScreeningMode)ScreenDaily=!value;else ScreenDaily=true;}}
+    public bool ShowScreenCustomBars=>IsOnline||RealtimeScreeningMode;
     public string ScreenBarValue {get=>screenBarValue;set{screenBarValue=value;Changed();}}
     public string ScreenBarUnit {get=>screenBarUnit;set{var normalized=TimeBarSelection.NormalizeUnit(value);if(screenBarUnit==normalized)return;screenBarUnit=normalized;screenBarValue=TimeBarSelection.NormalizeValue(screenBarValue,normalized);Changed();Changed(nameof(ScreenBarValue));Changed(nameof(ScreenBarValues));}}
     public string[] ScreenBarUnits {get;}=["분","시"];

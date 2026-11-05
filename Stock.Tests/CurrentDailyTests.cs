@@ -43,6 +43,16 @@ internal static partial class Program
         var json="""{"result":{"pollingInterval":7000,"time":1736038800000,"areas":[{"datas":[{"cd":"005930","nm":"검사","nv":85,"pcv":100,"ms":"OPEN","ov":90,"hv":92,"lv":80,"aq":1234,"aa":105678,"nxtOverMarketPriceInfo":{"overPrice":"999"}}]}]}}""";
         using var doc=JsonDocument.Parse(json);var parsed=PublicMarketData.ParseCurrentPoll(DailyStock,doc.RootElement,intraday);
         Check(parsed.PollInterval==TimeSpan.FromSeconds(7)&&parsed.Quote.Price==85&&parsed.TradingValue==105678&&!parsed.ExchangeTimestamp,"public snapshot respects the server seven-second cadence and keeps exact notional without NXT mixing");
+        using var liveDomestic=JsonDocument.Parse("""{"time":"20261006093000","pollingInterval":7000,"datas":[{"itemCode":"005930","closePriceRaw":"85","compareToPreviousClosePriceRaw":"15","compareToPreviousPrice":{"code":"5"},"openPriceRaw":"90","highPriceRaw":"92","lowPriceRaw":"80","accumulatedTradingVolumeRaw":"1234","accumulatedTradingValueRaw":"105678","marketStatus":"OPEN"},{"itemCode":"000660","closePriceRaw":"100","compareToPreviousClosePriceRaw":"5","compareToPreviousPrice":{"code":"2"},"marketStatus":"OPEN"}]}""");
+        var currentDomestic=PublicMarketData.ParseRealtimeStock(DailyStock,liveDomestic.RootElement,intraday);
+        Check(currentDomestic.Quote.Price==85&&currentDomestic.Quote.Change==-15&&currentDomestic.Quote.Percent<0&&currentDomestic.PollInterval==TimeSpan.FromSeconds(7)&&currentDomestic.TradingValue==105678&&!currentDomestic.ExchangeTimestamp,"StockViewer-style domestic poll preserves price direction, OHLCV and server cadence");
+        var usStock=new StockItem("AAPL","애플",Exchange.NASDAQ,"AAPL.O");
+        using var liveUs=JsonDocument.Parse("""{"time":"20261006093000","pollingInterval":7000,"datas":[{"reutersCode":"AAPL.O","closePriceRaw":"250.50","compareToPreviousClosePriceRaw":"1.25","compareToPreviousPrice":{"code":"2"},"marketStatus":"CLOSE","localTradedAt":"2026-10-05T16:00:00-04:00","stockExchangeType":{"delayTime":"15"}}]}""");
+        var currentUs=PublicMarketData.ParseRealtimeStock(usStock,liveUs.RootElement,intraday);
+        Check(currentUs.Quote.Price==250.50m&&currentUs.Quote.TradeTime.Offset==TimeSpan.FromHours(-4)&&currentUs.Source.Contains("15분 지연")&&currentUs.ExchangeTimestamp,"keyless overseas polling uses provider trade time and exposes stated delay");
+        using var liveExtended=JsonDocument.Parse("""{"time":"20261006093000","pollingInterval":7000,"datas":[{"reutersCode":"AAPL.O","closePriceRaw":"250.50","compareToPreviousClosePriceRaw":"1.25","compareToPreviousPrice":{"code":"2"},"marketStatus":"CLOSE","localTradedAt":"2026-10-05T16:00:00-04:00","overMarketPriceInfo":{"tradingSessionType":"AFTER_MARKET","localTradedAt":"2026-10-05T17:00:00-04:00","overPrice":"251.00","overMarketStatus":"OPEN"}}]}""");
+        var extended=PublicMarketData.ParseRealtimeStock(usStock,liveExtended.RootElement,intraday);
+        Check(extended.Quote.Price==251&&extended.Quote.Change==.5m&&extended.Quote.State=="OPEN"&&extended.Source.Contains("애프터마켓"),"US extended-session quote compares with the last regular close, not the prior-day close");
         using var basic=JsonDocument.Parse("""{"itemCode":"005930","stockEndType":"stock","stockExchangeType":{"name":"KOSPI"},"tradeStopType":{"name":"TRADING"}}""");
         var security=PublicMarketData.ParseCurrentSecurity(DailyStock,basic.RootElement,intraday);
         Check(security.Board==HistoricalBoard.Kospi&&security.Suspended==false&&security.Kind==HistoricalSecurityKind.Unknown&&security.Administrative==null,"public generic stock and missing warning never imply common non-admin security");
@@ -50,13 +60,24 @@ internal static partial class Program
         using(var parallelProvider=new PublicMarketData(new Handler(async request=>
         {
             var current=Interlocked.Increment(ref active);Interlocked.Increment(ref calls);maximum=Math.Max(maximum,current);
-            try{await Task.Delay(80);var code=request.RequestUri!.Query.Contains("000660")?"000660":"005930";var body=$"{{\"result\":{{\"pollingInterval\":7000,\"time\":1736038800000,\"areas\":[{{\"datas\":[{{\"cd\":\"{code}\",\"nm\":\"검사\",\"nv\":85,\"pcv\":100,\"ms\":\"OPEN\",\"ov\":90,\"hv\":92,\"lv\":80,\"aq\":1234,\"aa\":105678}}]}}]}}}}";return new System.Net.Http.HttpResponseMessage(System.Net.HttpStatusCode.OK){Content=new System.Net.Http.StringContent(body,System.Text.Encoding.UTF8,"application/json")};}
+            try{await Task.Delay(80);var code=request.RequestUri!.AbsolutePath.Contains("000660")?"000660":"005930";var body=$"{{\"time\":\"20261006093000\",\"pollingInterval\":7000,\"datas\":[{{\"itemCode\":\"{code}\",\"closePriceRaw\":\"85\",\"compareToPreviousClosePriceRaw\":\"15\",\"compareToPreviousPrice\":{{\"code\":\"5\"}},\"marketStatus\":\"OPEN\"}}]}}";return new System.Net.Http.HttpResponseMessage(System.Net.HttpStatusCode.OK){Content=new System.Net.Http.StringContent(body,System.Text.Encoding.UTF8,"application/json")};}
             finally{Interlocked.Decrement(ref active);}
         })))
         {
             var other=DailyStock with{Symbol="000660",Name="SK하이닉스",ProviderCode="000660"};var watch=System.Diagnostics.Stopwatch.StartNew();await Task.WhenAll(parallelProvider.Current(DailyStock,CancellationToken.None),parallelProvider.Current(other,CancellationToken.None));watch.Stop();await parallelProvider.Current(DailyStock,CancellationToken.None);
             Check(maximum==2&&calls==2&&watch.Elapsed<TimeSpan.FromMilliseconds(500),"public current quotes use per-symbol cadence without a global seven-second queue");
         }
+        using(var batchProvider=new PublicMarketData(new Handler(request=>
+        {
+            Check(request.RequestUri!.AbsolutePath.EndsWith("/domestic/stock/005930,000660"),"domestic batch request follows the public StockViewer endpoint");
+            return Task.FromResult(new System.Net.Http.HttpResponseMessage(System.Net.HttpStatusCode.OK){Content=new System.Net.Http.StringContent(liveDomestic.RootElement.GetRawText())});
+        })))
+        {
+            var other=DailyStock with{Symbol="000660",ProviderCode="000660"};var batch=await batchProvider.CurrentBatch([DailyStock,other],CancellationToken.None);
+            Check(batch.Length==2&&batch[0].Quote.Price==85&&batch[1].Quote.Price==100,"one public response maps two stocks by code without mixing their quotes");
+        }
+        using(var partialProvider=new PublicMarketData(new Handler(_=>Task.FromResult(new System.Net.Http.HttpResponseMessage(System.Net.HttpStatusCode.OK){Content=new System.Net.Http.StringContent("""{"time":"20261006093000","pollingInterval":7000,"datas":[{"itemCode":"005930","closePriceRaw":"85","marketStatus":"OPEN"}]}""")}))))
+        {var other=DailyStock with{Symbol="000660",ProviderCode="000660"};var batch=await partialProvider.CurrentBatch([DailyStock,other],CancellationToken.None);Check(batch.Length==1&&batch[0].Stock.Key==DailyStock.Key,"a missing symbol in one public batch does not hide the valid quotes");}
         await QuotePumpTests(quote with{PollInterval=TimeSpan.FromSeconds(3)});
     }
 

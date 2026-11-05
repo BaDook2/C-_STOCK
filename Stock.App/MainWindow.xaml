@@ -350,10 +350,10 @@
                                 <ComboBox ItemsSource="{Binding Presets}" SelectedItem="{Binding SelectedOversoldPreset,Mode=TwoWay}" Width="210" ToolTip="저장된 전략 중 스크리닝에 적용할 전략을 선택합니다." />
                                 <TextBlock Text="데이터 기준" VerticalAlignment="Center" Margin="8,0" />
                                 <RadioButton Content="일봉" GroupName="ScreenBars" IsChecked="{Binding ScreenDaily}" VerticalAlignment="Center" />
-                                <StackPanel x:Name="ScreenCustomBarOptions" Orientation="Horizontal" Visibility="{Binding IsOnline,Converter={StaticResource Visible}}">
+                                <StackPanel x:Name="ScreenCustomBarOptions" Orientation="Horizontal" Visibility="{Binding ShowScreenCustomBars,Converter={StaticResource Visible}}">
                                     <RadioButton Content="지정 봉" GroupName="ScreenBars" IsChecked="{Binding ScreenCustomBars}" VerticalAlignment="Center" />
                                     <ComboBox ItemsSource="{Binding ScreenBarValues}" SelectedItem="{Binding ScreenBarValue}" Width="72" IsEnabled="{Binding ScreenCustomBars}" ToolTip="분봉은 1~59, 시간봉은 1~12 중에서 선택합니다." />
-                                    <ComboBox ItemsSource="{Binding ScreenBarUnitOptions}" SelectedValue="{Binding ScreenBarUnit}" SelectedValuePath="Value" DisplayMemberPath="Label" Width="90" IsEnabled="{Binding ScreenCustomBars}" ToolTip="온라인 연결에서 분봉 또는 시간봉을 선택합니다." />
+                                    <ComboBox ItemsSource="{Binding ScreenBarUnitOptions}" SelectedValue="{Binding ScreenBarUnit}" SelectedValuePath="Value" DisplayMemberPath="Label" Width="90" IsEnabled="{Binding ScreenCustomBars}" ToolTip="실시간 감시에 사용할 공개 또는 연결 계좌의 완성 분봉·시간봉을 선택합니다." />
                                 </StackPanel>
                                 <StackPanel Orientation="Horizontal" Visibility="{Binding RegularScreeningMode,Converter={StaticResource Visible}}">
                                     <TextBlock Text="시작일" VerticalAlignment="Center" Margin="10,0,4,0"/>
@@ -368,8 +368,8 @@
 
                                 </StackPanel>
                                 <StackPanel Orientation="Horizontal" Visibility="{Binding RealtimeScreeningMode,Converter={StaticResource Visible}}">
-                                    <CheckBox Content="자동매매 시작" IsChecked="{Binding RealtimeAutoTrade}" ToolTip="기본은 가상 계좌입니다. 체크한 이후 새롭게 발생하는 신호만 주문하며 체크 해제 시 신규·추가매수만 차단합니다." />
-                                    <Button Content="실시간 스크리닝 시작" Command="{Binding Actions[실시간스크리닝시작]}" ToolTip="선택 시장 종목을 백그라운드에서 계속 감시합니다. 실제 체결·호가 연결이 필요합니다." />
+                                    <CheckBox Content="자동매매 시작" IsChecked="{Binding RealtimeAutoTrade}" IsEnabled="{Binding CanAutoTradeRealtimeScreening}" ToolTip="키움 실시간 체결 피드에서 가상 주문을 허용합니다. 공개시세 감시는 신호 표시만 지원합니다." />
+                                    <Button Content="실시간 스크리닝 시작" Command="{Binding Actions[실시간스크리닝시작]}" ToolTip="오프라인은 공개 현재가·완성 분봉으로 신호를 감시합니다. 온라인 키움 연결은 실제 체결·호가 피드를 사용합니다." />
                                     <Button Content="중지" Command="{Binding Actions[실시간스크리닝중지]}" Style="{StaticResource Secondary}" ToolTip="신규 탐색과 진입을 중지합니다. 기존 가상 보유분의 보호 관리는 유지합니다." />
                                     <TextBlock Text="{Binding RealtimeScreenConnection,StringFormat=연결 상태 · {0}}" VerticalAlignment="Center" Foreground="#3182F6" FontWeight="SemiBold" Margin="8,0,0,0" />
                                 </StackPanel>

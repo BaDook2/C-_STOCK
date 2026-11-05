@@ -5,7 +5,7 @@ using Stock.Core.Research.Oversold;
 using Stock.Core.Trading;
 namespace Stock.Core.Research;
 
-public sealed partial class PublicMarketData
+public sealed partial class PublicMarketData:IPublicCurrentBatchData
 {
     private sealed class CurrentQuoteSlot
     {
@@ -34,20 +34,70 @@ public sealed partial class PublicMarketData
     }
     private async Task<CurrentMarketSnapshot> ReadCurrent(StockItem stock,CancellationToken token)
     {
-        if(stock.Exchange==Exchange.KRX)
-            return ParseCurrentPoll(stock,await Json("https://polling.finance.naver.com/api/realtime?query="+Uri.EscapeDataString("SERVICE_ITEM:"+stock.Symbol),token),DateTimeOffset.UtcNow);
-        var root=await Json($"https://api.stock.naver.com/stock/{Uri.EscapeDataString(stock.ProviderCode)}/basic",token);
-        var quote=ParseQuote(root);
-        var extra=await Json($"https://api.stock.naver.com/stock/{Uri.EscapeDataString(stock.ProviderCode)}/integration",token);
-        decimal? Info(string code)
-        {
-            if(!extra.TryGetProperty("totalInfos",out var values)||values.ValueKind!=JsonValueKind.Array)return null;
-            var text=values.EnumerateArray().FirstOrDefault(v=>Text(v,"code")==code);
-            return text.ValueKind==JsonValueKind.Object?Number(Text(text,"value")):null;
-        }
-        return new(stock,quote,DateTimeOffset.UtcNow,Info("openPrice"),Info("highPrice"),Info("lowPrice"),Info("accumulatedTradingVolume"),null,"네이버 해외 공개 시세 · 지연 가능",SelectedQuotePump.MaximumInterval);
+        var kind=stock.Exchange==Exchange.KRX?"domestic":"worldstock";
+        var code=stock.Exchange==Exchange.KRX?stock.Symbol:stock.ProviderCode;
+        var root=await Json($"https://polling.finance.naver.com/api/realtime/{kind}/stock/{Uri.EscapeDataString(code)}",token);
+        return ParseRealtimeStock(stock,root,DateTimeOffset.UtcNow);
+    }
+    /// <summary>여러 국내 종목을 한 요청으로 읽어 공개 실시간 스크리닝의 요청 수를 제한한다.</summary>
+    public async Task<CurrentMarketSnapshot[]> CurrentBatch(IReadOnlyList<StockItem> stocks,CancellationToken token)
+    {
+        if(stocks.Count is <1 or >20||stocks.Any(s=>s.Exchange!=Exchange.KRX)||stocks.Select(s=>s.Key).Distinct().Count()!=stocks.Count)
+            throw new InvalidOperationException("공개 시세 일괄 조회는 중복 없는 국내 종목 1~20개를 사용하세요.");
+        var codes=string.Join(',',stocks.Select(s=>Uri.EscapeDataString(s.Symbol)));
+        var root=await Json("https://polling.finance.naver.com/api/realtime/domestic/stock/"+codes,token);
+        var received=DateTimeOffset.UtcNow;
+        var snapshots=new List<CurrentMarketSnapshot>();
+        foreach(var stock in stocks)
+            try{snapshots.Add(ParseRealtimeStock(stock,root,received));}
+            catch(InvalidOperationException){ /* A missing symbol must not hide the other quotes in this response. */ }
+        if(snapshots.Count==0)throw new InvalidOperationException("공개 현재가 응답에 요청한 종목이 없습니다.");
+        return snapshots.ToArray();
     }
     private static decimal? Number(string value)=>decimal.TryParse(value,NumberStyles.Number,CultureInfo.InvariantCulture,out var n)?n:null;
+    /// <summary>StockViewer와 같은 공개 폴링 응답. 서버 관측과 거래소 체결시각을 구분한다.</summary>
+    public static CurrentMarketSnapshot ParseRealtimeStock(StockItem stock,JsonElement root,DateTimeOffset received)
+    {
+        if(!root.TryGetProperty("datas",out var data)||data.ValueKind!=JsonValueKind.Array)throw new InvalidOperationException("공개 현재가 응답 형식을 확인할 수 없습니다.");
+        var domestic=stock.Exchange==Exchange.KRX;
+        var row=data.EnumerateArray().FirstOrDefault(r=>Text(r,domestic?"itemCode":"reutersCode")== (domestic?stock.Symbol:stock.ProviderCode));
+        if(row.ValueKind!=JsonValueKind.Object)throw new InvalidOperationException(stock.Name+": 공개 현재가가 없습니다.");
+        decimal? Value(string raw,string formatted)=>Number(Text(row,raw))??Number(Text(row,formatted));
+        var price=Value("closePriceRaw","closePrice")??0;
+        if(price<=0)throw new InvalidOperationException(stock.Name+": 유효한 공개 현재가가 없습니다.");
+        var change=Value("compareToPreviousClosePriceRaw","compareToPreviousClosePrice")??0;
+        var direction=row.TryGetProperty("compareToPreviousPrice",out var comparison)?Text(comparison,"code"):"";
+        change=direction switch{"4" or "5"=>-Math.Abs(change),"1" or "2"=>Math.Abs(change),"3"=>0,_=>change};
+        var previous=price-change;
+        var observed=DateTime.TryParseExact(Text(root,"time"),"yyyyMMddHHmmss",CultureInfo.InvariantCulture,DateTimeStyles.None,out var serverTime)
+            ?new DateTimeOffset(serverTime,TimeSpan.FromHours(9)):received;
+        DateTimeOffset? traded=DateTimeOffset.TryParse(Text(row,"localTradedAt"),CultureInfo.InvariantCulture,DateTimeStyles.None,out var tradeTime)?tradeTime:null;
+        var source="네이버 "+(domestic?"KRX":"미국")+" 공개 시세 · 지연 가능";
+        if(!domestic&&row.TryGetProperty("stockExchangeType",out var exchange)&&Number(Text(exchange,"delayTime")) is >0 and var delay)
+            source+=$" · {delay:N0}분 지연";
+        var state=Text(row,"marketStatus");
+        var volume=Value("accumulatedTradingVolumeRaw","accumulatedTradingVolume");
+        if(!domestic&&row.TryGetProperty("overMarketPriceInfo",out var extended)&&extended.ValueKind==JsonValueKind.Object
+            &&Text(extended,"tradingSessionType") is "PRE_MARKET" or "AFTER_MARKET"
+            &&DateTimeOffset.TryParse(Text(extended,"localTradedAt"),CultureInfo.InvariantCulture,DateTimeStyles.None,out var extendedAt)
+            &&extendedAt>traded&&Number(Text(extended,"overPrice")) is >0 and var extendedPrice)
+        {
+            var session=Text(extended,"tradingSessionType");
+            var baseClose=price;
+            if(baseClose>0)
+            {
+                price=extendedPrice;change=price-baseClose;previous=baseClose;traded=extendedAt;
+                state=string.IsNullOrWhiteSpace(Text(extended,"overMarketStatus"))?state:Text(extended,"overMarketStatus");source+=session=="PRE_MARKET"?" · 프리마켓":" · 애프터마켓";
+                volume=Number(Text(extended,"accumulatedTradingVolumeRaw"))??volume;
+            }
+        }
+        var interval=Number(Text(root,"pollingInterval"))??7000;
+        if(interval<=0||interval>86_400_000)throw new InvalidOperationException("공개 시세 갱신 간격을 확인할 수 없습니다.");
+        var time=domestic?observed:traded??observed;
+        return new(stock,new(stock.Name,price,change,previous>0?(price/previous-1)*100:0,time,state),received,
+            Value("openPriceRaw","openPrice"),Value("highPriceRaw","highPrice"),Value("lowPriceRaw","lowPrice"),volume,
+            Number(Text(row,"accumulatedTradingValueRaw")),source,TimeSpan.FromMilliseconds((double)Math.Max(1000,interval)),ExchangeTimestamp:!domestic&&traded.HasValue);
+    }
     public static CurrentMarketSnapshot ParseCurrentPoll(StockItem stock,JsonElement root,DateTimeOffset received)
     {
         var result=root.GetProperty("result");var row=result.GetProperty("areas").EnumerateArray().SelectMany(a=>a.GetProperty("datas").EnumerateArray()).First(r=>Text(r,"cd")==stock.Symbol);

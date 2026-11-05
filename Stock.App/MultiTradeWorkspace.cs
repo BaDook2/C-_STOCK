@@ -95,7 +95,7 @@ public sealed partial class WorkspaceViewModel
             var warmup=await ScreeningBars(item.Stock,spec,facts,now,Token);
             if(warmup.Length==0)throw new InvalidOperationException(item.Stock.Name+": 검증된 원본 체결로 만든 준비 봉이 없습니다.");
             if(warmup.Length>20000)throw new InvalidOperationException(item.Stock.Name+": 준비 봉이 20,000개를 넘습니다. 더 큰 분/시간 기준을 선택하세요.");
-            configured.Add(item with{Oversold=new(LoadMultiOversoldPreset(item.Preset),spec,warmup,facts)});
+            configured.Add(item with{Oversold=new(LoadMultiOversoldPreset(item.Preset),spec,warmup,LiveBatchSupport.WithObservedWarmupSessions(facts,warmup))});
         }
         plan=plan with{Items=configured.ToArray()};
         if(!ReferenceEquals(current,session)||!IsOnline||!MultiTrading.UseMock||!MultiTrading.UseRealtime||!RealtimeMockSupported)throw new InvalidOperationException("계좌 연결 또는 실행 모드가 변경되었습니다.");
@@ -141,7 +141,7 @@ public sealed partial class WorkspaceViewModel
             var warmup=await ScreeningBars(item.Stock,spec,facts,now,Token);
             if(warmup.Length==0)throw new InvalidOperationException(item.Stock.Name+": 검증된 원본 체결로 만든 준비 봉이 없습니다.");
             if(warmup.Length>20000)throw new InvalidOperationException(item.Stock.Name+": 준비 봉이 20,000개를 넘습니다. 더 큰 분/시간 기준을 선택하세요.");
-            configured.Add(item with{Oversold=new(LoadMultiOversoldPreset(item.Preset),spec,warmup,facts)});
+            configured.Add(item with{Oversold=new(LoadMultiOversoldPreset(item.Preset),spec,warmup,LiveBatchSupport.WithObservedWarmupSessions(facts,warmup))});
         }
         plan=plan with{Items=configured.ToArray()};
         var details=string.Join("\n",plan.Items.Select(i=>$"{i.Stock.Name} / {i.Preset} / 예산 {i.Budget:N0}원 / 1회 {i.Settings.Advanced!.Common.Investment:N0}원 / {spec} / 지정가"));

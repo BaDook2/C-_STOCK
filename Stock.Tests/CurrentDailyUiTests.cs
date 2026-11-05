@@ -32,6 +32,14 @@ internal static partial class Program
         Do("검색");PumpUntil(()=>vm.ChartBars.LastOrDefault()?.Volume==12345);window.UpdateLayout();
         Check(vm.ChartBars[^1] is {Close:85,Low:79,Volume:12345,IsComplete:false}&&vm.PriceText.Contains("85")&&vm.ChangeText.Contains("15"),"one-second WPF timer updates selected price, daily candle and cumulative volume together");
         var liveDailyChange=vm.ChangeText;
+        var liveDailyDate=vm.PriceDate;
+        // IsTick is the legacy name for every intraday interval, including minute charts.
+        typeof(WorkspaceViewModel).GetField("chartPeriod",BindingFlags.NonPublic|BindingFlags.Instance)!.SetValue(vm,"1분");
+        Check(vm.IsTick&&vm.PriceText.Contains("85")&&vm.ChangeText==liveDailyChange&&vm.PriceDate==liveDailyDate,
+            "minute view retains the live quote timestamp and previous-close change instead of using historical chart candles");
+        typeof(WorkspaceViewModel).GetField("chartPeriod",BindingFlags.NonPublic|BindingFlags.Instance)!.SetValue(vm,"1틱");
+        Check(vm.ChangeText==liveDailyChange&&vm.PriceDate==liveDailyDate,"tick view shares the same current quote header as daily and minute views");
+        vm.DailySelected=true;
         vm.WeeklySelected=true;Check(vm.ChartBars[^1].Close==85&&vm.PriceText.Contains("85")&&vm.ChangeText==liveDailyChange,"weekly view keeps the live header change anchored to the previous daily close");
         vm.MonthlySelected=true;Check(vm.ChartBars[^1].Close==85&&vm.ChangeText==liveDailyChange,"monthly view keeps the same previous-close change instead of comparing monthly candles");vm.DailySelected=true;
         Check(vm.PriceDate.Contains("시세")&&vm.PriceDate.Contains("진행 중")&&vm.DataInfo.Contains("조회 3초")&&!vm.PriceDate.Contains("15:30"),"header distinguishes quote observation from fixed daily close axis and shows the offline three-second cadence");

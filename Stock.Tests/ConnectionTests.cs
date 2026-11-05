@@ -97,6 +97,12 @@ internal static partial class Program
         int defaultPrompts=0;var defaultBroker=new RecordingBroker(Brokerage.Kiwoom);
         using(var automatic=new WorkspaceViewModel(_=>false,provider:market,store:store,connectionPrompt:()=>{defaultPrompts++;return null;},accountFactory:(_,_)=>defaultBroker,defaultConnectionLoader:()=>Connection(Brokerage.Kiwoom,true)))
         {automatic.IsOnline=true;PumpUntil(()=>!automatic.Busy);Check(automatic.IsOnline&&defaultPrompts==0&&automatic.ConnectedAccountText.Contains("Kiwoom"),"online mode connects the saved default account without opening the key dialog");}
+        Exchange? keyCheckMarket=null;
+        using(var overseasChart=new WorkspaceViewModel(_=>false,provider:market,store:store,connectionPrompt:()=>Connection(Brokerage.Kiwoom),accountFactory:(_,exchange)=>{keyCheckMarket=exchange;return new RecordingBroker(Brokerage.Kiwoom);} ))
+        {var opened=overseasChart.OpenStock(apple);PumpUntil(()=>opened.IsCompleted);opened.GetAwaiter().GetResult();overseasChart.IsOnline=true;PumpUntil(()=>!overseasChart.Busy);Check(overseasChart.IsOnline&&keyCheckMarket==Exchange.KRX,"saved Kiwoom key connects on domestic account endpoint even when an overseas chart is selected");}
+        var brokers=new List<RecordingBroker>();
+        using(var overseasBalance=new WorkspaceViewModel(_=>true,provider:market,store:store,connectionPrompt:()=>Connection(Brokerage.Kiwoom),accountFactory:(_,exchange)=>{var b=new RecordingBroker(Brokerage.Kiwoom){Market=exchange,FailBalance=exchange!=Exchange.KRX};brokers.Add(b);return b;}))
+        {var opened=overseasBalance.OpenStock(apple);PumpUntil(()=>opened.IsCompleted);opened.GetAwaiter().GetResult();overseasBalance.IsOnline=true;PumpUntil(()=>!overseasBalance.Busy);overseasBalance.Actions["매수"].Execute(null);PumpUntil(()=>!overseasBalance.Busy);Check(overseasBalance.Status.Contains("실전 키 인증은 성공")&&overseasBalance.Status.Contains("해외 계좌 잔고")&&brokers.Sum(b=>b.Submitted)==0,"US balance rejection is explained separately from key authentication and cannot submit an order");}
         using(var fail=new WorkspaceViewModel(_=>false,provider:market,store:store,connectionPrompt:()=>Connection(Brokerage.Meritz,true),saveConnection:vault.Save,accountFactory:(c,e)=>new RecordingBroker(c.Brokerage){FailBalance=true}))
         {fail.IsOnline=true;PumpUntil(()=>!fail.Busy);Check(fail.IsOffline&&vault.Load(Brokerage.Meritz)==null&&vault.DefaultBroker==Brokerage.KoreaInvestment,"failed account verification saves no key and preserves default");}
         window.DataContext=previous;
@@ -113,7 +119,7 @@ internal static partial class Program
     }
     private sealed class RecordingBroker(Brokerage id):IAccountBroker
     {
-        public int Submitted;public bool Disposed,FailBalance;public string Id=>"fixture-"+id;public string Name=>id.ToString();public bool IsLive=>true;public Exchange Exchange=>Exchange.KRX;public string Account=>"fixture-"+id;public string MaskedAccount=>"****0000";public bool SupportsMarketOrders=>true;
+        public int Submitted;public bool Disposed,FailBalance;public Exchange Market=Exchange.KRX;public string Id=>"fixture-"+id;public string Name=>id.ToString();public bool IsLive=>true;public Exchange Exchange=>Market;public string Account=>"fixture-"+id;public string MaskedAccount=>"****0000";public bool SupportsMarketOrders=>true;
         public Task ConnectAsync()=>Task.CompletedTask;
         public Task<Balance> GetBalanceAsync()=>FailBalance?throw new InvalidOperationException("fixture account denied"):Task.FromResult(new Balance([],10000000,10000000));
         public Task<IReadOnlyList<BrokerOrder>> GetOrdersAsync(DateOnly date)=>Task.FromResult<IReadOnlyList<BrokerOrder>>([]);

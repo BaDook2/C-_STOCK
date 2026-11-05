@@ -22,6 +22,29 @@ public sealed class LiveBatchJournal
 /// <summary>Capabilities are explicit; missing data never silently changes a registered strategy.</summary>
 public static class LiveBatchSupport
 {
+    /// <summary>
+    /// Retains supplied market hours and adds only dates evidenced by completed KRX warm-up bars.
+    /// This is calendar context, never a backfill of historical security or fundamental-risk status.
+    /// </summary>
+    public static Stock.Core.Research.Oversold.HistoricalFacts WithObservedWarmupSessions(
+        Stock.Core.Research.Oversold.HistoricalFacts source,IReadOnlyList<Stock.Core.Research.Oversold.StrategyBar> bars)
+    {
+        var facts=source.Snapshot();
+        var known=facts.Sessions.ToDictionary(s=>s.Date);
+        foreach(var bar in bars.Where(b=>b.Price.IsComplete))
+        {
+            var date=DailyQuoteMerger.Date(bar.OpenTime,Exchange.KRX);
+            if(known.ContainsKey(date)||DailyQuoteMerger.Date(bar.ClosedAt,Exchange.KRX)!=date)continue;
+            var open=new DateTimeOffset(date.ToDateTime(new TimeOnly(9,0)),TimeSpan.FromHours(9));
+            var close=new DateTimeOffset(date.ToDateTime(new TimeOnly(15,30)),TimeSpan.FromHours(9));
+            if(bar.OpenTime>=open&&bar.ClosedAt<=close)known.Add(date,new(date,open,close));
+        }
+        facts.MarketSessions=known.Values.OrderBy(s=>s.Open).ToArray();
+        if(string.IsNullOrWhiteSpace(facts.Source)&&facts.MarketSessions.Length>0)
+            facts.Source="증권사 확정 준비 봉의 관측 거래일 · KRX 정규장 시간";
+        facts.Validate();return facts;
+    }
+
     public static string? Reason(LiveBatchItem item)
     {
         if(item.Oversold is null)return Reason(item.Stock,item.Settings);

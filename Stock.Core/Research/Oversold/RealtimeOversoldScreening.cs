@@ -27,6 +27,7 @@ public sealed class RealtimeOversoldScreeningService
         public readonly DataQualityGate Quality;
         public DateTimeOffset? LastSignalTime;
         public DateTimeOffset? LastReceived;
+        public CurrentMarketSnapshot? PublicSnapshot;
         public string DataState="실시간 시세 대기",Error="";
         public bool Enabled=true;
         public Row(LiveBatchItem item)
@@ -105,6 +106,41 @@ public sealed class RealtimeOversoldScreeningService
         }
     }
 
+    /// <summary>Public completed candles feed the existing detector without creating raw executions.</summary>
+    public void OnPublicBar(string key,StrategyBar bar)
+    {
+        lock(sync)
+        {
+            if(!running||!rows.TryGetValue(key,out var row)||!row.Enabled||row.Item.Oversold?.PublicPaper!=true)return;
+            try{row.Strategy.OnPublicBar(bar);}
+            catch(Exception ex){row.Enabled=false;row.DataState="전략 오류";row.Error=ex is InvalidOperationException?ex.Message:"공개 분봉 분석 실패";}
+        }
+    }
+
+    /// <summary>Public quote observations update research state only; they are never stored as ticks or routed to an account.</summary>
+    public void OnPublicSnapshot(CurrentMarketSnapshot snapshot)
+    {
+        lock(sync)
+        {
+            if(!running||!rows.TryGetValue(snapshot.Stock.Key,out var row)||!row.Enabled||row.Item.Oversold?.PublicPaper!=true)return;
+            var previous=row.PublicSnapshot;
+            if(previous!=null&&snapshot.Quote.TradeTime<=previous.Quote.TradeTime)return;
+            try
+            {
+                var delta=previous!=null&&DailyQuoteMerger.Date(previous.Quote.TradeTime,Exchange.KRX)==DailyQuoteMerger.Date(snapshot.Quote.TradeTime,Exchange.KRX)
+                    ?Math.Max(0,(snapshot.Volume??0)-(previous.Volume??0)):0;
+                var observation=new MarketEvent(row.Context.Instrument,EventKind.Trade,snapshot.Quote.TradeTime,snapshot.ReceivedAt,"NAVER_SCREEN_OBSERVATION",snapshot.Quote.TradeTime.UtcTicks)
+                {TradePrice=snapshot.Quote.Price,TradeSize=delta,PreviousClose=snapshot.Quote.Price-snapshot.Quote.Change,TimeQuality="공개 현재가 · 원본 체결 아님"};
+                row.Context.Add(observation);row.PublicSnapshot=snapshot;row.LastReceived=clock();
+                var fresh=snapshot.Quote.State=="OPEN"&&(clock()-snapshot.ReceivedAt).Duration()<=TimeSpan.FromSeconds(20)
+                    &&(clock()-snapshot.Quote.TradeTime).Duration()<=TimeSpan.FromSeconds(20);
+                if(fresh){row.Strategy.OnPublicObservation(snapshot.Quote.TradeTime);row.DataState="공개 시세 수신 · 지연 가능";}
+                else row.DataState=snapshot.Quote.State=="OPEN"?"공개 시세 지연 · 신호 보류":"장 마감 · 마지막 공개가";
+            }
+            catch(Exception ex){row.Enabled=false;row.DataState="종목 오류";row.Error=ex is InvalidOperationException?ex.Message:"유효하지 않은 공개 시세";}
+        }
+    }
+
     public void Pulse()
     {
         List<RealtimeScreeningSignal> signals=[];
@@ -116,9 +152,11 @@ public sealed class RealtimeOversoldScreeningService
                 if(!row.Enabled||row.Context.Last==null)continue;
                 try
                 {
-                    var staleSeconds=Math.Min(10,row.Item.Settings.Execution.StaleSeconds);
+                    var publicData=row.Item.Oversold?.PublicPaper==true;
+                    var staleSeconds=publicData?20:Math.Min(10,row.Item.Settings.Execution.StaleSeconds);
                     if(row.LastReceived is not {} received||(clock()-received).Duration().TotalSeconds>staleSeconds)
                     {row.DataState="시세 지연 · 신규 주문 차단";continue;}
+                    if(publicData&&row.DataState!="공개 시세 수신 · 지연 가능")continue;
                     var signal=row.Strategy.Evaluate(row.Context);
                     if(signal.Buy==true&&row.Strategy.ReadySignalTime is {} signalTime&&row.LastSignalTime!=signalTime)
                     {
