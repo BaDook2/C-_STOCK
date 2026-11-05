@@ -1,7 +1,8 @@
-## 현재 작업 2026-11-05 — 실시간 UI 수정 GitHub v0.1.10 게시 [~]
+## 현재 작업 2026-11-05 — 실시간 UI 수정 GitHub v0.1.10 게시 [x]
 - [x] 사용자 GitHub 게시 요청을 확인했다. 원격 main `c9cfe10`과 최신 Release v0.1.9를 확인했으며 로컬 7개 요구사항 변경·기존 빌드/검사 기록을 확인했다.
-- [~] 민감 데이터/로컬 EXE 제외를 확인하고 소스·문서를 커밋한 뒤 main 및 v0.1.10 태그를 게시한다.
-- [ ] GitHub Actions 전체 빌드·검사·단일 EXE 게시·smoke 성공과 공개 파일 해시를 확인한다. 실행 중인 사용자 앱·계좌 주문은 조작하지 않는다.
+- [x] 민감 데이터/로컬 EXE 제외를 확인하고 소스·문서 43개를 `7723aa5`로 커밋해 main과 v0.1.10 태그를 atomic push했다. 추적된 개인 키·DB·EXE 파일은 0개다.
+- [x] Actions run `41989063932` / job `127116683137`의 모든 단계가 성공했다. 빌드 경고0/오류0, CI 전체 **1,175개** 통과, 단일 EXE 게시·smoke·공개 Release 생성까지 확인했다. https://github.com/BaDook2/C-_STOCK/actions/runs/41989063932
+- [x] 공개 EXE와 sha를 직접 다운로드해 SHA256/게시 체크섬/GitHub API digest 일치와 다운로드 EXE smoke 종료0/Success/NoBrokerCalls=true를 확인했다. 공개 파일은 **80,844,265 bytes**, SHA256 `A4FDC91CFCCAE5F1D6CE53FF2A67C6403FB139AA8B7BA0B31F2B4E2F37FEA1A2`, ProductVersion `1.0.0+7723aa51f41408348f549e738f1a422952a71926`. 검증 파일은 `artifacts/release-v0.1.10/`에 보관했다. Release: https://github.com/BaDook2/C-_STOCK/releases/tag/v0.1.10 . 실행 중인 앱과 실제 계좌는 조작하지 않았고 루트/release 폴더는 이전 로컬 빌드 `D09B59F3...`를 유지한다.
 
 ## 현재 작업 2026-11-05 — 실시간 스크리닝 선택·차트·전략 전환 및 오프라인 지정봉 [x]
 - [x] 실시간 행 객체와 선택 유지, 더블클릭 지정봉 상세 차트, 공통 백테스트 서비스·확인 체결과 모형체결 출처 구분, 익절/손절 사유를 공통 차트 경로에 적용했다.

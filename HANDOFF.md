@@ -1,6 +1,10 @@
-# 최신 작업 — 2026-11-05 GitHub v0.1.10 게시 진행
+# 최신 상태 — 2026-11-05 GitHub v0.1.10 게시·공개 EXE 검증 완료
 
-사용자가 로컬 완료 변경의 GitHub 게시를 요청했다. 원격 main은 `c9cfe10`, 최신 공개 배포는 v0.1.9이므로 다음 태그 v0.1.10으로 배포한다. 소스·문서를 검토해 커밋/푸시하고 `.github/workflows/release.yml`의 전체 검사, 단일 EXE 게시 및 smoke 성공을 끝까지 확인한다. 현재 구현과 로컬 검증 내용은 바로 아래를 기준으로 한다. 계좌 키/DB/로컬 EXE는 Git에서 계속 제외한다. 실행 중인 사용자 앱이나 실제 계좌는 조작하지 않는다.
+사용자가 요청한 GitHub 게시를 완료했다. 소스·문서 43개를 `7723aa51f41408348f549e738f1a422952a71926`으로 커밋하고 main과 v0.1.10 태그를 atomic push했다. [Actions run 41989063932](https://github.com/BaDook2/C-_STOCK/actions/runs/41989063932) / job **127116683137**의 빌드·전체 테스트 **1,175개**·게시 EXE smoke·공개 Release 생성이 모두 성공했다. 빌드 경고0/오류0이다.
+
+[v0.1.10 Release](https://github.com/BaDook2/C-_STOCK/releases/tag/v0.1.10)의 EXE와 sha를 직접 다운로드해 해시·게시 체크섬·GitHub API digest 일치 및 다운로드 EXE smoke 종료0/Success/NoBrokerCalls=true를 확인했다. 공개 `Stock.exe`는 **80,844,265 bytes**, SHA256 **A4FDC91CFCCAE5F1D6CE53FF2A67C6403FB139AA8B7BA0B31F2B4E2F37FEA1A2**, ProductVersion `1.0.0+7723aa51f41408348f549e738f1a422952a71926`이다. 검증 파일/메타데이터/smoke는 `artifacts/release-v0.1.10/`에 있다.
+
+실행 중인 사용자 앱은 조작하지 않았다. 루트와 로컬 release 폴더는 아래 로컬 빌드 **D09B59F3...**를 유지한다. 공개 CI 빌드는 소스 버전/SDK 환경이 달라 파일 해시가 다르므로 다음 비교 시 이 구분을 유지한다. 계좌 키/DB/로컬 EXE는 Git에서 계속 제외하며 추적된 개인 데이터·EXE는 0개다. 실제 계좌 주문·키 변경·사용자 DB 삭제 없음. 이번 GitHub 게시 요청의 남은 작업은 없다.
 
 # 이전 완료 — 2026-11-05 실시간 스크리닝 UI·오프라인 지정봉
 

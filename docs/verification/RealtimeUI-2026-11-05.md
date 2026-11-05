@@ -23,3 +23,5 @@
 Core 검사는 전략 교체의 완성 봉 유지·설정 격리·취소, 기존 가상 포지션 보호·중복 주문·중지, 공개 1초 캐시/펌프·백오프를 포함한다. 최종 빌드/전체 검사 수 및 배포 EXE 해시는 TASKS와 HANDOFF의 이번 작업 기록을 기준으로 한다.
 
 최종 결과: 전체 1,173개, 최종 관련 WPF 26개(활성 중지 버튼의 실제 템플릿 배경 포함), 빌드 경고0/오류0, 게시 EXE smoke Success/NoBrokerCalls=true. 루트 EXE 교체 후 실제 정상 실행 창도 확인했다. SHA256은 `D09B59F354562E82DB743E3F2F0AB545EFA158EDDF02EF2AAFDB27286F296A6E`다.
+
+GitHub v0.1.10: 소스 `7723aa5`, Actions `41989063932` 전체 성공. 최종 렌더 검사까지 포함한 CI 전체 1,175개가 통과했다. 공개 다운로드 EXE도 smoke Success/NoBrokerCalls=true였으며 80,844,265 bytes / SHA256 `A4FDC91CFCCAE5F1D6CE53FF2A67C6403FB139AA8B7BA0B31F2B4E2F37FEA1A2`가 게시 sha와 API digest에 일치했다. 공개 파일과 검증 결과는 `artifacts/release-v0.1.10/`에 보존했다. 로컬 실행 중인 앱은 조작하지 않았다.
