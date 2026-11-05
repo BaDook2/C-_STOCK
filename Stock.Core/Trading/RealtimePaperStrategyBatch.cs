@@ -99,7 +99,7 @@ public sealed class RealtimePaperStrategyBatch
             foreach(var r in rows.Where(p=>key==null||p.Key==key).Select(p=>p.Value))
             {
                 r.Enabled=false;r.Status=reason;
-                foreach(var order in r.Broker.Orders.Where(o=>o.Active).ToArray())r.Broker.RequestCancel(order,clock());
+                foreach(var order in r.Broker.Orders.Where(o=>o.Active).ToArray())r.Broker.CancelLocally(order,clock());
             }
             if(key==null||rows.Values.All(r=>!r.Enabled))armed=false;
             status=reason;Save();

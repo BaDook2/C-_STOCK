@@ -49,6 +49,12 @@ public sealed class PaperBroker(string currency,decimal initialCash,ExecutionSet
     public void Submit(ManagedOrder o){Orders.Add(o);Transition(o,OrderState.Submitted,o.Created);}
     private void Transition(ManagedOrder o,OrderState state,DateTimeOffset now){o.State=state;Record?.Invoke("주문",o,now);}
     public void RequestCancel(ManagedOrder o,DateTimeOffset now){if(o.Active&&o.State!=OrderState.Unknown)Transition(o,OrderState.CancelRequested,now);}
+    /// <summary>Ends a local simulation order when its feed is stopping; no exchange acknowledgement or fabricated market event is needed.</summary>
+    public void CancelLocally(ManagedOrder order,DateTimeOffset now)
+    {
+        if(!order.Active||order.State==OrderState.Unknown)return;
+        RequestCancel(order,now);Transition(order,OrderState.Cancelled,now);
+    }
     public IReadOnlyList<ManagedOrder> Process(MarketEvent e)
     {
         if(e.Instrument.Currency!=Currency)throw new InvalidOperationException("통화 혼합 불가");

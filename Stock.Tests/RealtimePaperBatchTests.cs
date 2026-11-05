@@ -33,6 +33,21 @@ internal static partial class Program
         Check(CandleChart.TradeBarIndex(tickBars,marker,"1틱")>=0&&CandleChart.TradeBarIndex(minute,marker,"1분")>=0&&CandleChart.TradeBarIndex(daily,marker,"일봉")>=0&&CandleChart.TradeBarIndex(weekly,marker,"주봉")>=0,"one exact paper fill maps to tick, minute, daily and weekly chart bars");
         batch.Stop();Check(!batch.Snapshot().Running&&batch.Snapshot().Rows.Single().Owned>0,"stopping live paper blocks new orders without inventing liquidation");
 
+        var stopping=new RealtimePaperStrategyBatch(store,()=>now);stopping.Start(plan);
+        for(var n=4;n<=6;n++)
+        {
+            now=DailyTime(2,9,0).AddSeconds(n);var instrument=new Instrument(DailyStock.Symbol,Exchange.KRX);
+            stopping.OnMarket(new(instrument,EventKind.Trade,now,now,"KIWOOM",n*2+1){TradePrice=80,TradeSize=1000,CumulativeVolume=1000*(n+1),PreviousClose=100});
+            stopping.OnMarket(new(instrument,EventKind.Quote,now,now,"KIWOOM",n*2+2){Bid=80,Ask=81,BidSize=1000,AskSize=1000});
+            stopping.Pulse().GetAwaiter().GetResult();
+        }
+        Check(stopping.Snapshot().Rows.Single() is {Owned:0,Pending:>0},"stop regression prepares an unfilled virtual order");
+        stopping.Stop();var stopped=stopping.Snapshot();
+        Check(!stopped.Running&&stopped.Rows.Single() is {Owned:0,Pending:0},"stopping a virtual feed confirms local cancellations without waiting for a future market event");
+        var latestRun=store.State<string>("paper-live-batch-latest");var stoppedJournal=store.State<LiveBatchJournal>("paper-live-batch:"+latestRun)!;
+        Check(stoppedJournal.Orders.All(o=>!o.Pending&&o.Status=="Cancelled")&&stoppedJournal.Executions.Count==0,
+            "stopped virtual journal persists completed cancellations without inventing any fill");
+
         var blocked=new RealtimePaperStrategyBatch(store,()=>now);blocked.Start(plan);blocked.SetEntryEnabled(false);
         void BlockedEvent(int n,decimal price=80)
         {
