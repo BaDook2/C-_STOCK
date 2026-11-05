@@ -1,4 +1,18 @@
-# 최신 상태 — 2026-11-05 장중 검증·v0.1.8 배포 완료
+# 최신 상태 — 2026-11-05 로컬/Release 비교·v0.1.9 게시 진행
+
+사용자가 로컬 Stock.exe와 GitHub Release를 비교하고 다르면 GitHub 갱신을 요청했다. 로컬은 `B56700F38D725A1110523BB0509B8CC6C4EAD7A47491D26E2B616D79A31EC088`/80,800,358 bytes로, 공개 v0.1.8 `E96E32BD...`와 다르며 아래 선택 종목 2초 조회와 모드 이름 변경이 로컬에만 있다. 이번에는 해당 변경을 새 v0.1.9에 게시한다. 새 빌드 경고0/오류0, 현재가119개, 로컬 EXE smoke Success/NoBrokerCalls=true를 확인했다. 전체 회귀 로그는 `artifacts/release019-full.log`에서 진행 중이다.
+
+소스/태그 push 후 Actions 전체 검사·게시 완료, 공개 EXE+sha 직접 다운로드·해시/실행 검증, 루트/release를 검증 공개 빌드와 일치시키고 TASKS/HANDOFF 완료 기록을 이어간다. 사용자 실행/계좌 주문은 조작하지 않는다. 현재 비교 시 Stock 프로세스는 없었다.
+
+# 이전 상태 — 2026-11-05 선택 종목 공개시세 2초 조회·모드 이름 변경
+
+상단 라디오는 `오프라인`/`온라인`이다. `LiveDailyWorkspace`의 사용자 선택 종목 펌프만 `IFastCurrentMarketData`를 사용한다. `PublicMarketData.CurrentFast`는 장중 2초 별도 캐시를 사용하고, 일반 `Current`/20종목 `CurrentBatch`/온라인 브로커 경로는 기존 제공처 간격을 유지한다. 공개 조회 실패 시 쿨다운 동안 오래된 캐시를 새 성공 응답으로 돌려주지 않으며 펌프의 지수 백오프가 적용된다. 장 마감/휴장에는 제공처 간격을 따른다.
+
+네이버 삼성전자 공개 응답은 2026-11-05 11:13:52/54/56/58 KST에 2초마다 새 서버 시각을 보였고 가격도 변했다. 실제 앱의 공개 펌프는 11:19:27/29/31 KST에 2초 간격으로 수신했다. 제공처의 `pollingInterval=7000`은 그대로 기록하며 2초 반복 조회가 항상 새 원본 체결을 보장하지는 않는다. 시세 관련 119개, 전체 화면 UI smoke 416개, Release 빌드 경고0/오류0, 게시 EXE smoke 종료0/Success/NoBrokerCalls=true다.
+
+루트/release `Stock.exe`는 80,800,358 bytes / SHA256 `B56700F38D725A1110523BB0509B8CC6C4EAD7A47491D26E2B616D79A31EC088`로 일치한다. 직전 v0.1.8 공개 CI EXE는 `artifacts/Stock-before-2second-quote-E96E32BD.exe`로 보존했다. 소스는 로컬 작업트리 변경 상태이고 GitHub Release v0.1.8은 이전 버전이다. 실제 주문 없음.
+
+# 이전 상태 — 2026-11-05 장중 검증·v0.1.8 배포 완료
 
 [v0.1.8 Release](https://github.com/BaDook2/C-_STOCK/releases/tag/v0.1.8), [Actions run 41947337970](https://github.com/BaDook2/C-_STOCK/actions/runs/41947337970) 모두 성공했다. 배포 소스는 `3901268`이다. 로컬/CI 각각 전체 **1,136개**, 관련 27개, 빌드 경고0/오류0, 게시 단일 EXE smoke Success/NoBrokerCalls=true. 공개 EXE+sha를 직접 다운로드해 파일 해시·체크섬·GitHub API digest의 일치를 확인하고 다운로드 EXE smoke도 종료0/Success/NoBrokerCalls=true를 확인했다.
 

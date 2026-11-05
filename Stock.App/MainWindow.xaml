@@ -14,8 +14,8 @@
                 <StackPanel Grid.Column="1">
                     <Border Background="#F2F4F6" CornerRadius="10" HorizontalAlignment="Left">
                         <StackPanel Orientation="Horizontal" IsEnabled="{Binding CanConfigure}">
-                            <RadioButton Content="오프라인 테스트" GroupName="Mode" IsChecked="{Binding IsOffline}" />
-                            <RadioButton Content="온라인 투자" GroupName="Mode" IsChecked="{Binding IsOnline}" />
+                            <RadioButton Content="오프라인" GroupName="Mode" IsChecked="{Binding IsOffline}" />
+                            <RadioButton Content="온라인" GroupName="Mode" IsChecked="{Binding IsOnline}" />
                             <TextBlock Text="{Binding ConnectedAccountText}" Visibility="{Binding IsOnline,Converter={StaticResource Visible}}" VerticalAlignment="Center" Foreground="#3182F6" FontWeight="SemiBold" Margin="12,0,12,0" />
                         </StackPanel>
                     </Border>

@@ -149,7 +149,7 @@ CurrentOversoldScreening은 과거 엔진의 기술적 계산을 재사용하면
 
 오프라인 MultiTradeWorkspace는 PublicPaperWorkspace로 연결된다. PublicMinuteMarketData → StrategyBarAggregator → OversoldLiveStrategy.OnPublicBar로 완성봉을 공급하고 SelectedQuotePump → OnPublicSnapshot → 기존 PaperBroker로 관측 기반 모의 체결을 처리한다. 공개 관측은 실제 원본 틱으로 저장하지 않는다. 모의 전용 facts 가정과 거래대금 추정은 plan에 명시되며 LiveStrategyBatch에서 PublicPaper plan을 거부한다. 상세 사용법은 docs/ui/PublicPaperTrading.md, 응답 계약은 docs/api/NaverPublic.md다.
 
-선택 종목/관심종목 가격은 오프라인 ICurrentMarketData(네이버 KRX), 온라인 BrokerCurrentMarketData(연결 계좌)로 라우팅한다. 공급자 pollingInterval을 줄이지 않고 새 응답을 Dispatcher에서 즉시 반영한다. 키움 WebSocket도 온라인에서만 공유하며 연결 실패를 공개 가격으로 대체하지 않는다.
+선택 종목/관심종목 가격은 오프라인 ICurrentMarketData(네이버 KRX), 온라인 BrokerCurrentMarketData(연결 계좌)로 라우팅한다. 일반·다종목 공급은 서버 pollingInterval을 따르고 선택된 종목의 장중 화면만 IFastCurrentMarketData의 별도 2초 캐시/펌프를 사용한다. 새 응답은 Dispatcher에서 즉시 반영한다. 키움 WebSocket도 온라인에서만 공유하며 연결 실패를 공개 가격으로 대체하지 않는다.
 
 ## 실시간 스크리닝 서비스 (2026-11-03)
 

@@ -10,13 +10,18 @@ public interface ICurrentMarketData
     Task<CurrentMarketSnapshot> Current(StockItem stock,CancellationToken token);
     Task<DailySecurityStatus?> CurrentSecurity(StockItem stock,CancellationToken token);
 }
+/// <summary>Optional single-symbol foreground refresh; bulk and background consumers retain the provider cadence.</summary>
+public interface IFastCurrentMarketData
+{
+    Task<CurrentMarketSnapshot> CurrentFast(StockItem stock,CancellationToken token);
+}
 public interface IPublicCurrentBatchData
 {
     Task<CurrentMarketSnapshot[]> CurrentBatch(IReadOnlyList<StockItem> stocks,CancellationToken token);
 }
 
 /// <summary>One in-flight read, provider-aware throttling, injectable clock and latest-generation delivery.</summary>
-public sealed class SelectedQuotePump(ICurrentMarketData source,TimeProvider? clock=null):IDisposable
+public sealed class SelectedQuotePump(ICurrentMarketData source,TimeProvider? clock=null,bool fast=false):IDisposable
 {
     public static readonly TimeSpan MinimumInterval=TimeSpan.FromSeconds(1);
     public static readonly TimeSpan MaximumInterval=TimeSpan.FromSeconds(60);
@@ -44,7 +49,7 @@ public sealed class SelectedQuotePump(ICurrentMarketData source,TimeProvider? cl
                 {
                     await gate.WaitAsync(stop.Token);
                     CurrentMarketSnapshot snapshot;
-                    try{snapshot=await source.Current(stock,stop.Token);}finally{gate.Release();}
+                    try{snapshot=fast&&source is IFastCurrentMarketData rapid?await rapid.CurrentFast(stock,stop.Token):await source.Current(stock,stop.Token);}finally{gate.Release();}
                     if(version!=generation||stop.IsCancellationRequested)return;
                     if(snapshot.Stock.Key!=stock.Key)throw new InvalidOperationException("종목 응답 불일치");
                     update(snapshot);failures=0;

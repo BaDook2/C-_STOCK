@@ -34,7 +34,7 @@ public sealed partial class WorkspaceViewModel
         var current=IsOnline&&broker!=null?new BrokerCurrentMarketData(broker,s=>dataset?.CompletedBars.LastOrDefault(b=>DailyDates.Of(b)<KoreaClock.Today)?.Close):provider as ICurrentMarketData;
         if(current==null)return;
         var generation=dailyGeneration;
-        dailyPump=new(current);
+        dailyPump=new(current,fast:IsOffline);
         dailyPump.Select(item,s=>dispatcher.BeginInvoke(()=>{if(!disposed&&generation==dailyGeneration&&dataset?.Stock.Key==s.Stock.Key&&s.ReceivedAt-lastStreamReceived>TimeSpan.FromSeconds(10)){if(pendingDaily==null||s.Quote.TradeTime>=pendingDaily.Quote.TradeTime){pendingDaily=s;dailyFailure="";RefreshDailyDisplay();}}}),
             message=>dispatcher.BeginInvoke(()=>{if(!disposed&&generation==dailyGeneration)dailyFailure=message;}));
         dailyTimer=new DispatcherTimer{Interval=TimeSpan.FromSeconds(1)};

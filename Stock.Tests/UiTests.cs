@@ -17,6 +17,8 @@ internal static partial class Program
         Directory.CreateDirectory(output);SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(Dispatcher.CurrentDispatcher));
         var app=new Stock.App.App{ManualWindowStartup=true};app.InitializeComponent();using var store=new TradingStore(Path.Combine(Dir,"ui-v2.db"));var vm=new WorkspaceViewModel(_=>false,provider:new FixtureMarketData(),store:store);
         var window=new MainWindow(vm){ShowActivated=false,WindowStartupLocation=WindowStartupLocation.Manual,Left=-20000,Top=0};window.Show();
+        var modeLabels=Descendants(window).OfType<RadioButton>().Where(r=>r.GroupName=="Mode").Select(r=>r.Content?.ToString()).ToArray();
+        Check(modeLabels.SequenceEqual(new[]{"오프라인","온라인"}),"main mode selector uses the short offline and online labels");
         void Do(string key){vm.Actions[key].Execute(null);PumpUntil(()=>!vm.Busy);}
         Do("검색");Check(vm.SelectedStock?.Name=="삼성전자","Korean name search selection");Do("데이터");Check(vm.ChartBars.Count==600,"chart uses provider bars");
         Check(vm.WatchGroups.Select(g=>g.Name).SequenceEqual(new[]{"그룹명1","그룹명2"}),"default watch groups use requested names");Do("관심등록");Do("관심등록");window.UpdateLayout();var filledStar=Descendants(window).OfType<TextBlock>().FirstOrDefault(t=>t.Text=="★");Check(vm.WatchGroups[0].Items.Count==1&&vm.IsWatchRegistered&&vm.WatchRegistrationStar=="★"&&filledStar?.Foreground is SolidColorBrush {Color.R:49,Color.G:130,Color.B:246},"watch registration deduplicates and renders a blue filled star");

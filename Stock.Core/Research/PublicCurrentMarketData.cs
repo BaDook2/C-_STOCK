@@ -5,30 +5,42 @@ using Stock.Core.Research.Oversold;
 using Stock.Core.Trading;
 namespace Stock.Core.Research;
 
-public sealed partial class PublicMarketData:IPublicCurrentBatchData
+public sealed partial class PublicMarketData:IPublicCurrentBatchData,IFastCurrentMarketData
 {
+    public static readonly TimeSpan ForegroundPollInterval=TimeSpan.FromSeconds(2);
     private sealed class CurrentQuoteSlot
     {
         public readonly SemaphoreSlim Gate=new(1,1);
         public DateTimeOffset NextRead;
         public CurrentMarketSnapshot? Snapshot;
+        public Exception? Failure;
     }
     private readonly ConcurrentDictionary<string,CurrentQuoteSlot> currentQuotes=[];
-    public async Task<CurrentMarketSnapshot> Current(StockItem stock,CancellationToken token)
+    public Task<CurrentMarketSnapshot> Current(StockItem stock,CancellationToken token)=>CurrentCore(stock,token,false);
+    public Task<CurrentMarketSnapshot> CurrentFast(StockItem stock,CancellationToken token)=>CurrentCore(stock,token,true);
+    private async Task<CurrentMarketSnapshot> CurrentCore(StockItem stock,CancellationToken token,bool fast)
     {
-        var slot=currentQuotes.GetOrAdd(stock.Key,_=>new());
+        var slot=currentQuotes.GetOrAdd(stock.Key+(fast?"|foreground":""),_=>new());
         await slot.Gate.WaitAsync(token);
         try
         {
-            if(slot.Snapshot!=null&&DateTimeOffset.UtcNow<slot.NextRead)
+            if(DateTimeOffset.UtcNow<slot.NextRead)
             {
+                if(slot.Failure!=null)throw new InvalidOperationException("공개 현재가 조회 재시도 대기",slot.Failure);
+                if(slot.Snapshot==null)throw new InvalidOperationException("공개 현재가 캐시가 없습니다.");
                 var remaining=slot.NextRead-DateTimeOffset.UtcNow;
                 if(remaining>TimeSpan.FromMilliseconds(50))return slot.Snapshot;
                 if(remaining>TimeSpan.Zero)await Task.Delay(remaining,token);
             }
             var started=DateTimeOffset.UtcNow;
-            try{var snapshot=await ReadCurrent(stock,token);slot.Snapshot=snapshot;slot.NextRead=started+snapshot.PollInterval;return snapshot;}
-            catch{slot.NextRead=DateTimeOffset.UtcNow.AddSeconds(30);throw;}
+            try
+            {
+                var snapshot=await ReadCurrent(stock,token);
+                if(fast&&snapshot.Quote.State=="OPEN")snapshot=snapshot with{PollInterval=ForegroundPollInterval};
+                slot.Snapshot=snapshot;slot.Failure=null;slot.NextRead=started+snapshot.PollInterval;return snapshot;
+            }
+            catch(OperationCanceledException)when(token.IsCancellationRequested){throw;}
+            catch(Exception ex){slot.Failure=ex;slot.NextRead=DateTimeOffset.UtcNow.AddSeconds(30);throw;}
         }
         finally{slot.Gate.Release();}
     }
