@@ -28,7 +28,7 @@ public sealed partial class WorkspaceViewModel
     private void PersistPaperFills()
     {
         if(paper==null||dataset==null||paperRun==""||paperSource!="모의매매")return;
-        for(int i=0;i<paper.Fills.Count;i++){var f=paper.Fills[i];var id="trade-marker:"+paperRun+":"+i;store.State(id,new TradeMarker(id,dataset.Stock.Key,f.Time,f.Side=="매수",f.Quantity,f.Price,paperSource));}
+        for(int i=0;i<paper.Fills.Count;i++){var f=paper.Fills[i];var id="trade-marker:"+paperRun+":"+i;store.State(id,new TradeMarker(id,dataset.Stock.Key,f.Time,f.Side=="매수",f.Quantity,f.Price,paperSource,Reason:f.Reason,RealizedPnl:f.Side=="매수"?null:f.Realized));}
         ReloadTradeMarkers();
     }
     private void PersistLiveFills()

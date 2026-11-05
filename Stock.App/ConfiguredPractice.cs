@@ -34,7 +34,7 @@ public sealed partial class WorkspaceViewModel
         var days=practiceTrades.GroupBy(b=>b.Time.ToOffset(TimeSpan.FromHours(9)).Date).Select(g=>new PriceBar(g.Last().Time,g.First().Open,g.Max(b=>b.High),g.Min(b=>b.Low),g.Last().Close,g.Sum(b=>b.Volume))).ToArray();ChartBars=days;
         Replace(Trades,configuredPaper.Broker.Fills.AsEnumerable().Reverse().Select(f=>new BarFill(f.Time,f.Buy?"매수":"매도",f.Quantity,f.Price,f.Fee,f.RealizedPnl,string.IsNullOrEmpty(f.Reason)?f.Strategy:f.Reason,f.OrderId)));
         foreach(var f in configuredPaper.Broker.Fills.Select((fill,index)=>(fill,index)))
-        {var id="trade-marker:"+paperRun+":"+f.index;store.State(id,new TradeMarker(id,f.fill.Instrument.Key,f.fill.Time,f.fill.Buy,f.fill.Quantity,f.fill.Price,"모의매매"));}
+        {var id="trade-marker:"+paperRun+":"+f.index;store.State(id,new TradeMarker(id,f.fill.Instrument.Key,f.fill.Time,f.fill.Buy,f.fill.Quantity,f.fill.Price,"모의매매",Reason:f.fill.Reason,RealizedPnl:f.fill.Buy?null:f.fill.RealizedPnl));}
         DataInfo="저장된 실제 체결 · 한국시간 · 재생한 이벤트만 표시합니다.";ReloadTradeMarkers();Changed(nameof(PaperSummary));ResultInfo=$"실제 체결 재생 {practiceEventIndex+1:N0}/{practiceEvents.Length:N0} 이벤트\n평가 {configuredPaper.Broker.Equity:N0} · 체결 {configuredPaper.Broker.Fills.Count:N0}건";
         if(!HasNextPractice){replayTimer.Stop();Replaying=false;}Refresh();
     }

@@ -7,9 +7,19 @@ using Stock.Core.Trading;
 
 namespace Stock.App;
 
-public sealed record RealtimeScreeningDisplayRow(
+public sealed class RealtimeScreeningDisplayRow(
     string Code,string Name,string Price,string Change,string Proximity,string Conditions,
-    string Unmet,string StrategyState,string LastAnalysis,string DataState,string OrderState,string Error);
+    string Unmet,string StrategyState,string LastAnalysis,string DataState,string OrderState,string Error):Observable
+{
+    public string Code {get;}=Code;
+    public string Name {get;}=Name;
+    private string[] values=[Price,Change,Proximity,Conditions,Unmet,StrategyState,LastAnalysis,DataState,OrderState,Error];
+    public string Price=>values[0]; public string Change=>values[1]; public string Proximity=>values[2];
+    public string Conditions=>values[3]; public string Unmet=>values[4]; public string StrategyState=>values[5];
+    public string LastAnalysis=>values[6]; public string DataState=>values[7]; public string OrderState=>values[8]; public string Error=>values[9];
+    public void Update(RealtimeScreeningDisplayRow row)
+    {if(!values.SequenceEqual(row.values)){values=row.values;Changed(null);}}
+}
 
 public sealed partial class WorkspaceViewModel
 {
@@ -20,8 +30,14 @@ public sealed partial class WorkspaceViewModel
     private bool realtimeScreenMode,realtimeScreenAutoTrade;
     private string realtimeScreenInfo="실시간 모드를 선택하면 현재 전략 조건에 가까워지는 종목을 계속 감시합니다.";
     private string realtimeScreenConnection="중지";
+    private bool realtimeScreenStrategyChanged;
+    private CancellationTokenSource? realtimeStrategyChange;
+    private long realtimeStrategyChangeId;
+    public bool RealtimeScreeningStrategyChanging {get;private set;}
+    private RealtimeScreeningDisplayRow? selectedRealtimeScreeningRow;
 
     public ObservableCollection<RealtimeScreeningDisplayRow> RealtimeScreeningRows {get;}=[];
+    public RealtimeScreeningDisplayRow? SelectedRealtimeScreeningRow {get=>selectedRealtimeScreeningRow;set{selectedRealtimeScreeningRow=value;Changed();}}
     public bool RegularScreeningMode {get=>!realtimeScreenMode;set{if(value)RealtimeScreeningMode=false;}}
     public bool RealtimeScreeningMode
     {
@@ -41,6 +57,7 @@ public sealed partial class WorkspaceViewModel
         set
         {
             if(realtimeScreenAutoTrade==value)return;
+            if(value&&realtimeScreenStrategyChanged){alert("전략을 변경한 뒤에는 실시간 스크리닝을 중지하고 다시 시작해야 새 전략의 가상 자동매매를 켤 수 있습니다. 기존 보유분은 이전 전략으로 계속 보호합니다.");Changed();return;}
             if(value&&!RealtimeMockSupported)
             {alert("자동매매는 키움 국내 실시간 체결·호가 연결이 필요합니다. 기본 계좌는 가상 계좌이며 실제 주문은 전송하지 않습니다.");Changed();return;}
             realtimeScreenAutoTrade=value;
@@ -83,6 +100,7 @@ public sealed partial class WorkspaceViewModel
 
     private async Task StartRealtimeScreening()
     {
+        realtimeScreenStrategyChanged=false;
         if(realtimeScreenTask is {IsCompleted:true})
         {
             try{await realtimeScreenTask;}catch{}
@@ -258,23 +276,54 @@ public sealed partial class WorkspaceViewModel
 
     private void ApplyRealtimeSnapshot(RealtimeScreeningSnapshot snapshot,IReadOnlyDictionary<string,LiveBatchRowStatus> orders,IReadOnlyList<RealtimeScreeningDisplayRow> failures)
     {
-        if(disposed)return;
-        RealtimeScreeningRows.Clear();
+        if(disposed||RealtimeScreeningStrategyChanging||snapshot.Version!=realtimeScreening?.Version)return;
+        var updated=new List<RealtimeScreeningDisplayRow>();
         foreach(var row in snapshot.Rows)
         {
             var order=orders.GetValueOrDefault(row.Key);
             var orderText=IsOffline?"공개시세 · 신호만":order==null?(snapshot.AutoTradingEnabled?"자동매매 불가 · 상태/위험 확인":"자동매매 꺼짐"):order.Status+(string.IsNullOrWhiteSpace(order.Error)?"":" · "+order.Error);
-            RealtimeScreeningRows.Add(new(row.Code,row.Name,row.Price is {} p?$"{DisplayNumber.Price(p)}원":"—",row.ChangePercent is {} c?$"{c:+0.00;-0.00;0.00}%":"—",$"{row.Proximity:N1}점",$"{row.MetConditions:N0}/{row.TotalConditions:N0}",row.UnmetConditions,row.StrategyState,row.LastAnalyzedAt?.ToOffset(TimeSpan.FromHours(9)).ToString("HH:mm:ss")??"—",row.DataState,orderText,row.Error));
+            updated.Add(new(row.Code,row.Name,row.Price is {} p?$"{DisplayNumber.Price(p)}원":"—",row.ChangePercent is {} c?$"{c:+0.00;-0.00;0.00}%":"—",$"{row.Proximity:N1}점",$"{row.MetConditions:N0}/{row.TotalConditions:N0}",row.UnmetConditions,row.StrategyState,row.LastAnalyzedAt?.ToOffset(TimeSpan.FromHours(9)).ToString("HH:mm:ss")??"—",row.DataState,orderText,row.Error));
         }
-        foreach(var failed in failures)RealtimeScreeningRows.Add(failed);
+        updated.AddRange(failures);
+        // Retain item identity and ordering while quotes change: no Reset/Remove event can
+        // clear a DataGrid selection or invalidate the row between two clicks.
+        var existing=RealtimeScreeningRows.ToDictionary(r=>r.Code,StringComparer.Ordinal);
+        foreach(var row in updated)
+            if(existing.TryGetValue(row.Code,out var current))current.Update(row);else RealtimeScreeningRows.Add(row);
+        var keys=updated.Select(r=>r.Code).ToHashSet(StringComparer.Ordinal);
+        foreach(var old in RealtimeScreeningRows.Where(r=>!keys.Contains(r.Code)).ToArray())RealtimeScreeningRows.Remove(old);
         RealtimeScreenConnection=snapshot.ConnectionState;
         RealtimeScreenInfo=$"{snapshot.Status} · {snapshot.Rows.Count:N0}종목 · 집중 {snapshot.Rows.Count(r=>r.Focused):N0} · 신호 {snapshot.Rows.Count(r=>r.BuySignal):N0} · 접근도는 발동 확률이 아닙니다."+(IsOffline?" · 공개시세 신호 표시만 · 체결/호가 아님 · 지연 가능":"");
         if(realtimeScreenAutoTrade!=snapshot.AutoTradingEnabled){realtimeScreenAutoTrade=snapshot.AutoTradingEnabled;Changed(nameof(RealtimeAutoTrade));}
         NotifyRealtimeState();
     }
 
+    private void ChangeRealtimeScreeningStrategy(string name,OversoldConfig configuration)
+    {
+        if(!RealtimeScreeningRunning)return;
+        realtimeStrategyChange?.Cancel();realtimeStrategyChange?.Dispose();realtimeStrategyChange=new();
+        var cancellation=realtimeStrategyChange.Token;var changeId=++realtimeStrategyChangeId;
+        var requestedConfiguration=configuration.Clone();
+        foreach(var paper in realtimeScreenPapers)paper.SetEntryEnabled(false);
+        RealtimeScreening.SetAutoTrading(false);
+        realtimeScreenStrategyChanged=true;realtimeScreenAutoTrade=false;Changed(nameof(RealtimeAutoTrade));
+        RealtimeScreeningStrategyChanging=true;Changed(nameof(RealtimeScreeningStrategyChanging));
+        SelectedRealtimeScreeningRow=null;RealtimeScreeningRows.Clear();
+        RealtimeScreenInfo="새 전략으로 감시를 준비하는 중입니다. 기존 가상 보유분은 이전 전략으로 보호하며 자동매매는 해제했습니다.";
+        NotifyRealtimeState();
+        _=Reconfigure();
+        async Task Reconfigure()
+        {
+            try{await Task.Run(()=>RealtimeScreening.Reconfigure(requestedConfiguration,name,cancellation),cancellation);}
+            catch(OperationCanceledException){}
+            catch{if(!disposed&&changeId==realtimeStrategyChangeId){RealtimeScreening.Stop("전략 변경 실패 · 다시 시작하세요.");alert("새 전략 준비에 실패했습니다. 실시간 스크리닝을 다시 시작하세요. 기존 보유분의 보호 관리는 유지합니다.");}}
+            finally{if(!disposed&&changeId==realtimeStrategyChangeId){RealtimeScreeningStrategyChanging=false;Changed(nameof(RealtimeScreeningStrategyChanging));NotifyRealtimeState();}}
+        }
+    }
+
     private async Task StopRealtimeScreening(bool emergency)
     {
+        realtimeStrategyChangeId++;realtimeStrategyChange?.Cancel();RealtimeScreeningStrategyChanging=false;Changed(nameof(RealtimeScreeningStrategyChanging));
         if(realtimeScreening==null&&realtimeScreenTask==null)return;
         realtimeScreening?.Stop(emergency?"긴급중지":"사용자 중지 · 신규 종목 탐색과 진입 중지");
         foreach(var paper in realtimeScreenPapers)
@@ -296,6 +345,7 @@ public sealed partial class WorkspaceViewModel
 
     private void DisposeRealtimeScreening()
     {
+        realtimeStrategyChangeId++;realtimeStrategyChange?.Cancel();realtimeStrategyChange?.Dispose();realtimeStrategyChange=null;
         realtimeScreening?.Stop("프로그램 종료");foreach(var paper in realtimeScreenPapers)paper.Stop();realtimeScreenStop?.Cancel();
         try{realtimeScreenTask?.Wait(TimeSpan.FromSeconds(5));}catch{}
         realtimeScreenTask=null;realtimeScreenStop?.Dispose();realtimeScreenStop=null;realtimeScreenPapers.Clear();

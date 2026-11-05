@@ -77,7 +77,9 @@ internal static partial class Program
             var fast=await foregroundProvider.CurrentFast(DailyStock,CancellationToken.None);
             var cached=await foregroundProvider.CurrentFast(DailyStock,CancellationToken.None);
             var background=await foregroundProvider.Current(DailyStock,CancellationToken.None);
-            Check(fast.PollInterval==TimeSpan.FromSeconds(2)&&cached.ReceivedAt==fast.ReceivedAt&&background.PollInterval==TimeSpan.FromSeconds(7)&&foregroundCalls==2,"selected public stock uses a separate two-second foreground cadence without accelerating background consumers");
+            Check(fast.PollInterval==TimeSpan.FromSeconds(1)&&cached.ReceivedAt==fast.ReceivedAt&&background.PollInterval==TimeSpan.FromSeconds(7)&&foregroundCalls==2,"selected public stock uses a separate one-second foreground cadence without accelerating background consumers");
+            var fastBatch=await foregroundProvider.CurrentBatchFast([DailyStock],CancellationToken.None);
+            Check(fastBatch.Single().PollInterval==TimeSpan.FromSeconds(1),"public realtime screening uses one-second grouped observations through the optional fast capability");
         }
         var failedForegroundCalls=0;
         using(var failingForeground=new PublicMarketData(new Handler(_=>
@@ -129,7 +131,7 @@ internal static partial class Program
         public int Calls,FastCalls,Active,MaxActive;public bool Fail,Block;public TaskCompletionSource<CurrentMarketSnapshot> Pending=new(TaskCreationOptions.RunContinuationsAsynchronously);
         public async Task<CurrentMarketSnapshot> Current(StockItem stock,CancellationToken token)
         {Calls++;Active++;MaxActive=Math.Max(MaxActive,Active);try{if(Block)return await Pending.Task;if(Fail)throw new InvalidOperationException("fixture rate failure");return value with{Stock=stock};}finally{Active--;}}
-        public async Task<CurrentMarketSnapshot> CurrentFast(StockItem stock,CancellationToken token){FastCalls++;return (await Current(stock,token)) with{PollInterval=TimeSpan.FromSeconds(2)};}
+        public async Task<CurrentMarketSnapshot> CurrentFast(StockItem stock,CancellationToken token){FastCalls++;return (await Current(stock,token)) with{PollInterval=TimeSpan.FromSeconds(1)};}
         public Task<DailySecurityStatus?> CurrentSecurity(StockItem stock,CancellationToken token)=>Task.FromResult<DailySecurityStatus?>(null);
     }
     private static async Task AwaitQuote(Func<bool> predicate)
@@ -152,8 +154,8 @@ internal static partial class Program
         clock.Advance(TimeSpan.FromSeconds(1));await AwaitQuote(()=>source.Calls==2);closed.Stop();
         var fastClock=new ManualQuoteClock();var fastSource=new QuoteFixture(quote with{PollInterval=TimeSpan.FromSeconds(7)});
         using var foreground=new SelectedQuotePump(fastSource,fastClock,fast:true);foreground.Select(DailyStock,_=>{},_=>{});await AwaitQuote(()=>fastClock.Pending==1);
-        fastClock.Advance(TimeSpan.FromSeconds(1));Check(fastSource.Calls==1,"foreground polling does not repeat within one second");
-        fastClock.Advance(TimeSpan.FromSeconds(1));await AwaitQuote(()=>fastSource.Calls==2);
-        Check(fastSource.FastCalls==2&&fastSource.MaxActive==1,"foreground quote pump requests a fresh public observation every two seconds without overlap");foreground.Stop();
+        fastClock.Advance(TimeSpan.FromMilliseconds(500));Check(fastSource.Calls==1,"foreground polling does not repeat before its one-second boundary");
+        fastClock.Advance(TimeSpan.FromMilliseconds(500));await AwaitQuote(()=>fastSource.Calls==2);
+        Check(fastSource.FastCalls==2&&fastSource.MaxActive==1,"foreground quote pump requests a fresh public observation every second without overlap");foreground.Stop();
     }
 }

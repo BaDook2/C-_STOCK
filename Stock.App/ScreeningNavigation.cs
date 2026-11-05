@@ -5,10 +5,10 @@ using Stock.Core.Trading;
 namespace Stock.App;
 
 public sealed record ScreeningChartSeries(string Label,string Period,PriceBar[] Bars,string Source);
-public sealed record ScreeningChartTrade(DateTimeOffset Time,bool Buy,decimal Quantity,decimal Price,string Reason,string Source,OversoldExecution? Execution=null,int? TradeNumber=null)
+public sealed record ScreeningChartTrade(DateTimeOffset Time,bool Buy,decimal Quantity,decimal Price,string Reason,string Source,OversoldExecution? Execution=null,int? TradeNumber=null,decimal? RealizedPnl=null)
 {
     public string TimeText=>Time.ToOffset(TimeSpan.FromHours(9)).ToString("yyyy.MM.dd HH:mm:ss");
-    public string Side=>(TradeNumber is {} number?$"#{number} ":"")+(Buy?"매수":"매도");
+    public string Side=>(TradeNumber is {} number?$"#{number} ":"")+TradeOutcome.Label(Buy,Reason,Execution is {} e&&!Buy?e.RealizedPnl:RealizedPnl);
     public string PriceText=>Price.ToString("N2");
     public string QuantityText=>Quantity.ToString("N0");
     public string Detail=>Execution==null?$"{Side} · {TimeText}\n가격 {Price:N2} · 수량 {Quantity:N0}\n사유 {Reason}\n출처 {Source}":$"{Side} · {TimeText}\n가격 {Price:N2} · 수량 {Quantity:N0} · 평균단가 {Execution.AveragePriceAfter:N2}\n실현손익 {Execution.RealizedPnl:N2} · 사유 {Reason}\n신호 {Execution.SignalTime.ToOffset(TimeSpan.FromHours(9)):yyyy.MM.dd HH:mm:ss}\n"+DecisionSnapshotText.Format(Execution.Snapshot);
@@ -54,7 +54,7 @@ public sealed partial class WorkspaceViewModel
             var exact=rows.Where(b=>b.Price.IsComplete&&DailyDates.Of(b.Price)>=first&&DailyDates.Of(b.Price)<=last).OrderBy(b=>b.ClosedAt).ThenBy(b=>b.Sequence).ToArray();
             if(exact.Length==0)throw new InvalidOperationException($"스크리닝 기간 {first:yyyy-MM-dd}~{last:yyyy-MM-dd}에 완성된 {specification}이 없습니다.");
             var exactSource=string.Join(", ",exact.Select(b=>b.Source).Where(s=>!string.IsNullOrWhiteSpace(s)).Distinct());
-            series.Add(new(specification.ToString(),specification.ToString(),exact.Select(b=>b.Price).ToArray(),exactSource));
+            series.Add(new(specification.ToString(),specification.ToString(),exact.Select(b=>b.Price with{Time=b.OpenTime}).ToArray(),exactSource));
             notices.Add("스크리닝 당시 지정 봉과 기간을 그대로 표시합니다. 지정 봉 스크리닝은 신호 평가이며, 저장된 실제·모의 체결만 함께 표시합니다.");
             try
             {
@@ -72,12 +72,12 @@ public sealed partial class WorkspaceViewModel
         }
         var rangeStart=new DateTimeOffset(first.ToDateTime(TimeOnly.MinValue),TimeSpan.FromHours(9));var rangeEnd=new DateTimeOffset(last.AddDays(1).ToDateTime(TimeOnly.MinValue),TimeSpan.FromHours(9));
         var distinct=executions.Where(x=>x.Execution.ExecutionTime>=rangeStart&&x.Execution.ExecutionTime<rangeEnd).GroupBy(x=>(x.Execution.ExecutionTime,x.Execution.Buy,x.Execution.Quantity,x.Execution.Price,x.Execution.Reason)).Select(g=>g.OrderByDescending(x=>x.TradeNumber.HasValue).First()).OrderBy(x=>x.Execution.ExecutionTime).ToArray();
-        var markers=distinct.Select((x,i)=>new TradeMarker("screen-detail:"+i,stock.Key,x.Execution.ExecutionTime,x.Execution.Buy,x.Execution.Quantity,x.Execution.Price,x.Source,TradeNumber:x.TradeNumber)).ToList();
+        var markers=distinct.Select((x,i)=>new TradeMarker("screen-detail:"+i,stock.Key,x.Execution.ExecutionTime,x.Execution.Buy,x.Execution.Quantity,x.Execution.Price,x.Source,TradeNumber:x.TradeNumber,Reason:x.Execution.Reason,RealizedPnl:x.Execution.Buy?null:x.Execution.RealizedPnl)).ToList();
         var trades=distinct.Select(x=>new ScreeningChartTrade(x.Execution.ExecutionTime,x.Execution.Buy,x.Execution.Quantity,x.Execution.Price,x.Execution.Reason,x.Source,x.Execution,x.TradeNumber)).ToList();
         foreach(var row in store.States("trade-marker:"))try
         {
             var marker=Serialization.Unpack<TradeMarker>(row.Json);if(marker.StockKey!=stock.Key||marker.Price==null||marker.Time<rangeStart||marker.Time>=rangeEnd)continue;
-            if(!markers.Any(m=>m.Time==marker.Time&&m.Buy==marker.Buy&&m.Quantity==marker.Quantity&&m.Price==marker.Price)){markers.Add(marker);trades.Add(new(marker.Time,marker.Buy,marker.Quantity,marker.Price.Value,marker.Source,marker.Source));}
+            if(!markers.Any(m=>m.Time==marker.Time&&m.Buy==marker.Buy&&m.Quantity==marker.Quantity&&m.Price==marker.Price)){markers.Add(marker);trades.Add(new(marker.Time,marker.Buy,marker.Quantity,marker.Price.Value,marker.Reason,marker.Source,RealizedPnl:marker.RealizedPnl));}
         }catch{/* 손상된 한 행은 다른 기록을 숨기지 않는다. */}
         var markerRows=markers.Where(m=>m.Price.HasValue).GroupBy(m=>(m.Time,m.Buy,m.Quantity,m.Price,m.Source)).Select(g=>g.First()).OrderBy(m=>m.Time).ToArray();
         var zones=(backtestResult?.Trades??[]).SelectMany(t=>t.Executions.Where(e=>e.Buy&&e.Snapshot!=null).SelectMany(e=>e.Snapshot!.Clusters.Select(z=>new ScreeningSupportZone(e.SignalTime,t.LastExecutionDate??new DateTimeOffset(last.ToDateTime(new TimeOnly(15,30)),TimeSpan.FromHours(9)),z.Lower,z.Upper,z.UsedForEntry,z.Count,string.Join(", ",z.Supports.Select(s=>s.Id)))))).ToArray();
@@ -102,7 +102,7 @@ public sealed partial class WorkspaceViewModel
     {
         var run=SelectedRun;if(!ShowBacktestTradeMarkers||run==null||run.Stock.Key!=selected?.Key||run.Period.StartsWith("정기매수",StringComparison.Ordinal))return [];
         if(run.OversoldResultId is {} id&&store.State<OversoldResult>(id) is {} result)
-            return result.Trades.SelectMany((trade,tradeIndex)=>trade.Executions.Select((e,executionIndex)=>new TradeMarker("backtest:"+run.Id+":"+tradeIndex+":"+executionIndex,run.Stock.Key,e.ExecutionTime,e.Buy,e.Quantity,e.Price,"백테스트 체결",TradeNumber:tradeIndex+1))).ToArray();
-        return run.Fills.Select((f,i)=>new TradeMarker("backtest:"+run.Id+":"+i,run.Stock.Key,f.Time,f.Side.Contains("매수",StringComparison.Ordinal),f.Quantity,f.Price,"백테스트 체결")).ToArray();
+            return result.Trades.SelectMany((trade,tradeIndex)=>trade.Executions.Select((e,executionIndex)=>new TradeMarker("backtest:"+run.Id+":"+tradeIndex+":"+executionIndex,run.Stock.Key,e.ExecutionTime,e.Buy,e.Quantity,e.Price,"백테스트 체결",TradeNumber:tradeIndex+1,Reason:e.Reason,RealizedPnl:e.Buy?null:e.RealizedPnl))).ToArray();
+        return run.Fills.Select((f,i)=>new TradeMarker("backtest:"+run.Id+":"+i,run.Stock.Key,f.Time,f.Side.Contains("매수",StringComparison.Ordinal),f.Quantity,f.Price,"백테스트 체결",Reason:f.Reason,RealizedPnl:f.Side.Contains("매수",StringComparison.Ordinal)?null:f.Realized)).ToArray();
     }
 }

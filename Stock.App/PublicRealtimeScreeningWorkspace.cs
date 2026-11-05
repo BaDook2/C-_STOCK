@@ -108,12 +108,13 @@ public sealed partial class WorkspaceViewModel
                     }
                     if(time>=nextQuotes)
                     {
+                        var quoteStarted=multiClock();
                         var intervals=new List<TimeSpan>();var successes=0;
                         foreach(var group in active.Chunk(20))
                         {
                             try
                             {
-                                var snapshots=await batchQuotes.CurrentBatch(group,token);
+                                var snapshots=provider is IFastPublicCurrentBatchData fastBatch?await fastBatch.CurrentBatchFast(group,token):await batchQuotes.CurrentBatch(group,token);
                                 foreach(var quote in snapshots){RealtimeScreening.OnPublicSnapshot(quote);intervals.Add(quote.PollInterval);successes++;}
                             }
                             catch(OperationCanceledException){throw;}
@@ -123,7 +124,7 @@ public sealed partial class WorkspaceViewModel
                         {RealtimeScreening.FeedFault("공개 현재가 조회가 반복 실패했습니다. 인터넷 연결을 확인하세요.");break;}
                         if(successes>0)snapshotFailures=0;
                         RealtimeScreening.SetConnectionState(successes==active.Length?"공개 시세 수신 · 지연 가능":"공개 시세 일부 조회 실패");
-                        nextQuotes=multiClock()+(intervals.Count==0?TimeSpan.FromSeconds(7):intervals.Min());
+                        nextQuotes=quoteStarted+(intervals.Count==0?TimeSpan.FromSeconds(7):intervals.Min());
                     }
                     RealtimeScreening.Pulse();
                     var snapshot=RealtimeScreening.Snapshot();

@@ -10,7 +10,9 @@ public sealed record RealtimeScreeningStatusRow(
     DateTimeOffset? LastAnalyzedAt,string DataState,string Error,bool Focused,bool BuySignal);
 public sealed record RealtimeScreeningSnapshot(
     bool Running,bool AutoTradingEnabled,string Status,string ConnectionState,string StrategyName,
-    BarSpecification? BarSpecification,IReadOnlyList<RealtimeScreeningStatusRow> Rows);
+    BarSpecification? BarSpecification,IReadOnlyList<RealtimeScreeningStatusRow> Rows)
+{public long Version {get;init;}}
+public sealed record RealtimeScreeningChartData(StockItem Stock,string StrategyName,OversoldConfig Configuration,BarSpecification Specification,HistoricalFacts Facts,StrategyBar[] Bars);
 
 /// <summary>
 /// Application-lifetime real-time research service. It reuses OversoldLiveStrategy for causal bar
@@ -30,12 +32,12 @@ public sealed class RealtimeOversoldScreeningService
         public CurrentMarketSnapshot? PublicSnapshot;
         public string DataState="실시간 시세 대기",Error="";
         public bool Enabled=true;
-        public Row(LiveBatchItem item)
+        public Row(LiveBatchItem item,CancellationToken cancellationToken=default)
         {
             Item=item;
             Context=new(new(item.Stock.Symbol,item.Stock.Exchange),item.Settings);
             var research=item.Oversold! with {ResearchOnly=true};
-            Strategy=new(Context.Instrument,research);
+            Strategy=new(Context.Instrument,research,cancellationToken);
             Quality=new(item.Settings.Data,item.Settings.Execution);
         }
     }
@@ -47,6 +49,49 @@ public sealed class RealtimeOversoldScreeningService
     private DateTimeOffset autoEnabledAt;
     private string status="중지",connectionState="연결 안 됨",strategyName="";
     private BarSpecification? specification;
+    private long version;
+    public long Version {get{lock(sync)return version;}}
+    public StockItem[] Targets {get{lock(sync)return rows.Values.Select(r=>r.Item.Stock).ToArray();}}
+
+    /// <summary>Replace research state atomically; execution services retain ownership of existing positions.</summary>
+    public void Reconfigure(OversoldConfig configuration,string name,CancellationToken cancellationToken=default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();configuration.Validate();LiveBatchItem[] items;long request;
+        lock(sync)
+        {
+            if(!running)return;
+            request=++version;autoTrading=false;autoEnabledAt=DateTimeOffset.MaxValue;
+            items=rows.Values.Select(r=>r.Item with{Preset=name,Oversold=r.Item.Oversold! with{Configuration=configuration.Clone(),Warmup=r.Strategy.CompletedBars}}).ToArray();
+        }
+        // Expensive indicator rebuilds never hold the live feed lock. Old research and
+        // independent position protection continue receiving events while these run.
+        var replacement=items.Select(item=>new Row(item,cancellationToken)).ToArray();
+        cancellationToken.ThrowIfCancellationRequested();
+        lock(sync)
+        {
+            if(!running||request!=version)return;
+            foreach(var row in replacement)
+            {
+                var old=rows[row.Item.Stock.Key];
+                foreach(var bar in old.Strategy.CompletedBars)row.Strategy.AppendResearchWarmup(bar);
+                if(old.Context.Quote is {} quote)row.Context.Add(quote);
+                if(old.Context.Last is {} last)row.Context.Add(last);
+                row.LastReceived=old.LastReceived;row.PublicSnapshot=old.PublicSnapshot;row.DataState=old.DataState;
+            }
+            rows.Clear();foreach(var row in replacement)rows.Add(row.Item.Stock.Key,row);
+            strategyName=name;autoTrading=false;autoEnabledAt=DateTimeOffset.MaxValue;version++;
+            status="전략 변경 · 새 조건 감시 중 · 자동매매 꺼짐";
+        }
+    }
+
+    public RealtimeScreeningChartData ChartData(string key)
+    {
+        lock(sync)
+        {
+            if(!rows.TryGetValue(key,out var row))throw new InvalidOperationException("현재 실시간 스크리닝 대상이 아닙니다.");
+            return new(row.Item.Stock,strategyName,row.Item.Oversold!.Configuration.Clone(),specification!,row.Item.Oversold.Facts.Snapshot(),row.Strategy.CompletedBars);
+        }
+    }
 
     public event Action<RealtimeScreeningSignal>? SignalRaised;
     public RealtimeOversoldScreeningService(Func<DateTimeOffset>? clock=null)
@@ -60,7 +105,7 @@ public sealed class RealtimeOversoldScreeningService
         lock(sync)
         {
             if(running)throw new InvalidOperationException("기존 실시간 스크리닝을 먼저 중지하세요.");
-            rows.Clear();
+            rows.Clear();version++;
             foreach(var item in plan.Items)
             {
                 if(item.Stock.Exchange!=Exchange.KRX||item.Oversold==null)throw new InvalidOperationException(item.Stock.Name+": 국내 전략 준비 자료를 확인하세요.");
@@ -176,7 +221,7 @@ public sealed class RealtimeOversoldScreeningService
     {
         lock(sync)
         {
-            running=false;connectionState="연결 끊김";autoTrading=false;autoEnabledAt=DateTimeOffset.MaxValue;
+            running=false;version++;connectionState="연결 끊김";autoTrading=false;autoEnabledAt=DateTimeOffset.MaxValue;
             foreach(var row in rows.Values.Where(r=>r.Enabled)){row.DataState="피드 중단 · 신규 주문 차단";if(row.Error=="")row.Error=reason;}
             status="실시간 시세 중단 · 자동매매 해제";
         }
@@ -186,7 +231,7 @@ public sealed class RealtimeOversoldScreeningService
     {
         lock(sync)
         {
-            running=false;autoTrading=false;autoEnabledAt=DateTimeOffset.MaxValue;connectionState="중지";status=reason;
+            running=false;version++;autoTrading=false;autoEnabledAt=DateTimeOffset.MaxValue;connectionState="중지";status=reason;
             foreach(var row in rows.Values){row.Enabled=false;if(row.DataState=="실시간 수신")row.DataState="중지";}
         }
     }
@@ -196,7 +241,7 @@ public sealed class RealtimeOversoldScreeningService
         lock(sync)
         {
             var output=rows.Values.Select(ToStatus).OrderByDescending(r=>r.BuySignal).ThenByDescending(r=>r.Proximity).ThenBy(r=>r.Name,StringComparer.Ordinal).ToArray();
-            return new(running,autoTrading,status,connectionState,strategyName,specification,output);
+            return new(running,autoTrading,status,connectionState,strategyName,specification,output){Version=version};
         }
     }
 

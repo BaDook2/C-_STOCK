@@ -25,13 +25,13 @@ public sealed partial class WorkspaceViewModel
     private TradingSettings tickSettings=new();
     public ObservableCollection<SettingField> TickFields {get;}=[];
     public string TickStatus {get;private set;}="실제 체결·호가가 필요한 전략입니다. 키 설정 후 틱을 선택하세요.";
-    public string[] ChartPeriodOptions {get;}=ChartPeriods.Intervals.Select(n=>n+"틱").Concat(ChartPeriods.Intervals.Select(n=>n+"분")).Concat(["일봉","주봉","월봉"]).ToArray();
+    public string[] ChartPeriodOptions {get;}=ChartPeriods.Intervals.Select(n=>n+"틱").Concat(Enumerable.Range(1,60).Select(n=>n+"분")).Concat(Enumerable.Range(1,12).Select(n=>n+"시")).Concat(["일봉","주봉","월봉"]).ToArray();
     public bool IsTick=>ChartPeriods.Intraday(ChartPeriod);
     public bool TickSelected {get=>IsTick;set{if(value)ChartPeriod="1틱";}}
     public bool DailySelected {get=>ChartPeriod=="일봉";set{if(value)ChartPeriod="일봉";}}
     public bool WeeklySelected {get=>ChartPeriod=="주봉";set{if(value)ChartPeriod="주봉";}}
     public bool MonthlySelected {get=>ChartPeriod=="월봉";set{if(value)ChartPeriod="월봉";}}
-    public string ChartPeriod {get=>chartPeriod;set{if(value=="틱")value="1틱";if(chartPeriod==value||Busy||Replaying||!ChartPeriodOptions.Contains(value))return;if(ChartPeriods.Intraday(value)&&!(value.EndsWith("분")?CanUseMinutes:CanUseIntraday)){TickStatus=IntradayHelp;Changed(nameof(TickStatus));Changed(nameof(ChartMessage));return;}chartPeriod=value;Changed();Changed(nameof(IsTick));Changed(nameof(TickSelected));Changed(nameof(DailySelected));Changed(nameof(WeeklySelected));Changed(nameof(MonthlySelected));Changed(nameof(StockDetail));Changed(nameof(SelectedTickInterval));Changed(nameof(SelectedMinuteInterval));Changed(nameof(ChartMessage));ChartBars=visibleDaily;if(ChartPeriods.Intraday(value))BeginIntraday();else if(IsOnline&&credentials!=null)StartTicks();else StopTicks();Refresh();}}
+    public string ChartPeriod {get=>chartPeriod;set{if(value=="틱")value="1틱";if(chartPeriod==value||Busy||Replaying||!ChartPeriodOptions.Contains(value))return;if(ChartPeriods.Intraday(value)&&!(ChartPeriods.Minutes(value)>0?CanUseMinutes:CanUseIntraday)){TickStatus=IntradayHelp;Changed(nameof(TickStatus));Changed(nameof(ChartMessage));return;}chartPeriod=value;Changed();Changed(nameof(IsTick));Changed(nameof(TickSelected));Changed(nameof(DailySelected));Changed(nameof(WeeklySelected));Changed(nameof(MonthlySelected));Changed(nameof(StockDetail));Changed(nameof(SelectedTickInterval));Changed(nameof(SelectedMinuteInterval));Changed(nameof(ChartMessage));NotifyChartBarSelection();ChartBars=visibleDaily;if(ChartPeriods.Intraday(value))BeginIntraday();else if(IsOnline&&credentials!=null)StartTicks();else StopTicks();Refresh();}}
     public string MarketStatus {get=>marketStatus;private set{marketStatus=value;Changed();}}
     public MarketQuote? Kospi {get;private set;}
     public MarketQuote? Kosdaq {get;private set;}

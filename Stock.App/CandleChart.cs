@@ -194,14 +194,15 @@ public sealed class CandleChart : FrameworkElement
                 var y=Y(cluster.Price??b[index].Close)+(cluster.Buy?12:-27);
                 var numbers=cluster.Items.Select(x=>x.Trade.TradeNumber).Where(n=>n.HasValue).Select(n=>n!.Value).Distinct().Order().ToArray();
                 var numberText=numbers.Length==0?"":numbers.Length<=3?string.Join(",",numbers.Select(n=>"#"+n))+" ":$"#{numbers[0]}~#{numbers[^1]} ";
-                DrawBadge(dc,numberText+(cluster.Buy?"▲ 매수 ":"▼ 매도 ")+cluster.Count.ToString("N0")+"건",X(index),Math.Clamp(y,top,top+height+35),brush);
+                var sides=string.Join(" / ",cluster.Items.Select(x=>x.Trade.SideLabel).Distinct());
+                DrawBadge(dc,numberText+(cluster.Buy?"▲ ":"▼ ")+sides+" "+cluster.Count.ToString("N0")+"건",X(index),Math.Clamp(y,top,top+height+35),brush);
             }
         }
         else foreach(var item in located)
         {
             var trade=item.Trade;var index=item.Index;
             // Daily-only broker reports are annotations, never an invented execution price/time.
-            var label=(trade.TradeNumber is {} number?$"#{number} ":"")+(trade.Buy?"▲ 매수":"▼ 매도")+" "+trade.Quantity.ToString("N0")+(trade.DateOnly?"*":"");
+            var label=(trade.TradeNumber is {} number?$"#{number} ":"")+(trade.Buy?"▲ ":"▼ ")+trade.SideLabel+" "+trade.Quantity.ToString("N0")+(trade.DateOnly?"*":"");
             var y=trade.DateOnly?top+height+20:Y(trade.Price??b[index].Close)+(trade.Buy?12:-25);
             Text(dc,label,X(index)-24,Math.Clamp(y,top,top+height+35),trade.Buy?Red:Blue,14);
         }
@@ -267,8 +268,8 @@ public sealed class CandleChart : FrameworkElement
         {
             var barDay=trade.DateOnly?bars[i].Time.ToOffset(TimeSpan.FromHours(9)).Date:Day(bars[i].Time);
             if(!ChartPeriods.Intraday(period)||trade.DateOnly){if(Bucket(barDay)==Bucket(day))return i;}
-            else if(period.EndsWith("분")&&int.TryParse(period[..^1],out var minutes))
-            {if(bars[i].Time.ToUnixTimeSeconds()/(minutes*60)==trade.Time.ToUnixTimeSeconds()/(minutes*60))return i;}
+            else if(ChartPeriods.Minutes(period) is >0 and var minutes)
+            {if(ChartPeriods.MinuteBucket(bars[i],minutes)==ChartPeriods.MinuteBucket(new(trade.Time,1,1,1,1,0),minutes))return i;}
             else if(barDay==day&&bars[i].Time>=trade.Time&&(i==0||bars[i-1].Time<trade.Time))return i;
         }
         return -1;

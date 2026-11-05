@@ -5,9 +5,9 @@ using Stock.Core.Research.Oversold;
 using Stock.Core.Trading;
 namespace Stock.Core.Research;
 
-public sealed partial class PublicMarketData:IPublicCurrentBatchData,IFastCurrentMarketData
+public sealed partial class PublicMarketData:IPublicCurrentBatchData,IFastCurrentMarketData,IFastPublicCurrentBatchData
 {
-    public static readonly TimeSpan ForegroundPollInterval=TimeSpan.FromSeconds(2);
+    public static readonly TimeSpan ForegroundPollInterval=TimeSpan.FromSeconds(1);
     private sealed class CurrentQuoteSlot
     {
         public readonly SemaphoreSlim Gate=new(1,1);
@@ -66,6 +66,9 @@ public sealed partial class PublicMarketData:IPublicCurrentBatchData,IFastCurren
         if(snapshots.Count==0)throw new InvalidOperationException("공개 현재가 응답에 요청한 종목이 없습니다.");
         return snapshots.ToArray();
     }
+    /// <summary>Visible real-time screening polls at most one 20-symbol request per second; failures retain the public HTTP cooldown.</summary>
+    public async Task<CurrentMarketSnapshot[]> CurrentBatchFast(IReadOnlyList<StockItem> stocks,CancellationToken token)
+        =>(await CurrentBatch(stocks,token)).Select(s=>s.Quote.State=="OPEN"?s with{PollInterval=ForegroundPollInterval}:s).ToArray();
     private static decimal? Number(string value)=>decimal.TryParse(value,NumberStyles.Number,CultureInfo.InvariantCulture,out var n)?n:null;
     /// <summary>StockViewer와 같은 공개 폴링 응답. 서버 관측과 거래소 체결시각을 구분한다.</summary>
     public static CurrentMarketSnapshot ParseRealtimeStock(StockItem stock,JsonElement root,DateTimeOffset received)

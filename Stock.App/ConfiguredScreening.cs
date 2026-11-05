@@ -5,7 +5,7 @@ using Stock.Core.Trading;
 namespace Stock.App;
 public sealed partial class WorkspaceViewModel
 {
-    public string ScreeningExplanation=>"일봉은 공개 가격·거래량을 평가합니다. 온라인 분·시간봉은 연결 증권사의 공식 1분봉을 집계하며 거래대금은 OHLC 평균×거래량 추정임을 결과에 표시합니다. 틱봉은 검증된 연속 원본이 필요합니다. 상태·위험 미확인은 후보에 명시하며 자동주문하지 않습니다."; private string LegacyScreeningExplanation=>UseConfiguredStrategy?"선택한 Standard / Advanced 전략을 저장된 실제 체결·호가의 마지막 시점에 적용합니다. 데이터가 없는 종목은 조회 제외로 표시합니다.":"기존 일봉 전략 조건을 최근 확정 일봉에 적용합니다. 차트 표시 체크는 매수 조건을 바꾸지 않습니다.";
+    public string ScreeningExplanation=>"일봉은 공개 가격·거래량을 평가합니다. 실시간 분·시간봉은 오프라인에서는 공개시세, 온라인에서는 연결 증권사 시세를 사용합니다. 거래대금 추정과 상태·위험 미확인은 결과에 명시하며 자동주문 허가로 사용하지 않습니다."; private string LegacyScreeningExplanation=>UseConfiguredStrategy?"선택한 Standard / Advanced 전략을 저장된 실제 체결·호가의 마지막 시점에 적용합니다. 데이터가 없는 종목은 조회 제외로 표시합니다.":"기존 일봉 전략 조건을 최근 확정 일봉에 적용합니다. 차트 표시 체크는 매수 조건을 바꾸지 않습니다.";
     private async Task ScreenConfigured(IReadOnlyList<StockItem> items,string source)
     {
         if(From==null||To==null||From>To)throw new InvalidOperationException("차트의 시작·종료 기간을 확인하세요.");

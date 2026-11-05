@@ -1,4 +1,22 @@
-# 최신 상태 — 2026-11-05 로컬/Release 비교·v0.1.9 게시 완료
+# 최신 작업 — 2026-11-05 GitHub v0.1.10 게시 진행
+
+사용자가 로컬 완료 변경의 GitHub 게시를 요청했다. 원격 main은 `c9cfe10`, 최신 공개 배포는 v0.1.9이므로 다음 태그 v0.1.10으로 배포한다. 소스·문서를 검토해 커밋/푸시하고 `.github/workflows/release.yml`의 전체 검사, 단일 EXE 게시 및 smoke 성공을 끝까지 확인한다. 현재 구현과 로컬 검증 내용은 바로 아래를 기준으로 한다. 계좌 키/DB/로컬 EXE는 Git에서 계속 제외한다. 실행 중인 사용자 앱이나 실제 계좌는 조작하지 않는다.
+
+# 이전 완료 — 2026-11-05 실시간 스크리닝 UI·오프라인 지정봉
+
+최신 사용자 요청 7개를 반영했다. 실시간 표는 `RealtimeScreeningDisplayRow` 객체를 유지해 선택/더블클릭이 갱신에 풀리지 않는다. 실시간 표 더블클릭은 기존 ScreeningChartDialog와 공통 OversoldBacktestService를 재사용한다. 완성된 지정봉·전략 snapshot 및 확인된 실제/가상 체결과 과거 모형체결을 출처로 구분한다. 모든 공통 차트는 TradeMarker.Reason/RealizedPnl과 TradeOutcome으로 익절·손절·청산 사유를 표시한다.
+
+실행 중 전략을 바꾸면 표 1회 초기화 → Background 지표 재준비 → 새 버전 반영이다. 이전 UI 응답을 배제하며 준비 중 추가 완성봉을 따라잡는다. 기존 가상 보유분은 이전 전략의 보호 관리를 유지하고 신규/추가매수는 차단한다. 자동매매는 해제되며 새 전략 자동매매는 감시 재시작 후 켠다. 중지 버튼은 활성 시 옅은 빨강, 비활성 시 회색이다. 관심그룹은 시장 상위 개수/조회 컨트롤 자리에 표시하며 시장·분야 필터는 공통이다.
+
+오프라인 국내 종목/차트에도 공개 1분봉 기반 1~59분/1~12시간을 제공한다. 현재가는 미완성 화면 봉 가격에만 합치고 일 누적 거래량을 분봉 거래량으로 사용하지 않는다. 분봉은 당일분을 분당 다시 읽으며 원본 틱이나 연구 DB로 관측 봉을 저장하지 않는다. StockViewer 코드와 장중 응답을 비교해 선택 종목·공개 모의매매·공개 실시간 스크리닝을 장중 1초 조회로 변경했다. 마감/오류 시 간격은 유지한다.
+
+전체 회귀 **1,173개**, 최종 관련 WPF **26개**, Release 빌드 경고0/오류0, 게시 EXE smoke 종료0/Success/NoBrokerCalls=true. 실제 장중 20종목 감시의 선택 유지, 1시간봉 차트·더블클릭, HLB 검토 창의 5개 완결 모형거래와 익절/손절 표시를 확인했다. 검증용 감시는 중지했다. 상세는 `docs/verification/RealtimeUI-2026-11-05.md`; 로그는 `artifacts/realtime-revision-{build,full,ui,publish}.log`와 `artifacts/realtime-revision-published-smoke/`다.
+
+루트/release `Stock.exe`는 **80,811,311 bytes**, SHA256 **D09B59F354562E82DB743E3F2F0AB545EFA158EDDF02EF2AAFDB27286F296A6E**로 동일하다. 이전 공개 EXE는 `artifacts/Stock-before-realtime-ui-9D61F93D.exe`에 보존했다. 이번 수정 소스는 로컬 작업트리에 있고 **GitHub Release v0.1.9는 이전 버전**이다. 이번 사용자 요청에 새 Release 게시는 포함되지 않아 push하지 않았다. 실주문·키 변경·사용자 DB 삭제 없음. 이 요청의 남은 구현은 없다.
+
+교체 후 루트 `Stock.exe`를 단독으로 정상 실행하고 실제 메인 창·스크리닝 탭을 확인했다. 최종 확인 창은 오프라인 초기 화면이며 자동매매/실시간 감시는 실행하지 않은 상태다.
+
+# 이전 상태 — 2026-11-05 로컬/Release 비교·v0.1.9 게시 완료
 
 로컬 Stock.exe `B56700F3...`(80,800,358 bytes)가 공개 v0.1.8 `E96E32BD...`보다 새 기능(선택 종목 장중 공개시세 2초 조회, 오프라인/온라인 이름)을 포함해 소스 `263c889`/태그 v0.1.9로 게시했다. [Actions run 41956934620](https://github.com/BaDook2/C-_STOCK/actions/runs/41956934620) / job `127013976601` 전체 성공, [v0.1.9 Release](https://github.com/BaDook2/C-_STOCK/releases/tag/v0.1.9) 공개 완료. 로컬/CI 각각 전체 1,143개, 현재가119개, 빌드 경고0/오류0, 로컬·CI·다운로드 EXE smoke 종료0/Success/NoBrokerCalls=true다.
 

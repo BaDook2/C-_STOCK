@@ -14,6 +14,8 @@ public sealed class OversoldLiveStrategy:ITradingStrategy
     private int quantity,entries,peakQuantity,harvestBasis,firstDay,lastExit=-1;private decimal average,lastEntry,peak;private decimal? priorCenter;private bool tp1,tp2,harvest;
     private DateTimeOffset lastBarTime,bucketStart,bucketEnd,segmentStart,observedAt;private long lastBarSequence,liveSequence;private OversoldSignal? pendingSignal,readySignal;private MarketEvent? latest;private EntryEvaluation? latestEntryEvaluation;private string error="";
     private readonly bool publicPaper;
+    private readonly List<StrategyBar> completedBars=[];
+    public StrategyBar[] CompletedBars=>completedBars.ToArray();
     public string Name=>"국내 과매도·낙주 반등";
     public OversoldDecisionSnapshot? Snapshot=>readySignal?.Snapshot;
     public EntryEvaluation? LatestEntryEvaluation=>latestEntryEvaluation;
@@ -22,12 +24,14 @@ public sealed class OversoldLiveStrategy:ITradingStrategy
     public int EntryStage=>entries+1;
     public OversoldPositionSnapshot Position=>new(quantity,entries,average,lastEntry,peak,tp1,tp2);
     public string Stage=>pendingSignal?.Reason??"감시";
-    public OversoldLiveStrategy(Instrument instrument,OversoldLiveConfiguration requested)
+    public OversoldLiveStrategy(Instrument instrument,OversoldLiveConfiguration requested,CancellationToken cancellationToken=default)
     {
         this.instrument=instrument;config=requested.Configuration.Clone();config.Validate();spec=requested.BarSpecification;spec.Validate();facts=requested.Facts.Snapshot();requestedResearchOnly=requested.ResearchOnly;sessions=facts.Sessions.OrderBy(s=>s.Open).ToArray();cache=new(config,true);
-        foreach(var bar in requested.Warmup.OrderBy(b=>b.ClosedAt).ThenBy(b=>b.Sequence))EvaluateBar(bar,false);
+        foreach(var bar in requested.Warmup.OrderBy(b=>b.ClosedAt).ThenBy(b=>b.Sequence)){cancellationToken.ThrowIfCancellationRequested();EvaluateBar(bar,false);}
         pendingSignal=null;publicPaper=requested.PublicPaper;
     }
+    internal void AppendResearchWarmup(StrategyBar bar)
+    {if(bar.ClosedAt>lastBarTime||bar.ClosedAt==lastBarTime&&bar.Sequence>lastBarSequence)EvaluateBar(bar,false);}
     /// <summary>Completed public candles drive the same detector, never reconstructed ticks.</summary>
     public void OnPublicBar(StrategyBar bar)
     {
@@ -97,6 +101,7 @@ public sealed class OversoldLiveStrategy:ITradingStrategy
         int day=Array.FindIndex(sessions,s=>bar.OpenTime>=s.Open&&bar.ClosedAt<=s.Close);
         if(day<0){error="검증된 시장 세션 자료 없음";return;}
         if(cache.History.Count>0&&bar.ClosedAt<lastBarTime)return;
+        completedBars.Add(bar);if(completedBars.Count>20000)completedBars.RemoveAt(0);
         var indicators=cache.Append(bar.Price);candidates=providers.SelectMany(p=>p.Get(cache.History,config)).ToArray();lastBarTime=bar.ClosedAt;lastBarSequence=bar.Sequence;
         var valid=HistoricalFacts.Tradable(facts.Status(instrument.Symbol,sessions[day].Date,bar.ClosedAt))&&facts.Risk(instrument.Symbol,sessions[day].Date,bar.ClosedAt)==false;
         string? reason=null;bool buy=false;SupportCluster? selected=null;AdditionalEntryEvaluation? additional=null;PositionRuleEvaluation? rules=null;

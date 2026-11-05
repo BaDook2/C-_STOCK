@@ -27,6 +27,7 @@ internal static partial class Program
     }
     private static void ScreeningUiTests(MainWindow window,string output)
     {
+        RealtimeScreeningUiRevisionTests(window,output);
         using var db=new TradingStore(Path.Combine(Dir,"screening-new-ui.db"));var c=DailyConfig();c.MovingAveragePeriods="1";c.MinimumSupportCount=1;c.UsePivotSupport=c.UseApproximateVolumeZone=false;
         db.State("oversold-config-v1",c);db.State("oversold-facts-v1",DailyFacts(5));using var vm=new WorkspaceViewModel(_=>false,provider:new DailyFixture(),store:db);var old=window.DataContext;window.DataContext=vm;
         Check(vm.ScreenFrom==KoreaClock.Today.ToDateTime(TimeOnly.MinValue).AddDays(-7)&&vm.ScreenTo==KoreaClock.Today.ToDateTime(TimeOnly.MinValue),"new screening workspace defaults to the latest one-week period");

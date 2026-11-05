@@ -13,6 +13,8 @@ public sealed partial class WorkspaceViewModel
     private long dailyGeneration;
     private string dailyFailure="",historyDescription="",dailyRefreshKey="";
     private bool dailyHistoryRefreshing;
+    private long publicMinuteRefreshGeneration=-1;
+    private DateTimeOffset nextPublicMinuteRead;
     private DateTimeOffset historyRetry;
     private DateTimeOffset lastStreamReceived,lastStreamTime;
     private bool LiveHeader=>displayedDaily?.Stock.Key==dataset?.Stock.Key&&displayedDaily!=null&&!Replaying&&paper==null;
@@ -26,6 +28,7 @@ public sealed partial class WorkspaceViewModel
     {
         dailyGeneration++;dailyPump?.Dispose();dailyPump=null;dailyTimer?.Stop();dailyTimer=null;
         pendingDaily=displayedDaily=null;dailyFailure="";dailyRefreshKey="";historyRetry=lastStreamReceived=lastStreamTime=default;
+        minuteBars=[];minuteStock="";publicMinuteRefreshGeneration=-1;nextPublicMinuteRead=default;
     }
     private void StartDailyQuotes(StockItem item)
     {
@@ -62,9 +65,26 @@ public sealed partial class WorkspaceViewModel
             foreach(var property in new[]{nameof(PriceText),nameof(ChangeText),nameof(PriceColor),nameof(PriceDate)})Changed(property);
         }
         var age=now-current.Quote.TradeTime;
-        var state=current.Quote.State=="OPEN"?"진행 중 · 미완성 일봉":current.Quote.State is "HALT" or "SUSPENDED"?"거래정지":"장 종료/휴장 · 마지막 관측값";
+        var state=current.Quote.State=="OPEN"?(ChartPeriods.Minutes(ChartPeriod)>0?$"진행 중 · 미완성 {ChartPeriod} 관측봉":"진행 중 · 미완성 일봉"):current.Quote.State is "HALT" or "SUSPENDED"?"거래정지":"장 종료/휴장 · 마지막 관측값";
         DataInfo=$"{current.Source} · {state} · {(current.ExchangeTimestamp?"시세":"서버 관측")} {current.Quote.TradeTime.ToOffset(TimeSpan.FromHours(9)):MM.dd HH:mm:ss} · 수신 {current.ReceivedAt.ToOffset(TimeSpan.FromHours(9)):HH:mm:ss} · 화면 1초 / 조회 {current.PollInterval.TotalSeconds:N0}초"+(age>TimeSpan.FromSeconds(20)?" · 지연/새 체결 없음":"")+(dailyFailure!=""?" · "+dailyFailure:"");
         _=RefreshClosedHistory(current,now,dailyGeneration);
+        _=RefreshPublicChartMinutes(current,now,dailyGeneration);
+    }
+    private async Task RefreshPublicChartMinutes(CurrentMarketSnapshot current,DateTimeOffset now,long generation)
+    {
+        if(!IsOffline||ChartPeriods.Minutes(ChartPeriod)==0||minuteStock!=current.Stock.Key||current.Stock.Exchange!=Exchange.KRX||provider is not IPublicMinuteMarketData minutes||current.Quote.State!="OPEN"||now<nextPublicMinuteRead||publicMinuteRefreshGeneration==generation)return;
+        publicMinuteRefreshGeneration=generation;nextPublicMinuteRead=now.AddMinutes(1);
+        using var request=CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token,ApiToken);request.CancelAfter(TimeSpan.FromSeconds(10));
+        try
+        {
+            var today=DailyQuoteMerger.Date(current.Quote.TradeTime,Exchange.KRX);var fresh=await minutes.MinuteHistory(current.Stock,today,today,request.Token);
+            if(disposed||generation!=dailyGeneration||selected?.Key!=current.Stock.Key||!IsOffline)return;
+            minuteBars=minuteBars.Where(b=>DailyDates.Of(b)!=today).Concat(fresh).OrderBy(b=>b.Time).DistinctBy(b=>b.Time).TakeLast(20000).ToArray();
+            ChartBars=visibleDaily;
+        }
+        catch(OperationCanceledException){}
+        catch{if(generation==dailyGeneration)dailyFailure="공개 분봉 갱신 지연 · 현재가 관측은 계속합니다.";}
+        finally{if(publicMinuteRefreshGeneration==generation)publicMinuteRefreshGeneration=-1;}
     }
     private async Task RefreshClosedHistory(CurrentMarketSnapshot current,DateTimeOffset now,long generation)
     {

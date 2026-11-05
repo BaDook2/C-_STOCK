@@ -19,6 +19,10 @@ public interface IPublicCurrentBatchData
 {
     Task<CurrentMarketSnapshot[]> CurrentBatch(IReadOnlyList<StockItem> stocks,CancellationToken token);
 }
+public interface IFastPublicCurrentBatchData
+{
+    Task<CurrentMarketSnapshot[]> CurrentBatchFast(IReadOnlyList<StockItem> stocks,CancellationToken token);
+}
 
 /// <summary>One in-flight read, provider-aware throttling, injectable clock and latest-generation delivery.</summary>
 public sealed class SelectedQuotePump(ICurrentMarketData source,TimeProvider? clock=null,bool fast=false):IDisposable

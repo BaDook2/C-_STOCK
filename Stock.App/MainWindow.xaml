@@ -135,7 +135,8 @@
                                     Margin="140,0,0,0"
                                     Orientation="Horizontal" IsEnabled="{Binding CanConfigure}">
                                     <!-- 표시용 틱 선택기는 숨기고 분봉·일봉·주봉·월봉만 제공합니다. -->
-                                    <ComboBox Width="30" ItemsSource="{Binding MinuteIntervals}" SelectedItem="{Binding SelectedMinuteInterval}" IsEnabled="{Binding CanUseMinutes}" ToolTip="{Binding IntradayHelp}" ToolTipService.ShowOnDisabled="True"  Margin="2" Tag="분"/>
+                                    <ComboBox Width="64" ItemsSource="{Binding ChartBarValues}" SelectedItem="{Binding ChartBarValue}" IsEnabled="{Binding CanUseMinutes}" ToolTip="{Binding IntradayHelp}" ToolTipService.ShowOnDisabled="True" Margin="2"/>
+                                    <ComboBox Width="84" ItemsSource="{Binding ChartBarUnitOptions}" SelectedValue="{Binding ChartBarUnit}" SelectedValuePath="Value" DisplayMemberPath="Label" IsEnabled="{Binding CanUseMinutes}" ToolTip="{Binding IntradayHelp}" ToolTipService.ShowOnDisabled="True" Margin="2"/>
                                     <RadioButton Content="일봉" GroupName="ChartPeriod" IsChecked="{Binding DailySelected}" Padding="6,5"/>
                                     <RadioButton Content="주봉" GroupName="ChartPeriod" IsChecked="{Binding WeeklySelected}" Padding="6,5"/>
                                     <RadioButton Content="월봉" GroupName="ChartPeriod" IsChecked="{Binding MonthlySelected}" Padding="6,5"/>
@@ -322,7 +323,15 @@
                                     <RadioButton Content="시장 상위 종목" GroupName="ScreenSource" IsChecked="{Binding ScreenMarket}" />
                                     <RadioButton Content="관심종목" GroupName="ScreenSource" IsChecked="{Binding ScreenWatchlist}" />
                                 </StackPanel>
-                                <ScrollViewer Height="44" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" Margin="16,0,0,0" Visibility="{Binding ScreenWatchlist,Converter={StaticResource Visible}}">
+                            </DockPanel>
+                            <WrapPanel IsEnabled="{Binding CanConfigure}">
+                                <ComboBox ItemsSource="{Binding ScreeningMarkets}" SelectedItem="{Binding ScreeningMarketSelection}" Width="150" Margin="0,0,12,0" ToolTip="시장과 분야 필터는 시장 상위 종목과 관심종목에 공통으로 적용합니다." />
+                                <TextBlock Text="분야" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                <ComboBox ItemsSource="{Binding Sectors}" SelectedItem="{Binding Sector}" Width="190" Margin="0,0,12,0" />
+                                <TextBlock Visibility="{Binding ScreenMarket,Converter={StaticResource Visible}}" Text="시장별 상위" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                <ComboBox Visibility="{Binding ScreenMarket,Converter={StaticResource Visible}}" ItemsSource="{Binding ScreeningSizes}" SelectedItem="{Binding ScreeningSize}" Width="80" Margin="0,0,12,0" ToolTip="가져올 시장 목록의 종목 수입니다. 스크리닝 날짜 범위와 별개입니다." />
+                                <Button Height="40" Visibility="{Binding ScreenMarket,Converter={StaticResource Visible}}" Content="목록 · 분야 불러오기" ToolTip="시가총액 상위 종목과 업종 분류를 갱신합니다. 전체 시장 목록은 아닙니다." Command="{Binding Actions[목록]}" Style="{StaticResource Secondary}" />
+                                <ScrollViewer x:Name="ScreenWatchGroupOptions" Height="40" Width="400" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" Margin="0,0,12,0" Visibility="{Binding ScreenWatchlist,Converter={StaticResource Visible}}">
                                     <ItemsControl ItemsSource="{Binding WatchGroups}" VerticalAlignment="Center">
                                         <ItemsControl.ItemsPanel>
                                             <ItemsPanelTemplate>
@@ -338,14 +347,6 @@
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>
                                 </ScrollViewer>
-                            </DockPanel>
-                            <WrapPanel IsEnabled="{Binding CanConfigure}">
-                                <ComboBox ItemsSource="{Binding ScreeningMarkets}" SelectedItem="{Binding ScreeningMarketSelection}" Width="150" Margin="0,0,12,0" ToolTip="스크리닝할 국내 시장을 선택합니다." />
-                                <TextBlock Text="분야" VerticalAlignment="Center" Margin="0,0,8,0" />
-                                <ComboBox ItemsSource="{Binding Sectors}" SelectedItem="{Binding Sector}" Width="190" Margin="0,0,12,0" />
-                                <TextBlock Visibility="{Binding ScreenMarket,Converter={StaticResource Visible}}" Text="시장별 상위" VerticalAlignment="Center" Margin="0,0,8,0" />
-                                <ComboBox Visibility="{Binding ScreenMarket,Converter={StaticResource Visible}}" ItemsSource="{Binding ScreeningSizes}" SelectedItem="{Binding ScreeningSize}" Width="80" Margin="0,0,12,0" ToolTip="가져올 시장 목록의 종목 수입니다. 스크리닝 날짜 범위와 별개입니다." />
-                                <Button Height="40" Visibility="{Binding ScreenMarket,Converter={StaticResource Visible}}" Content="목록 · 분야 불러오기" ToolTip="시가총액 상위 종목과 업종 분류를 갱신합니다. 전체 시장 목록은 아닙니다." Command="{Binding Actions[목록]}" Style="{StaticResource Secondary}" />
                                 <TextBlock Text="전략" VerticalAlignment="Center" Margin="8,0" />
                                 <ComboBox ItemsSource="{Binding Presets}" SelectedItem="{Binding SelectedOversoldPreset,Mode=TwoWay}" Width="210" ToolTip="저장된 전략 중 스크리닝에 적용할 전략을 선택합니다." />
                                 <TextBlock Text="데이터 기준" VerticalAlignment="Center" Margin="8,0" />
@@ -370,7 +371,7 @@
                                 <StackPanel Orientation="Horizontal" Visibility="{Binding RealtimeScreeningMode,Converter={StaticResource Visible}}">
                                     <CheckBox Content="자동매매 시작" IsChecked="{Binding RealtimeAutoTrade}" IsEnabled="{Binding CanAutoTradeRealtimeScreening}" ToolTip="키움 실시간 체결 피드에서 가상 주문을 허용합니다. 공개시세 감시는 신호 표시만 지원합니다." />
                                     <Button Content="실시간 스크리닝 시작" Command="{Binding Actions[실시간스크리닝시작]}" ToolTip="오프라인은 공개 현재가·완성 분봉으로 신호를 감시합니다. 온라인 키움 연결은 실제 체결·호가 피드를 사용합니다." />
-                                    <Button Content="중지" Command="{Binding Actions[실시간스크리닝중지]}" Style="{StaticResource Secondary}" ToolTip="신규 탐색과 진입을 중지합니다. 기존 가상 보유분의 보호 관리는 유지합니다." />
+                                    <Button x:Name="RealtimeScreenStopButton" Content="중지" Command="{Binding Actions[실시간스크리닝중지]}" Background="#FFF0F0" Foreground="#D94848" BorderBrush="#FFD1D1" ToolTip="신규 탐색과 진입을 중지합니다. 기존 가상 보유분의 보호 관리는 유지합니다." />
                                     <TextBlock Text="{Binding RealtimeScreenConnection,StringFormat=연결 상태 · {0}}" VerticalAlignment="Center" Foreground="#3182F6" FontWeight="SemiBold" Margin="8,0,0,0" />
                                 </StackPanel>
                             </WrapPanel>
@@ -401,7 +402,7 @@
                                 <DataGridTextColumn Header="기준일 · 한국시간" Binding="{Binding Date}" Width="170" />
                             </DataGrid.Columns>
                         </DataGrid>
-                        <DataGrid Visibility="{Binding RealtimeScreeningMode,Converter={StaticResource Visible}}" ItemsSource="{Binding RealtimeScreeningRows}" IsReadOnly="True">
+                        <DataGrid x:Name="RealtimeScreeningGrid" Visibility="{Binding RealtimeScreeningMode,Converter={StaticResource Visible}}" ItemsSource="{Binding RealtimeScreeningRows}" SelectedItem="{Binding SelectedRealtimeScreeningRow,Mode=TwoWay}" MouseDoubleClick="ScreeningRowDoubleClick" IsReadOnly="True">
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="코드" Binding="{Binding Code}" Width="80" />
                                 <DataGridTextColumn Header="종목" Binding="{Binding Name}" Width="130" />

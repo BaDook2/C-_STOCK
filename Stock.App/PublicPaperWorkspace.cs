@@ -39,7 +39,7 @@ public sealed partial class WorkspaceViewModel
             {
                 foreach(var item in prepared)
                 {
-                    var pump=new SelectedQuotePump(quotes);pumps.Add(pump);
+                    var pump=new SelectedQuotePump(quotes,fast:true);pumps.Add(pump);
                     pump.Select(item.Stock,s=>{active.OnPublicSnapshot(s);_=dispatcher.BeginInvoke(()=>{if(disposed||token.IsCancellationRequested)return;if(dataset?.Stock.Key==s.Stock.Key){pendingDaily=s;RefreshDailyDisplay();}});},message=>active.FeedFault(message));
                 }
                 var nextBars=now.AddMinutes(1);

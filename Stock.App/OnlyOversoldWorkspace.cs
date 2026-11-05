@@ -19,6 +19,7 @@ public sealed partial class WorkspaceViewModel
             if(value==null||value==selectedOversoldPreset)return;
             if(!CanConfigure){Changed();return;}
             LoadNamedOversoldPreset(value);
+            ChangeRealtimeScreeningStrategy(value,oversoldConfig);
         }
     }
     // Retirement is a product boundary, not a user-editable preference or saved DB flag.

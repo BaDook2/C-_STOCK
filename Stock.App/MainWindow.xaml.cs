@@ -13,7 +13,7 @@ public partial class MainWindow : Window
         var keys=new BrokerCredentialStore(System.IO.Path.Combine(MainViewModel.StateDirectory,"broker-keys"));
         DataContext=viewModel??new WorkspaceViewModel(message=>MessageBox.Show(this,message,"주문 확인",MessageBoxButton.YesNo,MessageBoxImage.Warning,MessageBoxResult.No)==MessageBoxResult.Yes,alert:message=>MessageBox.Show(this,message,"계좌 연결",MessageBoxButton.OK,MessageBoxImage.Information),connectionPrompt:()=>{var dialog=new ConnectionDialog(keys,id=>DataContext is WorkspaceViewModel vm?vm.PrepareCredentialReset(id):Task.CompletedTask){Owner=this};return dialog.ShowDialog()==true?dialog.Credentials:null;},saveConnection:keys.Save,defaultConnectionLoader:()=>{try{return keys.Load(keys.DefaultBroker);}catch{return null;}});
         PriceChart.RangeRequested+=(date,start)=>{if(DataContext is WorkspaceViewModel vm&&vm.CanConfigure)vm.SetChartRange(date,start);};
-        PriceChart.TradeMarkerClicked+=marker=>MessageBox.Show(this,$"{marker.Source}\n{(marker.TradeNumber is {} number?$"거래 #{number} · ":"")}{(marker.Buy?"매수":"매도")} · {marker.Time.ToOffset(TimeSpan.FromHours(9)):yyyy.MM.dd HH:mm:ss}\n가격 {(marker.Price.HasValue?$"{marker.Price:N2}":"가격 미확인")} · 수량 {marker.Quantity:N0}","차트 매매 내역",MessageBoxButton.OK,MessageBoxImage.Information);
+        PriceChart.TradeMarkerClicked+=marker=>MessageBox.Show(this,$"{marker.Source}\n{(marker.TradeNumber is {} number?$"거래 #{number} · ":"")}{marker.SideLabel} · {marker.Time.ToOffset(TimeSpan.FromHours(9)):yyyy.MM.dd HH:mm:ss}\n가격 {(marker.Price.HasValue?$"{marker.Price:N2}":"가격 미확인")} · 수량 {marker.Quantity:N0}\n청산/진입 사유 {marker.Reason}","차트 매매 내역",MessageBoxButton.OK,MessageBoxImage.Information);
         Closing+=OnClosing;
     }
     private bool closingAfterStop;
@@ -56,9 +56,10 @@ public partial class MainWindow : Window
     }
     private async void ScreeningRowDoubleClick(object sender,System.Windows.Input.MouseButtonEventArgs e)
     {
-        if(sender is not DataGrid grid||grid.SelectedItem is not ScreeningRow row||DataContext is not WorkspaceViewModel vm)return;
+        if(sender is not DataGrid grid||DataContext is not WorkspaceViewModel vm)return;
         if(e.OriginalSource is DependencyObject origin&&ItemsControl.ContainerFromElement(grid,origin) is not DataGridRow)return;
-        e.Handled=true;vm.SelectedMatch=row;await vm.OpenScreeningStock(row.Stock);
+        if(grid.SelectedItem is RealtimeScreeningDisplayRow live){e.Handled=true;await vm.OpenRealtimeScreeningStock(live);}
+        else if(grid.SelectedItem is ScreeningRow row){e.Handled=true;vm.SelectedMatch=row;await vm.OpenScreeningStock(row.Stock);}
     }
     private MultiTradeDialog? multiDialog;
     private void MultiClick(object sender,RoutedEventArgs e)

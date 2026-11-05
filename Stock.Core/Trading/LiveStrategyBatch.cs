@@ -178,7 +178,7 @@ public sealed class LiveStrategyBatch
                 else{if(e.Quantity>r.Owned)throw new InvalidOperationException("전략 소유분 밖 체결 감지");var pnl=(e.Price-r.Average)*e.Quantity; r.Profit+=pnl;r.CycleProfit+=pnl;r.Owned-=e.Quantity;if(r.Owned==0){r.LastExit=e.Time;r.Losses=r.CycleProfit<0?r.Losses+1:0;r.Opened=null;}}
                 journal.Executions.Add(e);
                 var markerId="trade-marker:"+TradingStore.Hash(session.Scope+":"+e.Id);
-                store.State(markerId,new Stock.Core.Research.TradeMarker(markerId,order.Symbol,e.Time,e.Buy,e.Quantity,e.Price,"실제매매",session.Broker.Id+":"+TradingStore.Hash(account)));
+                store.State(markerId,new Stock.Core.Research.TradeMarker(markerId,order.Symbol,e.Time,e.Buy,e.Quantity,e.Price,"실제매매",session.Broker.Id+":"+TradingStore.Hash(account),Reason:order.Reason,RealizedPnl:e.Buy?null:(e.Price-r.Average)*e.Quantity));
             }
             foreach(var o in journal.Orders.Where(o=>o.Pending&&o.Number!=""))
             {

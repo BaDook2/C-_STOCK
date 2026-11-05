@@ -1,5 +1,6 @@
 using Stock.Core.Research;
 using Stock.Core;
+using Stock.Core.Trading;
 namespace Stock.App;
 
 public sealed partial class WorkspaceViewModel
@@ -12,32 +13,52 @@ public sealed partial class WorkspaceViewModel
     public bool ChartLoading {get=>chartLoading;private set{if(chartLoading==value)return;chartLoading=value;Changed();}}
     public string ChartMessage {get=>ChartPeriods.Intraday(ChartPeriod)?TickStatus:chartMessage;private set{chartMessage=value;Changed();}}
     public bool CanUseIntraday=>CanConfigure&&IsOnline&&selected!=null&&broker is ITickHistoryBroker&&broker.Exchange==selected.Exchange;
-    public bool CanUseMinutes=>CanConfigure&&IsOnline&&selected!=null&&broker is IMinuteHistoryBroker&&broker.Exchange==selected.Exchange;
-    public string IntradayHelp=>!IsOnline||broker==null?"연결된 시세 API가 없어 사용할 수 없습니다. 온라인 투자에서 지원 계좌를 연결하세요.":selected==null?"먼저 종목을 선택하세요.":broker.Exchange!=selected.Exchange?"연결 계좌와 선택 종목의 시장이 달라 사용할 수 없습니다.":"키움 공식 과거 틱·1분봉과 실시간 체결을 차트에 표시합니다.";
+    public bool CanUseMinutes=>CanConfigure&&selected!=null&&(IsOffline?selected.Exchange==Exchange.KRX&&provider is IPublicMinuteMarketData:broker is IMinuteHistoryBroker&&broker.Exchange==selected.Exchange);
+    public string IntradayHelp=>selected==null?"먼저 종목을 선택하세요.":IsOffline?selected.Exchange==Exchange.KRX&&provider is IPublicMinuteMarketData?"네이버 KRX 공개 1분봉을 선택한 분·시간 단위로 표시합니다. 진행봉 가격은 공개 현재가 관측이며 거래량은 분봉 조회 때 갱신합니다.":"이 종목의 공개 분봉 자료가 없습니다.":broker==null?"연결된 시세 API가 없습니다.":broker.Exchange!=selected.Exchange?"연결 계좌와 선택 종목의 시장이 다릅니다.":"연결 증권사의 공식 1분봉과 실시간 체결을 표시합니다.";
     public string[] TickIntervals {get;}=ChartPeriods.Intervals.Select(n=>n+"틱").ToArray();
     public string[] MinuteIntervals {get;}=ChartPeriods.Intervals.Select(n=>n+"분").ToArray();
     public string? SelectedTickInterval {get=>ChartPeriod.EndsWith("틱")?ChartPeriod:null;set{if(value!=null)ChartPeriod=value;}}
     public string? SelectedMinuteInterval {get=>ChartPeriod.EndsWith("분")?ChartPeriod:null;set{if(value!=null)ChartPeriod=value;}}
+    private string chartBarValue="1",chartBarUnit="분";
+    public string[] ChartBarValues=>TimeBarSelection.Values(chartBarUnit);
+    public TimeBarUnitOption[] ChartBarUnitOptions=>TimeBarSelection.Options;
+    public string ChartBarValue {get=>chartBarValue;set{if(value==null||!CanUseMinutes)return;chartBarValue=TimeBarSelection.NormalizeValue(value,chartBarUnit);Changed();ChartPeriod=chartBarValue+chartBarUnit;}}
+    public string ChartBarUnit {get=>chartBarUnit;set{if(!CanUseMinutes)return;chartBarUnit=TimeBarSelection.NormalizeUnit(value);chartBarValue=TimeBarSelection.NormalizeValue(chartBarValue,chartBarUnit);Changed();Changed(nameof(ChartBarValues));Changed(nameof(ChartBarValue));ChartPeriod=chartBarValue+chartBarUnit;}}
+    private void NotifyChartBarSelection()
+    {
+        if(ChartPeriods.Minutes(ChartPeriod)>0){chartBarUnit=ChartPeriod[^1..];chartBarValue=ChartPeriod[..^1];}
+        Changed(nameof(ChartBarUnit));Changed(nameof(ChartBarValues));Changed(nameof(ChartBarValue));
+    }
     private void BeginIntraday()
     {
-        if(ChartPeriod.EndsWith("분")&&broker is IMinuteHistoryBroker)_=Run(LoadMinutes);
+        if(ChartPeriods.Minutes(ChartPeriod)>0)_=Run(LoadMinutes);
         else if(ChartPeriod.EndsWith("틱")&&broker is ITickHistoryBroker)_=Run(LoadTicks);
         else StartTicks();
     }
     private async Task LoadMinutes()
     {
-        if(broker is not IMinuteHistoryBroker source||selected==null||!ChartPeriod.EndsWith("분"))return;
+        if(selected==null||ChartPeriods.Minutes(ChartPeriod)==0)return;
         var stock=selected;var operationToken=Token;var apiToken=ApiToken;using var request=CancellationTokenSource.CreateLinkedTokenSource(operationToken,apiToken);request.CancelAfter(TimeSpan.FromSeconds(15));ChartLoading=true;
+        var generation=dailyGeneration;
         try
         {
-            if(stock.Exchange!=broker.Exchange){minuteBars=[];TickStatus="이 계좌에서 지원하지 않는 시장의 분봉입니다.";return;}
-            if(minuteStock!=stock.Key||minuteBars.Length==0){minuteBars=await source.MinuteHistory(stock.Symbol,request.Token);minuteStock=stock.Key;}
-            TickStatus=minuteBars.Length==0?"분봉 데이터가 없습니다.":$"{broker.Name} 공식 1분봉 {minuteBars.Length:N0}개 · 마지막 {minuteBars[^1].KoreaTime}";
+            if(minuteStock!=stock.Key||minuteBars.Length==0)
+            {
+                PriceBar[] loaded;
+                if(IsOffline&&stock.Exchange==Exchange.KRX&&provider is IPublicMinuteMarketData publicMinutes)
+                    loaded=await publicMinutes.MinuteHistory(stock,KoreaClock.Today.AddDays(-14),KoreaClock.Today,request.Token);
+                else if(IsOnline&&broker is IMinuteHistoryBroker source&&stock.Exchange==broker.Exchange)
+                    loaded=await source.MinuteHistory(stock.Symbol,request.Token);
+                else throw new InvalidOperationException(IntradayHelp);
+                if(generation!=dailyGeneration||selected?.Key!=stock.Key)return;
+                minuteBars=loaded.OrderBy(b=>b.Time).DistinctBy(b=>b.Time).TakeLast(20000).ToArray();minuteStock=stock.Key;
+            }
+            TickStatus=minuteBars.Length==0?"분봉 데이터가 없습니다.":$"{(IsOffline?"네이버 KRX 공개":broker!.Name+" 공식")} 1분봉 {minuteBars.Length:N0}개 · 마지막 {minuteBars[^1].KoreaTime}"+(IsOffline?" · 진행봉 가격은 현재가 관측, 거래량은 분봉 조회값":"");
         }
         catch(OperationCanceledException) when(!operationToken.IsCancellationRequested&&!apiToken.IsCancellationRequested){minuteBars=[];TickStatus="분봉 응답 시간이 15초를 넘었습니다. 잠시 후 다시 선택하거나 API 조회 권한을 확인하세요.";}
         catch(OperationCanceledException){TickStatus="분봉 불러오기를 중지했습니다.";throw;}
         catch(Exception ex){minuteBars=[];TickStatus="분봉을 불러오지 못했습니다. "+ex.Message;}
-        finally{ChartBars=visibleDaily;Changed(nameof(TickStatus));Changed(nameof(ChartMessage));ChartLoading=false;}
+        finally{if(generation==dailyGeneration){ChartBars=visibleDaily;Changed(nameof(TickStatus));Changed(nameof(ChartMessage));}ChartLoading=false;}
     }
     private async Task LoadTicks()
     {
@@ -61,8 +82,8 @@ public sealed partial class WorkspaceViewModel
             if(!disposed&&selected?.Key==stock.Key&&ChartPeriod.EndsWith("틱"))StartTicks();
         }
     }
-    private IReadOnlyList<PriceBar> IntradayBars()=>ChartPeriod.EndsWith("분")&&broker is IMinuteHistoryBroker&&minuteStock==selected?.Key
-        ?ChartPeriods.MergeLiveTrades(minuteBars,tickBars,ChartPeriod)
+    private IReadOnlyList<PriceBar> IntradayBars()=>ChartPeriods.Minutes(ChartPeriod)>0&&minuteStock==selected?.Key
+        ?IsOffline?ChartPeriods.MergeCurrentObservation(minuteBars,pendingDaily,ChartPeriod):ChartPeriods.MergeLiveTrades(minuteBars,tickBars,ChartPeriod)
         :ChartPeriods.FromTrades(tickBars,ChartPeriod);
     public void SetChartRange(DateTimeOffset date,bool start)
     {

@@ -7,7 +7,7 @@
 
 | UI | 기능 | 실행 코드 |
 |---|---|---|
-| 오프라인 | 인증키 없는 과거 데이터·가상 매매 모드. 선택 종목의 장중 현재가는 2초 간격으로 재조회 | WorkspaceViewModel.IsOffline → StartDailyQuotes |
+| 오프라인 | 인증키 없는 과거 데이터·가상 매매 모드. 선택 종목의 장중 현재가는 1초 간격으로 재조회 | WorkspaceViewModel.IsOffline → StartDailyQuotes |
 | 온라인 | 저장된 기본계좌 자동 연결 또는 새 실제 계좌 연결 | WorkspaceViewModel.IsOnline → EnterOnline |
 | 실제 계좌 키 설정 | 증권사 선택·연결, 성공 키 암호화 저장, 기본 계좌 변경 | Actions[키설정] → ConfigureKeys |
 | 긴급중지 | 가상 대기 주문 취소 / 실계좌 신규 주문 차단 및 미체결 취소 요청 | Actions[긴급중지] |

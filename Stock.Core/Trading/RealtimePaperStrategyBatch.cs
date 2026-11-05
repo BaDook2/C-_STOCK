@@ -194,7 +194,7 @@ public sealed class RealtimePaperStrategyBatch
             var execution=new BrokerExecution(runId+":"+r.Item.Stock.Key+":"+index,fill.OrderId,r.Item.Stock.Symbol,fill.Buy,fill.Quantity,fill.Price,fill.Time);
             r.Strategy.OnExecution(execution,intent.Reason,intent.Snapshot);
             var markerId="trade-marker:"+TradingStore.Hash("paper-live:"+execution.Id);
-            var marker=new TradeMarker(markerId,r.Item.Stock.Key,fill.Time,fill.Buy,fill.Quantity,fill.Price,r.Item.Oversold!.PublicPaper?PublicMarkerSource:MarkerSource,"paper-live:"+runId);
+            var marker=new TradeMarker(markerId,r.Item.Stock.Key,fill.Time,fill.Buy,fill.Quantity,fill.Price,r.Item.Oversold!.PublicPaper?PublicMarkerSource:MarkerSource,"paper-live:"+runId,Reason:intent.Reason,RealizedPnl:fill.Buy?null:fill.RealizedPnl);
             store.State(markerId,marker);FillRecorded?.Invoke(marker);r.Status=(fill.Buy?"모의 매수 ":"모의 매도 ")+fill.Quantity.ToString("N0")+"주 체결";
         }
     }

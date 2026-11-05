@@ -51,7 +51,8 @@ public sealed class RawTickChartView:UserControl
             foreach(var cluster in ChartMarkerAggregation.Cluster(located,x=>x.Marker.Buy,x=>x.X,x=>x.Marker.Price,viewLeft,Math.Max(viewRight,viewLeft+.000001),Math.Max(100,Chart.ActualWidth-80)))
             {
                 var point=new ScottPlot.Coordinates(cluster.Position,(double)(cluster.Price??cluster.Items[0].Marker.Price));var p=Chart.Plot.Add.Marker(point);p.Shape=cluster.Buy?ScottPlot.MarkerShape.FilledTriangleUp:ScottPlot.MarkerShape.FilledTriangleDown;p.Color=cluster.Buy?ScottPlot.Colors.Red:ScottPlot.Colors.Blue;p.Size=cluster.Count>1?12:9;
-                if(cluster.Count>1){var label=Chart.Plot.Add.Text((cluster.Buy?"▲ 매수 ":"▼ 매도 ")+cluster.Count.ToString("N0")+"건",point.X,point.Y);label.LabelFontColor=cluster.Buy?ScottPlot.Colors.Red:ScottPlot.Colors.Blue;label.LabelFontSize=14;label.LabelOffsetY=cluster.Buy?14:-18;label.LabelAlignment=ScottPlot.Alignment.MiddleCenter;}
+                var captions=string.Join(" / ",cluster.Items.Select(x=>TradeOutcome.Label(x.Marker.Buy,x.Marker.Detail.ExitReason,!x.Marker.Buy&&x.Marker.Detail.EntryKnown?x.Marker.Detail.Profit:null)).Distinct());
+                var label=Chart.Plot.Add.Text((cluster.Buy?"▲ ":"▼ ")+captions+(cluster.Count>1?" "+cluster.Count.ToString("N0")+"건":""),point.X,point.Y);label.LabelFontColor=cluster.Buy?ScottPlot.Colors.Red:ScottPlot.Colors.Blue;label.LabelFontSize=14;label.LabelOffsetY=cluster.Buy?14:-18;label.LabelAlignment=ScottPlot.Alignment.MiddleCenter;
                 foreach(var item in cluster.Items)markers.Add((point,item.Marker));
             }
             cross=Chart.Plot.Add.Crosshair(xs[0],ys[0]);cross.IsVisible=false;

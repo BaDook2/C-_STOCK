@@ -85,6 +85,20 @@ internal static partial class Program
         publicService.OnPublicSnapshot(publicQuote);publicService.Pulse();snapshot=publicService.Snapshot();
         Check(snapshot.Rows.Single().Price==80&&snapshot.Rows.Single().DataState.Contains("공개 시세")&&!snapshot.AutoTradingEnabled,"public quote drives the shared screening engine in research-only mode");
         now=now.AddSeconds(25);publicService.Pulse();Check(publicService.Snapshot().Rows.Single().DataState.Contains("지연"),"stale public observations hold signals after the twenty-second boundary");
+        var priorVersion=publicService.Version;var priorBars=publicService.ChartData(DailyStock.Key).Bars;
+        publicService.SetAutoTrading(true);var replacementConfig=config.Clone();replacementConfig.MinimumDrawdownPercent=-99;
+        publicService.Reconfigure(replacementConfig,"변경된 전략");var changedSnapshot=publicService.Snapshot();
+        Check(changedSnapshot.Version>priorVersion&&changedSnapshot.StrategyName=="변경된 전략"&&!changedSnapshot.AutoTradingEnabled&&changedSnapshot.Running,"strategy replacement resets research and automatic entries while retaining the running feed");
+        var captured=publicService.ChartData(DailyStock.Key);
+        Check(captured.Bars.SequenceEqual(priorBars)&&captured.Bars.Any(b=>b==publicBar)&&captured.Configuration.MinimumDrawdownPercent==-99,"new strategy and realtime chart retain all completed warmup and observed bars without future data");
+        replacementConfig.MinimumDrawdownPercent=-5;captured.Configuration.MinimumDrawdownPercent=-10;
+        Check(publicService.ChartData(DailyStock.Key).Configuration.MinimumDrawdownPercent==-99,"realtime chart and strategy configurations are isolated snapshots");
+        using(var cancelled=new CancellationTokenSource())
+        {
+            cancelled.Cancel();var unchanged=publicService.Version;
+            Throws<OperationCanceledException>(()=>publicService.Reconfigure(config,"취소된 변경",cancelled.Token),"cancelled strategy rebuild does not run");
+            Check(publicService.Version==unchanged&&publicService.Snapshot().StrategyName=="변경된 전략","cancelled strategy change cannot publish over the current configuration");
+        }
         publicService.Stop();
 
         Throws<InvalidOperationException>(()=>service.Start(new([],"전략",new(1,BarUnit.Minute))),"realtime screening rejects an empty universe");

@@ -149,7 +149,11 @@ CurrentOversoldScreening은 과거 엔진의 기술적 계산을 재사용하면
 
 오프라인 MultiTradeWorkspace는 PublicPaperWorkspace로 연결된다. PublicMinuteMarketData → StrategyBarAggregator → OversoldLiveStrategy.OnPublicBar로 완성봉을 공급하고 SelectedQuotePump → OnPublicSnapshot → 기존 PaperBroker로 관측 기반 모의 체결을 처리한다. 공개 관측은 실제 원본 틱으로 저장하지 않는다. 모의 전용 facts 가정과 거래대금 추정은 plan에 명시되며 LiveStrategyBatch에서 PublicPaper plan을 거부한다. 상세 사용법은 docs/ui/PublicPaperTrading.md, 응답 계약은 docs/api/NaverPublic.md다.
 
-선택 종목/관심종목 가격은 오프라인 ICurrentMarketData(네이버 KRX), 온라인 BrokerCurrentMarketData(연결 계좌)로 라우팅한다. 일반·다종목 공급은 서버 pollingInterval을 따르고 선택된 종목의 장중 화면만 IFastCurrentMarketData의 별도 2초 캐시/펌프를 사용한다. 새 응답은 Dispatcher에서 즉시 반영한다. 키움 WebSocket도 온라인에서만 공유하며 연결 실패를 공개 가격으로 대체하지 않는다.
+선택 종목/관심종목 가격은 오프라인 ICurrentMarketData(네이버 KRX), 온라인 BrokerCurrentMarketData(연결 계좌)로 라우팅한다. 일반 조회는 서버 pollingInterval을 따르고 선택 종목·공개 모의매매는 IFastCurrentMarketData, 공개 실시간 스크리닝은 IFastPublicCurrentBatchData로 장중 1초를 사용한다. 새 응답은 Dispatcher에서 즉시 반영한다. 키움 WebSocket도 온라인에서만 공유하며 연결 실패를 공개 가격으로 대체하지 않는다.
+
+실시간 UI 행은 종목 키별 객체를 보존해 속성만 갱신한다. 전략 변경은 `RealtimeOversoldScreeningService.Reconfigure`가 완성 봉 snapshot을 캡처해 잠금 밖에서 지표를 재계산하고 버전을 비교해 교체한다. 준비 중 추가 완성봉은 catch-up하고 이전 버전 UI 응답은 배제한다. 기존 Paper batch는 신규 진입만 차단하고 보유분 보호를 계속한다. 차트는 `ChartData` → 공통 BacktestService → 기존 ScreeningChartDialog를 사용하며 모형체결과 확인된 계좌 체결을 분리 표시한다.
+
+오프라인 종목 차트는 공개 1분봉을 캐시해 1~59분/1~12시간으로 묶는다. 당일 분봉은 분당 재조회하며 현재가 관측은 화면의 미완성 봉 가격에만 합친다. 일 누적 거래량을 분봉 거래량으로 대체하지 않고, 관측 봉은 연구 원본·Raw Tick DB에 저장하지 않는다. 온라인은 공식 증권사 경로를 유지한다.
 
 ## 실시간 스크리닝 서비스 (2026-11-03)
 
