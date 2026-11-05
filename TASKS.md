@@ -1,7 +1,8 @@
-## 현재 작업 2026-11-05 — 로컬/Release 비교·v0.1.9 게시 [~]
+## 현재 작업 2026-11-05 — 로컬/Release 비교·v0.1.9 게시 [x]
 - [x] 로컬 Stock.exe `B56700F3...`(80,800,358 bytes)와 최신 v0.1.8 공개 파일 `E96E32BD...`(80,832,957 bytes)가 다름을 확인했다. 로컬은 선택 종목 2초 공개시세와 오프라인/온라인 이름 수정본이다.
-- [~] 수정 소스 검토·빌드/검사 후 source/tag push, Actions v0.1.9 게시, 공개 EXE·체크섬 직접 검증을 진행한다. 실행 중인 사용자 앱/계좌 주문은 조작하지 않는다.
-- [x] 최신 소스 Release 빌드 경고0/오류0, 현재가119개 및 현재 로컬 EXE smoke 종료0/Success/NoBrokerCalls=true 확인. 전체 회귀는 `artifacts/release019-full.log`에 진행 중이다. credential/database 추적 파일은 0개다.
+- [x] 수정 소스 검토 후 `263c889`/v0.1.9를 push하고 Actions run `41956934620` / job `127013976601` 전체 성공 및 공개 Release 게시를 확인했다. 실행 중인 사용자 앱/계좌 주문은 조작하지 않았다.
+- [x] Release 빌드 경고0/오류0, 현재가119개 및 로컬/CI 전체 회귀 각각 1,143개 통과. 로컬·CI·다운로드 공개 EXE smoke 모두 종료0/Success/NoBrokerCalls=true. credential/database 추적 파일은 0개다.
+- [x] 공개 EXE·sha를 직접 다운로드해 파일 해시/체크섬/GitHub API digest 일치를 확인했다. 루트/release Stock.exe도 공개 빌드와 일치시켰다: **80,833,343 bytes**, SHA256 `9D61F93DD4622590BD479969C7B34FF46339974924E5BB816A2A55E9ADF1CF52`, ProductVersion `1.0.0+263c8895a5c7237e534b43a74c64978116ac3774`. 이전 로컬은 `artifacts/Stock-local-before-release019-B56700F3.exe` 보존. Release: https://github.com/BaDook2/C-_STOCK/releases/tag/v0.1.9
 
 ## 현재 작업 2026-11-05 — 선택 종목 공개시세 2초 조회·상단 모드 이름 [x]
 - [x] 장중 네이버 공개 응답을 2초 간격으로 읽어 서버 시각 11:13:52/54/56/58과 가격 변경을 확인했다. 선택 종목 화면만 별도 2초 캐시/펌프로 갱신하고, 다종목 감시·온라인 조회 주기는 유지한다. 실제 펌프에서 11:19:27/29/31 KST 세 응답과 가격 변경을 확인했다. 공개 원본 체결이 2초마다 보장되는 것은 아니다.

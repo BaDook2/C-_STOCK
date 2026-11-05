@@ -1,8 +1,10 @@
-# 최신 상태 — 2026-11-05 로컬/Release 비교·v0.1.9 게시 진행
+# 최신 상태 — 2026-11-05 로컬/Release 비교·v0.1.9 게시 완료
 
-사용자가 로컬 Stock.exe와 GitHub Release를 비교하고 다르면 GitHub 갱신을 요청했다. 로컬은 `B56700F38D725A1110523BB0509B8CC6C4EAD7A47491D26E2B616D79A31EC088`/80,800,358 bytes로, 공개 v0.1.8 `E96E32BD...`와 다르며 아래 선택 종목 2초 조회와 모드 이름 변경이 로컬에만 있다. 이번에는 해당 변경을 새 v0.1.9에 게시한다. 새 빌드 경고0/오류0, 현재가119개, 로컬 EXE smoke Success/NoBrokerCalls=true를 확인했다. 전체 회귀 로그는 `artifacts/release019-full.log`에서 진행 중이다.
+로컬 Stock.exe `B56700F3...`(80,800,358 bytes)가 공개 v0.1.8 `E96E32BD...`보다 새 기능(선택 종목 장중 공개시세 2초 조회, 오프라인/온라인 이름)을 포함해 소스 `263c889`/태그 v0.1.9로 게시했다. [Actions run 41956934620](https://github.com/BaDook2/C-_STOCK/actions/runs/41956934620) / job `127013976601` 전체 성공, [v0.1.9 Release](https://github.com/BaDook2/C-_STOCK/releases/tag/v0.1.9) 공개 완료. 로컬/CI 각각 전체 1,143개, 현재가119개, 빌드 경고0/오류0, 로컬·CI·다운로드 EXE smoke 종료0/Success/NoBrokerCalls=true다.
 
-소스/태그 push 후 Actions 전체 검사·게시 완료, 공개 EXE+sha 직접 다운로드·해시/실행 검증, 루트/release를 검증 공개 빌드와 일치시키고 TASKS/HANDOFF 완료 기록을 이어간다. 사용자 실행/계좌 주문은 조작하지 않는다. 현재 비교 시 Stock 프로세스는 없었다.
+**현재 루트/release Stock.exe와 공개 배포 EXE는 동일**하다. 80,833,343 bytes / SHA256 `9D61F93DD4622590BD479969C7B34FF46339974924E5BB816A2A55E9ADF1CF52`. ProductVersion은 `1.0.0+263c8895a5c7237e534b43a74c64978116ac3774`이며 Release 태그 v0.1.9와 구분한다. 공개 EXE/sha 직접 다운로드 후 파일 해시·체크섬·GitHub API digest가 모두 일치함을 확인했다. 다운로드는 `artifacts/release-v0.1.9/`, 이전 로컬 백업은 `artifacts/Stock-local-before-release019-B56700F3.exe`, 전체 검사 로그는 `artifacts/release019-full.log`다.
+
+이번 요청의 남은 작업은 없다. 교체 시 사용자 Stock 프로세스는 없었고 앱/계좌 주문은 조작하지 않았다. 실주문 없음. credential/database 추적 파일은 0개다. 이후 비교에는 이 최종 공개 해시를 기준으로 하며 아래 이전 로컬 빌드 해시와 혼동하지 않는다.
 
 # 이전 상태 — 2026-11-05 선택 종목 공개시세 2초 조회·모드 이름 변경
 
