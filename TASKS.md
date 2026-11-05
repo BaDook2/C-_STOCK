@@ -1,9 +1,11 @@
-## 현재 작업 2026-11-05 — 장중 실시간 기능 검증·최신 Release [~]
+## 현재 작업 2026-11-05 — 장중 실시간 기능 검증·최신 Release [x]
 - [x] 오프라인 공개시세 7초 관측 갱신, 20종목 공개 실시간 스크리닝의 09:51→09:52 분석/새 신호, 키움 국내 인증·잔고·REST 현재가·분봉과 실제 WebSocket 체결 1,197건/호가 373건 수신을 확인했다. 실계좌 주문 없음.
 - [x] 온라인 준비 봉 거래일 누락 오류를 공용 `WithObservedWarmupSessions`로 수정했다. 수정 EXE의 20종목 분석이 실제 피드에서 10:02→10:05로 전진했고 탭 이동 후 유지됐다. 상태/위험 미확인은 자동주문에서 제외한다. 분봉에서 과거 봉 변동률로 바뀌던 실시간 헤더도 수정했다.
-- [x] 전체 회귀 1,133개, Release 빌드 경고0/오류0, 최종 게시 EXE smoke Success/NoBrokerCalls=true. 상세: `docs/verification/Realtime-2026-11-05.md`. 최종 로컬 게시 SHA256 `81E3816D41FCC755C94796B911D7F54B2D6A9E04B0DF737D5E4B7BCDD3252B4D`.
+- [x] 1차 수정본 전체 회귀 1,133개, Release 빌드 경고0/오류0, 게시 EXE smoke Success/NoBrokerCalls=true. 상세: `docs/verification/Realtime-2026-11-05.md`. 이 단계 로컬 SHA256은 `81E3816D41FCC755C94796B911D7F54B2D6A9E04B0DF737D5E4B7BCDD3252B4D`이며 아래 최종 v0.1.8 공개 해시를 우선한다.
 - [x] 헤더 수정본에서 키움 1분 차트 현재 시각·등락률이 유지됐다. 공개시세 가상 Entry1→4주 지정가 주문과 팝업 Close 후 실행 유지도 확인했다. 전체 중지 시 가상 취소 요청이 남던 추가 문제를 로컬 취소 완료로 고치고 관련 27개 검사(신규3개)를 통과했다. 실제 주문 없음.
-- [~] v0.1.7 소스/태그 push 및 Actions는 진행 중이다. 추가 가상 취소 보완을 포함한 최종 v0.1.8 게시 EXE/루트 교체·장중 중지 재확인, Actions 전체 검사/Release 공개 체크섬 확인을 이어간다.
+- [x] v0.1.7 run `41946271720` 전체 검사·게시 EXE smoke·Release 생성이 성공했다. 추가 가상 취소 보완을 포함한 최종 배포 대상은 v0.1.8이다.
+- [x] v0.1.8 소스 `3901268`/태그 push, 로컬/CI 전체 회귀 각각 1,136개와 빌드 경고0/오류0, 게시 EXE smoke Success/NoBrokerCalls=true를 확인했다. Actions run `41947337970` 전체 성공 및 공개 Release 생성 완료. 최종 앱의 가상 시작/전체 중지 재확인 후 모두 중지했다.
+- [x] 공개 Release의 EXE+sha를 직접 다운로드해 SHA256 파일/API digest와 일치를 확인하고 다운로드 EXE smoke도 종료0/Success/NoBrokerCalls=true였다. 루트 및 release `Stock.exe`를 이 공개 CI 빌드로 맞췄다: **80,832,957 bytes**, SHA256 `E96E32BD2FAF6BB0D954942AFCA4E4BD9CD2EB9254E4BC5C09B2719A1A75381C`. 직전 로컬 빌드는 `artifacts/Stock-local-before-release018-38EB625A.exe` 보존. Release: https://github.com/BaDook2/C-_STOCK/releases/tag/v0.1.8
 
 ## 현재 작업 2026-11-05 — StockViewer 공개시세 비교·오프라인 실시간 스크리닝·키움 연결 [x]
 - [x] StockViewer 공개 `domestic/stock`·`worldstock/stock` 경로를 STOCK 현재가 공급자에 적용하고 국내 최대 20종목 묶음 조회를 추가했다. 실제 키 없는 애플 검색·일봉·현재가 성공(미국 공개 7초), 삼성전자 장마감 현재가 성공(제공처 70초)을 확인했다.

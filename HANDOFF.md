@@ -1,8 +1,12 @@
-# 최신 상태 — 2026-11-05 장중 검증·v0.1.7 배포 진행
+# 최신 상태 — 2026-11-05 장중 검증·v0.1.8 배포 완료
 
-최신 TASKS 맨 위를 따른다. 공개 7초 갱신/20종목 실시간 신호, 키움 국내 인증·잔고·1초 REST·공식 분봉·WebSocket 체결 1,197건/호가 373건 수신을 실제 장중 확인했다. 온라인 스크리닝에서 과거 준비 봉의 세션 누락으로 중지되던 오류를 `LiveBatchSupport.WithObservedWarmupSessions`로 고쳤으며 실제 20종목 분석이 10:02→10:05로 전진했다. 상태·위험 미확인 종목은 연구 감시를 유지하지만 가상 자동매매 준비에서 제외한다. 분/틱 차트의 현재가 헤더도 일봉과 동일한 현재 관측·전일종가 기준으로 고쳤다.
+[v0.1.8 Release](https://github.com/BaDook2/C-_STOCK/releases/tag/v0.1.8), [Actions run 41947337970](https://github.com/BaDook2/C-_STOCK/actions/runs/41947337970) 모두 성공했다. 배포 소스는 `3901268`이다. 로컬/CI 각각 전체 **1,136개**, 관련 27개, 빌드 경고0/오류0, 게시 단일 EXE smoke Success/NoBrokerCalls=true. 공개 EXE+sha를 직접 다운로드해 파일 해시·체크섬·GitHub API digest의 일치를 확인하고 다운로드 EXE smoke도 종료0/Success/NoBrokerCalls=true를 확인했다.
 
-전체 회귀 1,133개, 최종 Release 빌드 경고0/오류0, 단일 EXE smoke Success/NoBrokerCalls=true. 최종 게시 EXE SHA256 `81E3816D41FCC755C94796B911D7F54B2D6A9E04B0DF737D5E4B7BCDD3252B4D`. 루트 교체/최종 UI 및 v0.1.7 Actions Release 확인을 이어간다. `docs/verification/Realtime-2026-11-05.md`에 실제 검증과 가짜 피드 자동검사의 범위를 구분했다. 실계좌 주문 없음. 키·토큰·계좌번호는 저장소/진단 출력에 포함하지 않는다.
+**현재 루트/release Stock.exe는 공개 CI 배포본과 동일**하다. 80,832,957 bytes / SHA256 `E96E32BD2FAF6BB0D954942AFCA4E4BD9CD2EB9254E4BC5C09B2719A1A75381C`. 검증한 다운로드는 `artifacts/release-v0.1.8/`, 직전 로컬 빌드는 `artifacts/Stock-local-before-release018-38EB625A.exe`다. 로컬 SDK 빌드 해시와 혼동하지 않는다. 공개 배포본의 일반 실행 창도 확인했다. 이번 요청의 남은 작업은 없다.
+
+실제 장중 공개 7초 갱신/일·주·월봉·시장·관심종목, 20종목 공개 실시간 분석과 새 신호, 키움 국내 인증·잔고·1초 REST·공식 분봉·WebSocket 체결 1,197건/호가 373건을 확인했다. 온라인 스크리닝의 과거 준비 봉 세션 누락은 `LiveBatchSupport.WithObservedWarmupSessions`로 고쳤고 실제 20종목 분석이 10:02→10:05로 전진했다. 상태/위험 미확인은 연구 감시를 유지하지만 자동주문에서 제외한다. 분봉의 현재가 헤더가 과거 봉 기준으로 바뀌던 문제도 수정했다.
+
+공개 모의 Entry1→4주 지정가 대기와 팝업 Close 후 유지, 전체 중지를 확인했다. `PaperBroker.CancelLocally`로 로컬 가상 미체결 취소 완료 후 피드를 중지한다(실계좌 취소 로직 변경 없음). 장중 실제 모의 체결은 조건 미충족으로 없었고 체결/표식은 결정적 가짜 피드 검사로 검증했다. 검증용 실행은 모두 중지했다. 실계좌 주문 없음. 키·토큰·계좌번호는 저장소/진단 출력에 포함하지 않았으며 credential/database 추적 파일은 0개다. 상세는 `docs/verification/Realtime-2026-11-05.md`를 읽는다.
 
 # 이전 상태 — 2026-11-05 StockViewer 공개시세 비교·오프라인 실시간 스크리닝·키움 연결
 
