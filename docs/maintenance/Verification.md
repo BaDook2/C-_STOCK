@@ -30,3 +30,5 @@ dotnet publish Stock.App/Stock.App.csproj -c Release -p:PublishProfile=Win64 -m:
 5. 실행 중인 앱이 없는지 확인한 뒤 검증한 공개 EXE를 루트 `Stock.exe`와 `release/Stock.exe`에 반영한다. 버전/소스 커밋/검사 수/빌드/Actions/해시/링크/남은 실제 제한을 TASKS/HANDOFF에 기록한다. 릴리즈 기록만 갱신하는 문서 커밋은 추가 릴리즈를 만들지 않는다.
 
 실제 API 검증과 fixture 검증은 구분한다. 재현되지 않은 과거 장애는 미확정으로 공개하며, 현재 검사 성공을 과거 원인 확정이나 모든 시장 상황의 보증으로 표현하지 않는다.
+
+최근 릴리즈 검증 근거: [v0.1.11](../verification/Release-v0.1.11.md). GitHub Windows의 전체 회귀는 이 버전에서23분4초가 걸렸다. 로컬 실행 시간만으로 CI 중단 여부를 판단하지 말고 단계 상태/이전 성공 로그를 확인한다.
