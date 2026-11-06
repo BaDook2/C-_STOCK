@@ -70,6 +70,11 @@ internal static partial class Program
         using(var unsupported=new ScreeningChartViewModel(snapshot))
         {unsupported.RequestPeriod("3분");PumpUntil(()=>!unsupported.Busy);Check(!unsupported.CanUseMinutes&&unsupported.DisplayPeriod=="1시"&&unsupported.Message.Contains("API"),"unavailable minute data preserves the current chart with an explicit reason");}
         var benchmark=BenchmarkReviewChart();File.WriteAllText(Path.Combine(output,"screening-chart-performance.json"),JsonSerializer.Serialize(benchmark,new JsonSerializerOptions{WriteIndented=true}));
+        var hoverChart=new CandleChart{Bars=snapshot.Initial.Bars,Period="1시"};hoverChart.Measure(new Size(800,500));hoverChart.Arrange(new Rect(0,0,800,500));
+        hoverChart.RaiseEvent(new MouseEventArgs(Mouse.PrimaryDevice,Environment.TickCount){RoutedEvent=Mouse.MouseMoveEvent});var previousHelp=hoverChart.ToolTip?.ToString();
+        var index=hoverChart.HoverBarIndex(Mouse.GetPosition(hoverChart).X);var changed=snapshot.Initial.Bars.ToArray();changed[index]=changed[index] with{Close=110,High=111};hoverChart.Bars=changed;
+        hoverChart.RaiseEvent(new MouseEventArgs(Mouse.PrimaryDevice,Environment.TickCount){RoutedEvent=Mouse.MouseMoveEvent});
+        Check(hoverChart.ToolTip?.ToString()!=previousHelp&&hoverChart.ToolTip?.ToString()?.Contains("110")==true,"live candle replacement invalidates the same-candle tooltip cache");
     }
 
     private static object BenchmarkReviewChart()

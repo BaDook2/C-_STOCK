@@ -7,7 +7,8 @@
 - [x] 25봉 최소 제한으로 짧은 시간봉 휠 확대가 막히던 문제 수정(확대 상태 최소5봉/최초 확대 봉 수 최대). 마우스 포커스·렌더 병합·표식 이진 탐색/캐시. 실제 마우스·성능 비교·전체1,279개·빌드 경고0/오류0 성공. 근거: docs/verification/ScreeningChart-2026-11-06.md.
 - [x] 단일 EXE publish/smoke 성공(Success/NoBrokerCalls/RawNativeRendered=true). 게시 전용 컴파일 지연을 고려해 Actions 제한45분으로 조정, 검사 단계/성공 조건 유지.
 - [x] 검증된 로컬 EXE를 루트/release에 적용. 80,833,863 bytes / SHA256 A20F7B102C123514BCFEE4F29CA09882DF1E9C34F1257F13D957CCAADF0D74E0. 이전 공개본은 artifacts에 보존.
-- [~] v0.1.12 릴리즈 → Actions 전체 검사 → 공개 다운로드 hash/실행 → 공개본과 로컬 EXE 일치 확인.
+- [x] 봉 교체/주기 변경 후 같은 봉의 툴팁 캐시 무효화까지 수정. 전용21개/최종 전체1,280개·빌드 경고0/오류0·단일 EXE smoke 성공. 루트/release는 최종 로컬 빌드 SHA256 FCCB3B5A2712B50324A6849FBF8328F402474549F68AA3AAF6A2656BB5E2D425로 갱신했다.
+- [~] v0.1.12/a213cf4의 Actions42174269437은 게시 전 중단/태그 보존. 수정본을 새 v0.1.13으로 게시하고 CI/공개 hash/smoke/로컬 일치를 확인한다.
 
 ## 이전 작업 완료
 

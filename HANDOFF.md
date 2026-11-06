@@ -8,6 +8,8 @@ AGENTS.md → TASKS.md → docs/START_HERE.md. 이번 상세 보고서는 docs/v
 
 루트/release에는 새 로컬 EXE를 먼저 적용했다: 80,833,863 bytes / SHA256 A20F7B102C123514BCFEE4F29CA09882DF1E9C34F1257F13D957CCAADF0D74E0. 공개 v0.1.11 파일과 구분한다. 게시 전용 컴파일이 오래 걸렸지만 분석기/검사를 생략하지 않고 성공했으며 CI 제한은45분으로 조정했다.
 
+v0.1.12/a213cf4 Actions42174269437은 게시 전 중단/태그 보존. 툴팁 캐시 무효화까지 수정해 전용21개/전체1,280개/경고0·오류0/publish·EXE smoke 성공했다. 루트/release는 최종 로컬 SHA256 FCCB3B5A2712B50324A6849FBF8328F402474549F68AA3AAF6A2656BB5E2D425로 갱신. 다음: 새 v0.1.13 태그→CI/공개 hash/smoke/로컬 동기화. docs/verification/Release-v0.1.13.md 참고. 기존 태그 덮어쓰기 금지.
+
 이전 요청 완료: v0.1.11/코드44bc68b, Actions 42151757915 전체1,257개·경고0/오류0·공개 다운로드 hash/smoke/로컬 EXE 갱신 성공. docs/verification/Release-v0.1.11.md 참고.
 
 ## DB 사실과 수정

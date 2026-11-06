@@ -19,7 +19,7 @@ public sealed class CandleChart : FrameworkElement
     public static readonly DependencyProperty SupportZonesProperty=DependencyProperty.Register(nameof(SupportZones),typeof(IReadOnlyList<ScreeningSupportZone>),typeof(CandleChart),new FrameworkPropertyMetadata(null,FrameworkPropertyMetadataOptions.AffectsRender));
     public IReadOnlyList<ScreeningSupportZone>? SupportZones {get=>(IReadOnlyList<ScreeningSupportZone>?)GetValue(SupportZonesProperty);set=>SetValue(SupportZonesProperty,value);}
     public event Action<TradeMarker>? TradeMarkerClicked;
-    public static readonly DependencyProperty PeriodProperty=DependencyProperty.Register(nameof(Period),typeof(string),typeof(CandleChart),new FrameworkPropertyMetadata("일봉",FrameworkPropertyMetadataOptions.AffectsRender));
+    public static readonly DependencyProperty PeriodProperty=DependencyProperty.Register(nameof(Period),typeof(string),typeof(CandleChart),new FrameworkPropertyMetadata("일봉",FrameworkPropertyMetadataOptions.AffectsRender,(d,_)=>((CandleChart)d).tooltipIndex=-1));
     public string Period {get=>(string)GetValue(PeriodProperty);set=>SetValue(PeriodProperty,value);}
     public event Action<DateTimeOffset,bool>? RangeRequested;
     private DateTimeOffset? contextDate;
@@ -45,6 +45,7 @@ public sealed class CandleChart : FrameworkElement
     public static readonly DependencyProperty BarsProperty=DependencyProperty.Register(nameof(Bars),typeof(IReadOnlyList<PriceBar>),typeof(CandleChart),new FrameworkPropertyMetadata(null,FrameworkPropertyMetadataOptions.AffectsRender,(d,e)=>{
         var chart=(CandleChart)d;
         chart.indicatorCache=null;
+        chart.tooltipIndex=-1;
         if(chart.offset>0&&e.OldValue is IReadOnlyList<PriceBar> old&&e.NewValue is IReadOnlyList<PriceBar> next&&old.Count>0&&next.Count>old.Count&&next[0].Time==old[0].Time)chart.offset+=next.Count-old.Count;
     }));
     public static readonly DependencyProperty MovingAveragesProperty=DependencyProperty.Register(nameof(MovingAverages),typeof(bool),typeof(CandleChart),new FrameworkPropertyMetadata(true,FrameworkPropertyMetadataOptions.AffectsRender));
