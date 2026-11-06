@@ -80,8 +80,7 @@ public sealed partial class WorkspaceViewModel
         if(BacktestDaily){await ExecuteOversoldBacktest(data,cfg,facts,first,last,token);return;}
         if(!IsOnline||broker is not IMinuteHistoryBroker||broker.Exchange!=data.Stock.Exchange)throw new InvalidOperationException("분·시간봉 백테스트는 온라인 투자에서 선택 종목과 같은 시장의 분봉 API 연결이 필요합니다.");
         var specification=TimeBarSelection.Parse(BacktestBarValue,BacktestBarUnit);
-        var requiredBars=new[]{cfg.AverageTradingValueLookbackDays,cfg.CrashLookbackDays,cfg.ShortCrashLookbackDays,cfg.RsiPeriod+1,cfg.VolumeLookbackDays+1,cfg.PivotLeftBars+cfg.PivotRightBars+1,cfg.VolumeZoneLookbackDays,cfg.MaPeriods().DefaultIfEmpty(1).Max()}.Max();
-        var minutesPerBar=checked(specification.Value*(specification.Unit==BarUnit.Hour?60:1));var barsPerDay=Math.Max(1,390/minutesPerBar);var warmupTradingDays=(int)Math.Ceiling(requiredBars/(double)barsPerDay);var calendarDays=Math.Max(14,(int)Math.Ceiling(warmupTradingDays*7d/5d)+14);var warmupFrom=first.AddDays(-calendarDays);
+        var warmupFrom=RealtimeWarmup.BacktestHistoryStart(first,specification,cfg);
         var now=DateTimeOffset.UtcNow.ToOffset(TimeSpan.FromHours(9));var rangeEnd=new DateTimeOffset(last.AddDays(1).ToDateTime(TimeOnly.MinValue),TimeSpan.FromHours(9));var asOf=rangeEnd<now?rangeEnd:now;
         var rows=await ScreeningBars(data.Stock,specification,facts,asOf,token,warmupFrom,last);
         var dates=rows.Select(b=>DailyDates.Of(b.Price)).Distinct().ToArray();var known=facts.Sessions.GroupBy(s=>s.Date).ToDictionary(g=>g.Key,g=>g.OrderByDescending(s=>s.Close).First());

@@ -18,6 +18,8 @@ public sealed class ScreeningChartViewModel:Observable,IDisposable
     private bool disposed,updating,busy;
     private string value="1",unit="분",period="일봉",message="";
     private ScreeningChartQuote? quote;
+    private ScreeningChartTrade? selectedTrade;
+    public ScreeningChartTrade? SelectedTrade {get=>selectedTrade;set{if(ReferenceEquals(selectedTrade,value))return;selectedTrade=value;Changed();}}
     public ScreeningChartSnapshot Snapshot {get;private set;}=null!;
     public ScreeningChartSeries DisplaySeries {get;private set;}=null!;
     public Task PendingLoad {get;private set;}=Task.CompletedTask;
@@ -49,9 +51,17 @@ public sealed class ScreeningChartViewModel:Observable,IDisposable
 
     public void SetSnapshot(ScreeningChartSnapshot snapshot)
     {
-        CancelLoad();Snapshot=snapshot;cache.Clear();foreach(var series in snapshot.Series)cache[series.Period]=series;
+        CancelLoad();Snapshot=snapshot;selectedTrade=null;cache.Clear();foreach(var series in snapshot.Series)cache[series.Period]=series;
         DisplaySeries=snapshot.Series.FirstOrDefault(s=>s.Period==AnalysisPeriod)??snapshot.Initial;
         period=DisplaySeries.Period;quote=null;message="";busy=false;SyncControls();Changed(null);RefreshQuote();
+    }
+
+    /// <summary>Matches the represented fill exactly, never a different trade at a nearby time.</summary>
+    public bool SelectMarker(TradeMarker marker)
+    {
+        var match=Snapshot.Trades.Where(t=>t.Time==marker.Time&&t.Buy==marker.Buy&&t.Quantity==marker.Quantity&&t.Price==marker.Price)
+            .OrderByDescending(t=>t.Source==marker.Source).ThenByDescending(t=>t.TradeNumber==marker.TradeNumber).ThenByDescending(t=>t.Reason==marker.Reason).FirstOrDefault();
+        if(match==null)return false;SelectedTrade=match;return true;
     }
 
     public void RequestPeriod(string selected)

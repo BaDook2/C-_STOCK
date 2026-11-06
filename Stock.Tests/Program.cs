@@ -21,9 +21,9 @@ internal static partial class Program
     [STAThread]public static int Main(string[] args)
     {
         Directory.CreateDirectory(Dir);
-        if(args.Length==2&&args[0] is "--screening-chart-checks" or "--screening-chart-demo")
+        if(args.Length==2&&args[0] is "--screening-chart-checks" or "--screening-chart-demo" or "--screening-trade-demo")
         {
-            try{Directory.CreateDirectory(args[1]);SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(Dispatcher.CurrentDispatcher));var app=new Stock.App.App{ManualWindowStartup=true};app.InitializeComponent();if(args[0]=="--screening-chart-demo")ScreeningChartDemo(args[1]);else ScreeningChartInteractionTests(args[1]);app.Shutdown();Console.WriteLine($"PASS: {passed} screening chart checks");return 0;}catch(Exception ex){Console.Error.WriteLine(ex);return 1;}
+            try{Directory.CreateDirectory(args[1]);SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(Dispatcher.CurrentDispatcher));var app=new Stock.App.App{ManualWindowStartup=true};app.InitializeComponent();if(args[0]=="--screening-chart-demo")ScreeningChartDemo(args[1]);else if(args[0]=="--screening-trade-demo")ScreeningTradeChartDemo(args[1]);else ScreeningChartInteractionTests(args[1]);app.Shutdown();Console.WriteLine($"PASS: {passed} screening chart checks");return 0;}catch(Exception ex){Console.Error.WriteLine(ex);return 1;}
         }
         if(args.Contains("--public-paper-checks")){try{PublicPaperTests();Console.WriteLine($"PASS: {passed} public paper checks");return 0;}catch(Exception ex){Console.Error.WriteLine(ex);return 1;}}
         if(args.Length==2&&args[0]=="--public-quote-monitor"){try{PublicQuoteMonitor(args[1]).GetAwaiter().GetResult();return 0;}catch(Exception ex){Console.Error.WriteLine(ex);return 1;}}

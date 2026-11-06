@@ -1,8 +1,10 @@
-# 현재 상태 — 2026-11-06 스크리닝 차트 개선
+# 현재 상태 — 2026-11-06 스크리닝 지정봉 체결·선택 보완
 
 ## 이어갈 작업
 
-요청 완료. v0.1.13 코드 c51f668544672436e5c7d47e099f416cedf47f55, Actions42175965891 전체1,280개/빌드0경고·0오류/publish·smoke·Release 성공. 공개 다운로드/checksum/digest/실행과 루트/release 동기화도 완료했다. 새 요청 없이 같은 검사/태그/릴리즈를 반복 실행하지 않는다. docs/verification/Release-v0.1.13.md 참고.
+현재 요청 구현 완료/릴리즈 진행: ScreeningNavigation에 공통 지정봉 엔진·준비 봉 연결, RealtimeWarmup.BacktestHistoryStart를 메인 백테스트와 공유했다. CandleChart에 짧은 차트 즉시 탐색/실제 글자·묶음 클릭 판정/오른쪽 표식 배치, ScreeningChartViewModel.SelectedTrade와 Dialog의 행 선택·스크롤을 보완했다. 전용58개/관련328개/전체1,317개, 빌드 경고0·오류0、publish·EXE smoke 종료0/Success/NoBrokerCalls=true. Windows 실제 마우스로 시간봉·분봉 표식 선택과6→5봉 휠 확인. 다음: 새 v0.1.14(원격 미사용 확인) 커밋/태그/push→CI 전체 검사→공개 다운로드 검증→루트 반영. 로컬 EXE FDD5538D... /80,835,673 bytes는 publish/win-x64, 루트는 아직v0.1.13이다. 근거 docs/verification/{ScreeningTradeChart-2026-11-06,Release-v0.1.14}.md. 실제 주문/키 변경 없음.
+
+직전 배포 v0.1.13 코드 c51f668544672436e5c7d47e099f416cedf47f55, Actions42175965891 전체1,280개/빌드0경고·0오류/publish·smoke·Release 성공. 공개 다운로드/checksum/digest/실행과 루트/release 동기화 완료. docs/verification/Release-v0.1.13.md 참고.
 
 - 최신 요구: 스크리닝 차트 주기 콤보 제거/분석 기준 읽기 전용, 별도 지정봉(분1~59/시간1~12)/일·주·월, 실시간 가격·전일 대비1초 표시, 우클릭 후 휠 확대/최대 축소 한도, 렌더 최적화.
 - 구현: ScreeningChartViewModel의 비동기 조회/취소/파생 시리즈 캐시, ScreeningChartData의 기존 공개/증권사 제공자, ScreeningChartDialog의 UI, CandleChart의 이진 탐색·표식/지지구간 캐시·프레임 병합. 분석/체결 snapshot은 변경하지 않는다.

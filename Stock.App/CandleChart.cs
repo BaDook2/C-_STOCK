@@ -1,4 +1,4 @@
-﻿using System.Globalization;
+using System.Globalization;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
@@ -60,6 +60,10 @@ public sealed class CandleChart : FrameworkElement
     private int visible=100,offset;private Point? hover,drag;private int dragOffset;private bool interactiveRenderQueued;private IndicatorCache? indicatorCache;private int indicatorCacheBuildCount;private int tooltipIndex=-1;
     private IReadOnlyList<PriceBar>? mappedBars;private IReadOnlyList<TradeMarker>? mappedMarkers;private IReadOnlyList<ScreeningSupportZone>? mappedZones;private string? mappedPeriod;
     private LocatedTrade[] locatedTrades=[];private LocatedZone[] locatedZones=[];private int markerMapBuildCount;
+    private readonly List<(Rect Bounds,TradeMarker Marker)> markerHitRegions=[];
+    private IReadOnlyList<PriceBar>? hitBars;private IReadOnlyList<TradeMarker>? hitMarkers;private string? hitPeriod;private int hitVisible,hitOffset;private Size hitSize;
+    /// <summary>Actual label bounds from the last rendered viewport, including aggregated trade badges.</summary>
+    public IReadOnlyList<(Rect Bounds,TradeMarker Marker)> RenderedTradeMarkers=>markerHitRegions.AsReadOnly();
     private bool screeningReviewMode,screeningReviewFocused;private int screeningFocusLimit=500,screeningMaximumVisible=500;
     public int ViewOffset=>offset;
     public int VisibleBarCount=>visible;
@@ -84,8 +88,8 @@ public sealed class CandleChart : FrameworkElement
     private static readonly SolidColorBrush CloudRed=FrozenBrush(Color.FromArgb(28,240,68,82)),CloudBlue=FrozenBrush(Color.FromArgb(28,49,130,246)),CloudRedLine=FrozenBrush(Color.FromArgb(130,240,68,82)),CloudBlueLine=FrozenBrush(Color.FromArgb(130,49,130,246)),Conversion=FrozenBrush(Color.FromRgb(231,130,36)),BaseLine=FrozenBrush(Color.FromRgb(104,86,206)),Lagging=FrozenBrush(Color.FromRgb(24,159,136));
     private static readonly SolidColorBrush MaFast=FrozenBrush(Color.FromRgb(255,161,50)),MaSlow=FrozenBrush(Color.FromRgb(142,94,239)),Ma60=FrozenBrush(Color.FromRgb(34,166,140)),Ma120=FrozenBrush(Color.FromRgb(228,93,131));
     private static readonly Pen RedPen=FrozenPen(Red,1),BluePen=FrozenPen(Blue,1),GridPen=FrozenPen(Grid,1);
-    public CandleChart(){ClipToBounds=true;Focusable=true;MinHeight=180;MouseMove+=(_,e)=>{if(!ScreeningInteractionEnabled){hover=null;ToolTip=null;Cursor=Cursors.Arrow;return;}hover=e.GetPosition(this);if(drag is {} p){PanFromGesture(hover.Value.X-p.X);ToolTip=null;Cursor=Cursors.SizeWE;return;}var i=HoverBarIndex(hover.Value.X);if(i!=tooltipIndex){tooltipIndex=i;ToolTip=i>=0&&Bars!=null?BarHelp(Bars[i]):null;}QueueInteractiveRender();};MouseLeave+=(_,_)=>{hover=null;tooltipIndex=-1;ToolTip=null;if(drag==null)Cursor=Cursors.Arrow;QueueInteractiveRender();};PreviewMouseWheel+=(_,e)=>{if(ScreeningInteractionEnabled)ZoomAt(e.GetPosition(this).X,e.Delta);e.Handled=true;};MouseLeftButtonDown+=(_,e)=>{if(!ScreeningInteractionEnabled){e.Handled=true;return;}Focus();drag=e.GetPosition(this);dragOffset=offset;Cursor=Cursors.SizeWE;CaptureMouse();e.Handled=true;};MouseLeftButtonUp+=(_,e)=>{if(!ScreeningInteractionEnabled){drag=null;Cursor=Cursors.Arrow;if(IsMouseCaptured)ReleaseMouseCapture();e.Handled=true;return;}var point=e.GetPosition(this);var wasClick=drag is {} start&&Math.Abs(start.X-point.X)<4&&Math.Abs(start.Y-point.Y)<4;drag=null;hover=point;Cursor=Cursors.Arrow;if(IsMouseCaptured)ReleaseMouseCapture();QueueInteractiveRender();if(wasClick&&MarkerAtPoint(point) is {} marker)TradeMarkerClicked?.Invoke(marker);e.Handled=true;};}
-    /// <summary>Shows the complete screening interval first and reserves mouse navigation until the user right-clicks a focus point.</summary>
+    public CandleChart(){ClipToBounds=true;Focusable=true;MinHeight=180;MouseEnter+=(_,_)=>{if(screeningReviewMode&&ScreeningInteractionEnabled)Focus();};MouseMove+=(_,e)=>{if(!ScreeningInteractionEnabled){hover=null;ToolTip=null;Cursor=Cursors.Arrow;return;}hover=e.GetPosition(this);if(drag is {} p){PanFromGesture(hover.Value.X-p.X);ToolTip=null;Cursor=Cursors.SizeWE;return;}var i=HoverBarIndex(hover.Value.X);if(i!=tooltipIndex){tooltipIndex=i;ToolTip=i>=0&&Bars!=null?BarHelp(Bars[i]):null;}QueueInteractiveRender();};MouseLeave+=(_,_)=>{hover=null;tooltipIndex=-1;ToolTip=null;if(drag==null)Cursor=Cursors.Arrow;QueueInteractiveRender();};PreviewMouseWheel+=(_,e)=>{if(ScreeningInteractionEnabled)ZoomAt(e.GetPosition(this).X,e.Delta);e.Handled=true;};MouseLeftButtonDown+=(_,e)=>{Focus();drag=e.GetPosition(this);dragOffset=offset;Cursor=ScreeningInteractionEnabled?Cursors.SizeWE:Cursors.Arrow;CaptureMouse();e.Handled=true;};MouseLeftButtonUp+=(_,e)=>{var point=e.GetPosition(this);var wasClick=drag is {} start&&Math.Abs(start.X-point.X)<4&&Math.Abs(start.Y-point.Y)<4;drag=null;hover=point;Cursor=Cursors.Arrow;if(IsMouseCaptured)ReleaseMouseCapture();QueueInteractiveRender();if(wasClick)SelectMarkerAtPoint(point);e.Handled=true;};}
+    /// <summary>Fits the complete interval; only a genuinely smaller focus window requires a right click before navigation.</summary>
     public void EnableScreeningReviewMode(int maximumFocusedBars=500)
     {
         screeningReviewMode=true;screeningFocusLimit=Math.Clamp(maximumFocusedBars,25,2000);ShowScreeningOverview();
@@ -105,7 +109,7 @@ public sealed class CandleChart : FrameworkElement
     }
     private void ShowScreeningOverview()
     {
-        var total=Bars?.Count??0;visible=Math.Max(1,total);offset=0;screeningMaximumVisible=ScreeningFocusCount(total,screeningFocusLimit);screeningReviewFocused=false;drag=null;hover=null;ToolTip=null;Cursor=Cursors.Arrow;if(IsMouseCaptured)ReleaseMouseCapture();InvalidateVisual();
+        var total=Bars?.Count??0;visible=Math.Max(1,total);offset=0;screeningMaximumVisible=ScreeningFocusCount(total,screeningFocusLimit);screeningReviewFocused=total>0&&screeningMaximumVisible==total;drag=null;hover=null;tooltipIndex=-1;ToolTip=null;Cursor=Cursors.Arrow;if(IsMouseCaptured)ReleaseMouseCapture();InvalidateVisual();
     }
     private void QueueInteractiveRender()
     {
@@ -161,6 +165,7 @@ public sealed class CandleChart : FrameworkElement
     protected override void OnRender(DrawingContext dc)
     {
         RenderFrameCount++;
+        markerHitRegions.Clear();hitBars=Bars;hitMarkers=TradeMarkers;hitPeriod=Period;hitVisible=visible;hitOffset=offset;hitSize=RenderSize;
         base.OnRender(dc);dc.DrawRectangle(Brushes.White,null,new Rect(RenderSize));var b=Bars;if(b==null||b.Count==0){var text=new FormattedText(EmptyMessage,CultureInfo.GetCultureInfo("ko-KR"),FlowDirection.LeftToRight,new Typeface("Malgun Gothic"),14,Muted,VisualTreeHelper.GetDpi(this).PixelsPerDip){MaxTextWidth=Math.Max(50,ActualWidth-48)};dc.DrawText(text,new(24,90));return;}
         double width=Math.Max(50,ActualWidth-88),height=Math.Max(55,ActualHeight-130),top=34;int end=Math.Max(1,b.Count-Math.Min(offset,Math.Max(0,b.Count-2))),start=Math.Max(0,end-visible);double step=width/(end-start);decimal low=decimal.MaxValue,high=decimal.MinValue;for(var i=start;i<end;i++){var bar=b[i];if(bar.Low<low)low=bar.Low;if(bar.High>high)high=bar.High;}var pad=(high-low)*.07m;if(pad==0)pad=high*.01m;low-=pad;high+=pad;var indicators=IndicatorsFor(b);EnsureMarkerMap(b);var renderStride=Math.Max(1,(int)Math.Ceiling(1.5/step));var renderBars=RenderBars(b,start,end,renderStride);var maxVol=Math.Max(1,renderBars.Max(x=>x.Volume));
         double X(double i)=>(i-start+.5)*step+6;double Y(decimal v)=>top+(double)((high-v)/(high-low))*height;
@@ -200,7 +205,9 @@ public sealed class CandleChart : FrameworkElement
                 var numbers=cluster.Items.Select(x=>x.Trade.TradeNumber).Where(n=>n.HasValue).Select(n=>n!.Value).Distinct().Order().ToArray();
                 var numberText=numbers.Length==0?"":numbers.Length<=3?string.Join(",",numbers.Select(n=>"#"+n))+" ":$"#{numbers[0]}~#{numbers[^1]} ";
                 var sides=string.Join(" / ",cluster.Items.Select(x=>x.Trade.SideLabel).Distinct());
-                DrawBadge(dc,numberText+(cluster.Buy?"▲ ":"▼ ")+sides+" "+cluster.Count.ToString("N0")+"건",X(index),Math.Clamp(y,top,top+height+35),brush);
+                var bounds=DrawBadge(dc,numberText+(cluster.Buy?"▲ ":"▼ ")+sides+" "+cluster.Count.ToString("N0")+"건",X(index),Math.Clamp(y,top,top+height+35),brush);
+                var representative=cluster.Items.OrderBy(x=>Math.Abs(x.Index-cluster.Position)).ThenBy(x=>x.Trade.Time).First().Trade;
+                markerHitRegions.Add((bounds,representative));
             }
         }
         else foreach(var item in located)
@@ -209,7 +216,8 @@ public sealed class CandleChart : FrameworkElement
             // Daily-only broker reports are annotations, never an invented execution price/time.
             var label=(trade.TradeNumber is {} number?$"#{number} ":"")+(trade.Buy?"▲ ":"▼ ")+trade.SideLabel+" "+trade.Quantity.ToString("N0")+(trade.DateOnly?"*":"");
             var y=trade.DateOnly?top+height+20:Y(trade.Price??b[index].Close)+(trade.Buy?12:-25);
-            Text(dc,label,X(index)-24,Math.Clamp(y,top,top+height+35),trade.Buy?Red:Blue,14);
+            var bounds=Text(dc,label,X(index)-24,Math.Clamp(y,top,top+height+35),trade.Buy?Red:Blue,14,keepInside:true);
+            markerHitRegions.Add((bounds,trade));
         }
         if(EquityCurve is {Count:>0} curve)
         {
@@ -292,15 +300,27 @@ public sealed class CandleChart : FrameworkElement
     public TradeMarker? MarkerAtPoint(Point point)
     {
         var b=Bars;var markers=TradeMarkers;if(b==null||b.Count==0||markers==null||markers.Count==0)return null;
+        // A badge can be centred between traded candles; its text can also extend over adjacent candles.
+        // Never reuse its old screen coordinates after pan, zoom, resize or source replacement.
+        if(ReferenceEquals(hitBars,b)&&ReferenceEquals(hitMarkers,markers)&&hitPeriod==Period&&hitVisible==visible&&hitOffset==offset&&hitSize==RenderSize)
+        {
+            var label=markerHitRegions.Where(hit=>hit.Bounds.Contains(point)).OrderBy(hit=>Math.Abs(hit.Bounds.Top+hit.Bounds.Height/2-point.Y)).Select(hit=>hit.Marker).FirstOrDefault();
+            if(label!=null)return label;
+        }
         EnsureMarkerMap(b);int end=Math.Max(1,b.Count-Math.Min(offset,Math.Max(0,b.Count-2))),start=Math.Max(0,end-visible);double width=Math.Max(50,ActualWidth-88),height=Math.Max(55,ActualHeight-130),top=34,step=width/(end-start);decimal low=decimal.MaxValue,high=decimal.MinValue;for(var i=start;i<end;i++){low=Math.Min(low,b[i].Low);high=Math.Max(high,b[i].High);}var pad=(high-low)*.07m;if(pad==0)pad=high*.01m;low-=pad;high+=pad;
         double Y(decimal v)=>top+(double)((high-v)/(high-low))*height;var clicked=HoverBarIndex(point.X);
         return locatedTrades.Where(x=>x.Index==clicked&&x.Index>=start&&x.Index<end).OrderBy(x=>Math.Abs((x.Trade.DateOnly?top+height+20:Y(x.Trade.Price??b[x.Index].Close))-point.Y)).Select(x=>x.Trade).FirstOrDefault();
     }
-    private void DrawBadge(DrawingContext dc,string label,double centerX,double y,Brush brush)
+    /// <summary>Selects an actual fill represented by a label or by the candle underneath it.</summary>
+    public bool SelectMarkerAtPoint(Point point)
+    {if(MarkerAtPoint(point) is not {} marker)return false;TradeMarkerClicked?.Invoke(marker);return true;}
+    private Rect DrawBadge(DrawingContext dc,string label,double centerX,double y,Brush brush)
     {
         var text=new FormattedText(label,CultureInfo.GetCultureInfo("ko-KR"),FlowDirection.LeftToRight,new Typeface("Malgun Gothic"),14,brush,VisualTreeHelper.GetDpi(this).PixelsPerDip);
         var x=Math.Clamp(centerX-text.Width/2,6,Math.Max(6,ActualWidth-94-text.Width));var rect=new Rect(x-4,y-2,text.Width+8,text.Height+4);
         dc.DrawRoundedRectangle(new SolidColorBrush(Color.FromArgb(225,255,255,255)),new Pen(brush,1),rect,4,4);dc.DrawText(text,new Point(x,y));
+        return rect;
     }
-    private void Text(DrawingContext dc,string text,double x,double y,Brush brush,double size)=>dc.DrawText(new FormattedText(text,CultureInfo.GetCultureInfo("ko-KR"),FlowDirection.LeftToRight,new Typeface("Malgun Gothic"),size,brush,VisualTreeHelper.GetDpi(this).PixelsPerDip),new(x,y));
+    private Rect Text(DrawingContext dc,string text,double x,double y,Brush brush,double size,bool keepInside=false)
+    {var formatted=new FormattedText(text,CultureInfo.GetCultureInfo("ko-KR"),FlowDirection.LeftToRight,new Typeface("Malgun Gothic"),size,brush,VisualTreeHelper.GetDpi(this).PixelsPerDip);if(keepInside)x=Math.Clamp(x,6,Math.Max(6,ActualWidth-88-formatted.Width));dc.DrawText(formatted,new(x,y));return new Rect(x,y,formatted.Width,formatted.Height);}
 }

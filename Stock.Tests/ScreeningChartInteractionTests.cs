@@ -25,12 +25,13 @@ internal static partial class Program
 
     private static void ScreeningChartInteractionTests(string output)
     {
+        ScreeningTradeChartTests(output);
         var snapshot=ReviewFixture();var origin=snapshot.Initial.Bars[0].Time;var now=origin.AddHours(1);int minutesRead=0,dailyRead=0;
         ScreeningChartQuote? quote=new(snapshot.Stock.Key,74000,2.345m,now,"실시간 수신",true);
         async Task<ScreeningChartSeries> Load(ScreeningChartSnapshot captured,bool minute,CancellationToken token)
         {
             if(minute)minutesRead++;else dailyRead++;await Task.Delay(20,token);
-            var rows=minute?Enumerable.Range(0,390).Select(i=>new PriceBar(origin.AddMinutes(i),100,105,95,101,10,true)).ToArray():Enumerable.Range(0,12).Select(i=>new PriceBar(origin.AddDays(i),100,105,95,101,1000,true)).ToArray();
+            var rows=minute?Enumerable.Range(0,12).SelectMany(day=>Enumerable.Range(0,390).Select(i=>new PriceBar(origin.AddDays(day).AddMinutes(i),100,105,95,101,10,true))).ToArray():Enumerable.Range(0,12).Select(i=>new PriceBar(origin.AddDays(i),100,105,95,101,1000,true)).ToArray();
             return new(minute?"1분":"일봉",minute?"1분":"일봉",rows,"검증 원본");
         }
         using var vm=new ScreeningChartViewModel(snapshot,Load,()=>true,_=>quote,clock:()=>now);
@@ -46,8 +47,9 @@ internal static partial class Program
             for(var i=0;i<30;i++)chart.ZoomAt(chart.ActualWidth/2,-120);Check(chart.VisibleBarCount==focused&&chart.ScreeningMaximumVisibleBars==focused,"wheel zoom-out cannot exceed the first right-click focus range");
             chart.ToggleScreeningReviewView(chart.ActualWidth/2);chart.RaiseEvent(new MouseWheelEventArgs(Mouse.PrimaryDevice,Environment.TickCount,120){RoutedEvent=Mouse.PreviewMouseWheelEvent});Check(chart.ScreeningOverviewLocked&&chart.VisibleBarCount==84,"overview handles wheel input without changing the locked range");
             vm.BarUnit="분";vm.BarValue="7";PumpUntil(()=>!vm.Busy);dialog.UpdateLayout();
-            Check(minutesRead==1&&vm.DisplayPeriod=="7분"&&chart.Bars?.Count==56&&chart.ScreeningOverviewLocked,"numeric and unit selectors coalesce and render exact seven-minute OHLCV bars");
-            vm.BarValue="15";PumpUntil(()=>!vm.Busy);Check(minutesRead==1&&vm.DisplaySeries.Bars.Length==26,"another minute interval reuses the same minute basis without another API request");
+            Check(minutesRead==1&&vm.DisplayPeriod=="7분"&&chart.Bars?.Count==672&&chart.ScreeningOverviewLocked,"numeric and unit selectors coalesce and render exact seven-minute OHLCV bars");
+            Check(snapshot.Markers.All(m=>CandleChart.TradeBarIndex(chart.Bars!,m,vm.DisplayPeriod)>=0),"switching to minute display preserves execution markers across all trading days");
+            vm.BarValue="15";PumpUntil(()=>!vm.Busy);Check(minutesRead==1&&vm.DisplaySeries.Bars.Length==312,"another minute interval reuses the same minute basis without another API request");
             vm.BarUnit="시";PumpUntil(()=>!vm.Busy);Check(vm.BarValues.Length==12&&vm.DisplayPeriod=="12시","hour selector clamps the numeric range to one through twelve");
             vm.WeeklySelected=true;PumpUntil(()=>!vm.Busy);vm.MonthlySelected=true;PumpUntil(()=>!vm.Busy);
             Check(dailyRead==1&&vm.MonthlySelected&&vm.DisplaySeries.Bars.Length==1&&vm.AnalysisPeriod=="1시"&&ReferenceEquals(chart.TradeMarkers,snapshot.Markers),"day/week/month share daily history while analysis snapshot and execution markers stay immutable");

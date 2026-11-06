@@ -49,13 +49,25 @@ public sealed partial class WorkspaceViewModel
         {
             var specification=run.BarSpecification;
             StrategyBar[] rows;
-            try{rows=await ScreeningBars(stock,specification,facts,run.ScreeningTime,token,first,last);}
+            var historyStart=specification.Unit==BarUnit.Tick?first:RealtimeWarmup.BacktestHistoryStart(first,specification,run.Configuration);
+            try{rows=await ScreeningBars(stock,specification,facts,run.ScreeningTime,token,historyStart,last);}
             catch(InvalidOperationException ex){throw new InvalidOperationException($"스크리닝 당시 {specification} 가격 자료를 불러오지 못했습니다. {ex.Message}",ex);}
             var exact=rows.Where(b=>b.Price.IsComplete&&DailyDates.Of(b.Price)>=first&&DailyDates.Of(b.Price)<=last).OrderBy(b=>b.ClosedAt).ThenBy(b=>b.Sequence).ToArray();
             if(exact.Length==0)throw new InvalidOperationException($"스크리닝 기간 {first:yyyy-MM-dd}~{last:yyyy-MM-dd}에 완성된 {specification}이 없습니다.");
             var exactSource=string.Join(", ",exact.Select(b=>b.Source).Where(s=>!string.IsNullOrWhiteSpace(s)).Distinct());
             series.Add(new(specification.ToString(),specification.ToString(),exact.Select(b=>b.Price with{Time=b.OpenTime}).ToArray(),exactSource));
-            notices.Add("스크리닝 당시 지정 봉과 기간을 그대로 표시합니다. 지정 봉 스크리닝은 신호 평가이며, 저장된 실제·모의 체결만 함께 표시합니다.");
+            notices.Add("스크리닝 당시 지정 봉·기간·전략 설정으로 계산한 백테스트 모형체결과 저장된 실제·가상 체결을 출처로 구분합니다. 차트의 표시 봉을 바꾸어도 체결 시각·가격은 같습니다.");
+            if(specification.Unit is BarUnit.Minute or BarUnit.Hour)
+            {
+                try
+                {
+                    var data=new BarDataset(stock,rows.Select(b=>b.Price).ToArray(),exactSource,run.ScreeningTime);
+                    backtestResult=await oversoldBacktests.RunAsync(new(data,run.Configuration,first,last,facts,specification,rows),token);
+                    foreach(var pair in backtestResult.Trades.Select((trade,index)=>(trade,number:index+1)))executions.AddRange(pair.trade.Executions.Select(e=>(e,"스크리닝 기간 모형체결",(int?)pair.number)));
+                    if(backtestResult.Trades.Count==0)notices.Add("선택 기간의 전략 매수·매도 체결은 없습니다.");
+                }
+                catch(InvalidOperationException ex){notices.Add("지정봉 전략 체결 계산: "+ex.Message);}
+            }
             try
             {
                 var daily=await provider.History(stock,token);var selectedDaily=daily.Bars.Where(b=>DailyDates.Of(b)>=first&&DailyDates.Of(b)<=last).ToArray();
