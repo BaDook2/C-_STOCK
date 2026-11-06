@@ -82,6 +82,7 @@ internal static partial class Program
             PumpUntil(()=>System.Windows.Application.Current.Windows.OfType<ScreeningChartDialog>().Any(),10);
             var dialog=System.Windows.Application.Current.Windows.OfType<ScreeningChartDialog>().Single();
             Check(dialog.Snapshot.Stock.Key==DailyStock.Key&&dialog.Snapshot.Markers.Length==2&&vm.ActiveTab==1,"double-clicking a realtime row opens the shared chart popup with BUY/SELL without changing tabs");
+            Check(dialog.ViewModel.IsRealtime&&dialog.ViewModel.PriceText.Replace(" ","")==selected.Price&&dialog.ViewModel.ChangeText.EndsWith(selected.Change),$"{(online?"online":"offline")} popup receives live price and previous-close return from the shared screening snapshot");
             Render(dialog.ReviewChart,Path.Combine(output,$"realtime-{(online?"online":"offline")}-chart.png"));dialog.Close();
             backtests.Fail=true;var failedOpen=vm.OpenRealtimeScreeningStock(selected);PumpUntil(()=>failedOpen.IsCompleted);failedOpen.GetAwaiter().GetResult();
             Check(notices.Count==1&&!failedOpen.IsFaulted,"online/offline double-click storage failure shows a notice instead of escaping the async WPF event");backtests.Fail=false;

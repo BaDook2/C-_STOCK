@@ -4,7 +4,7 @@
 
 스크리닝 탭의 후보를 다른 탭으로 이동하지 않고 연속 검토한다. 스크리닝 실행 당시 기간, 데이터 기준, 전략 설정, 과거 사실 snapshot을 사용하므로 이후 설정 편집으로 과거 결과가 달라지지 않는다.
 
-실시간 표에서도 같은 창을 사용한다. `LoadRealtimeScreeningChart`는 서비스의 완성 봉과 전략 snapshot을 캡처하고 공통 `IOversoldBacktestService`로 과거 모형체결을 계산한다. 저장된 실제·가상 체결은 별도 출처로 함께 표시한다. 모형체결은 운영 주문이나 계좌 체결로 저장하지 않는다. 선택 주기는 감시의 분/시간봉이며, 창을 연 시점의 자료를 표시한다. `다시 실행`으로 최신 snapshot을 읽는다.
+실시간 표에서도 같은 창을 사용한다. `LoadRealtimeScreeningChart`는 서비스의 완성 봉과 전략 snapshot을 캡처하고 공통 `IOversoldBacktestService`로 과거 모형체결을 계산한다. 저장된 실제·가상 체결은 별도 출처로 함께 표시한다. 모형체결은 운영 주문이나 계좌 체결로 저장하지 않는다. 처음 차트는 감시의 분/시간봉으로 열고 이후 표시 봉을 별도로 바꿀 수 있다. 차트·판단 기록은 열었을 때의 snapshot, 가격·등락률 헤더는1초마다 감시 시세를 사용한다. `다시 실행`으로 최신 분석 snapshot을 읽는다.
 
 차트와 거래 표의 매도에는 익절/손절 및 TP1·TP2, 지지 이탈, 비상 손절, 추적 청산 등의 이유를 표시한다. 과거 기록에 사유·손익 자료가 없다면 임의로 익절/손절을 단정하지 않는다. 지정봉 차트의 시간은 `StrategyBar.OpenTime`으로 맞추되 체결의 실제 시각·가격은 바꾸지 않는다.
 
@@ -14,7 +14,9 @@
 |---|---|---|
 | 후보 행 더블클릭 | 선택 종목 팝업 열기 | `ScreeningRowDoubleClick → OpenScreeningStock` |
 | 백테스트 보기 | 선택 종목 팝업 열기 | `Actions[결과열기] → OpenScreeningStock` |
-| 차트 주기 | 실행 snapshot의 정확한 분/시/일 지정봉과 보조 일봉 전환. 기존 틱 snapshot은 읽기 호환 | `ScreeningChartSeries` |
+| 스크리닝 기준 | 당시 분석 봉을 읽기 전용으로 표시. 시리즈 선택 콤보는 제거 | `ScreeningChartViewModel.AnalysisPeriod` |
+| 지정봉 / 숫자·단위 / 일·주·월 | 분봉1~59·시간봉1~12 또는 일/주/월 표시. 분석 기준과 체결 결과는 snapshot 유지 | `ScreeningChartViewModel.RequestPeriod`, `TimeBarSelection` |
+| 실시간 현재가 / 전일 대비 | 기존 감시 snapshot의 가격·등락률·체결시각을1초마다 표시 | `ReadScreeningChartQuote`, `RefreshQuote` |
 | 전체 기간에서 우클릭 | 포인터 봉 중심으로 최대 500봉 확대, 탐색 활성화 | `EnableScreeningReviewMode`, `ToggleScreeningReviewView` |
 | 확대 상태에서 우클릭 | 전체 기간으로 복귀, 차트 입력 잠금 | `ToggleScreeningReviewView` |
 | ▲/▼ 또는 거래 행 | 해당 체결 선택, 상세 snapshot 표시, 차트 이동 | `TradeMarkerClicked`, `FocusTrade` |
@@ -41,10 +43,23 @@
 
 키움 틱·분봉 응답의 마지막 현재 진행 행은 일시적으로 0 또는 서로 맞지 않는 OHLC를 포함할 수 있다. 과거에는 이 한 행을 `PriceBar.Validate()`하는 즉시 전체 조회가 실패해 `가격 데이터 형식이 올바르지 않습니다`가 표시됐다. 이제 완성된 정상 행은 유지하고 잘못된 진행 행만 제외한다. 원본 틱 한 건은 한 체결 가격이므로 O/H/L/C를 해당 체결가로 정규화하며, 가격을 임의 생성하지 않는다. 모든 행이 잘못된 경우에는 완성된 가격 봉이 없다는 구체적인 오류를 표시한다.
 
+## 2026-11-06 표시 봉·실시간 가격·휠 개선
+
+분석 기준은 오른쪽 위 `스크리닝 기준` 텍스트로 고정하고, 표시 봉은 별도 지정봉/일·주·월 컨트롤로 선택한다. 지정봉 숫자는 분봉1~59/시간봉1~12다. `지정봉`을 누르면 일봉 등을 본 뒤에도 기존 숫자로 즉시 돌아온다. 변경은 차트 표현만 바꾸며 전략 설정/스크리닝 snapshot/실제 체결 시각·가격은 다시 계산하지 않는다.
+
+`ScreeningChartViewModel`은 같은 기간의 일봉/1분봉 원본을 재사용한다. 파생 시리즈 캐시는12개로 제한하고 종목 이동 시 비운다. 오프라인은 네이버 공개 분봉, 온라인은 연결 증권사의 기간 분봉 API를 사용한다. 일반 오프라인 스크리닝의 분석 봉 제한과 팝업 표시 봉 선택은 별개다. 100ms 선택 병합, 비동기 집계, 취소·generation 검사로 오래된 응답을 차단한다. 없는 원본을 다른 주기로 가장하지 않고 기존 화면과 오류 이유를 보존한다.
+
+실시간 창은 감시 서비스가 이미 계산한 가격/전일 종가 대비 등락률/마지막 체결시각을1초 주기로 읽는다. 새 구독·백테스트 재실행·추가 주문·시세별 DB 저장은 발생하지 않는다. 등락률은 소수 둘째 자리이고 중지/20초 이상 지난 시세는 마지막 관측값임을 표시한다. 창을 닫으면 창의 타이머/로딩만 종료하며 감시 서비스는 유지한다.
+
+우클릭 확대 직후의 봉 수가 최대 축소 한도다. 기존 최소25봉은84개 시간봉을25개로 확대했을 때 휠을 더 확대할 수 없게 했다. 스크리닝 확대 상태만 최소5봉까지 허용하고, 우클릭 때 키보드 포커스를 얻어 PreviewMouseWheel을 받는다. 다시 우클릭하면 전체 기간으로 돌아가 입력을 잠근다.
+
+표식/Support Zone의 봉 위치는 이진 탐색 후 원본 배열·주기별로 캐시한다. 휠/드래그마다 전체 원본을 선형 탐색하지 않는다. 렌더 요청은 프레임 단위로 병합하며 일목을 끈 상태에서는 일목 배열을 계산하지 않는다. 원본 봉과 체결은 삭제/축약하지 않는다. 검증: [차트 개선 보고서](../verification/ScreeningChart-2026-11-06.md).
+
 ## 관련 코드
 
 - `Stock.App/ScreeningNavigation.cs`
 - `Stock.App/ScreeningChartDialog.cs`
+- `Stock.App/ScreeningChartViewModel.cs`, `ScreeningChartData.cs`
 - `Stock.App/OversoldBacktestService.cs`
 - `Stock.App/CandleChart.cs`
 - `Stock.App/MainWindow.xaml(.cs)`

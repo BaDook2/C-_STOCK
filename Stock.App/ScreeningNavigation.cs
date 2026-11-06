@@ -90,7 +90,7 @@ public sealed partial class WorkspaceViewModel
         {
             var run=source??LatestScreening??throw new InvalidOperationException("먼저 스크리닝을 실행하세요.");var snapshot=await LoadScreeningChart(stock,run);var stocks=run.Results.Select(r=>r.Stock).DistinctBy(s=>s.Key).ToArray();ScreeningChartDialog? dialog=null;
             async Task<ScreeningChartSnapshot?> Navigate(int delta,CancellationToken token){var current=Array.FindIndex(stocks,s=>s.Key==dialog!.Snapshot.Stock.Key);if(current<0)return null;var next=Math.Clamp(current+delta,0,stocks.Length-1);return await LoadScreeningChart(stocks[next],run,token);}
-            dialog=new ScreeningChartDialog(snapshot,Navigate);
+            dialog=new ScreeningChartDialog(snapshot,Navigate,CreateScreeningChartViewModel(snapshot));
             if(System.Windows.Application.Current?.MainWindow is {} owner&&owner.IsVisible)dialog.Owner=owner;
             dialog.Show();Status=stock.Name+" 상세 차트를 새 창으로 열었습니다.";
         }

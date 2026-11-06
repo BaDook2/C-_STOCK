@@ -32,3 +32,5 @@ dotnet publish Stock.App/Stock.App.csproj -c Release -p:PublishProfile=Win64 -m:
 실제 API 검증과 fixture 검증은 구분한다. 재현되지 않은 과거 장애는 미확정으로 공개하며, 현재 검사 성공을 과거 원인 확정이나 모든 시장 상황의 보증으로 표현하지 않는다.
 
 최근 릴리즈 검증 근거: [v0.1.11](../verification/Release-v0.1.11.md). GitHub Windows의 전체 회귀는 이 버전에서23분4초가 걸렸다. 로컬 실행 시간만으로 CI 중단 여부를 판단하지 말고 단계 상태/이전 성공 로그를 확인한다.
+
+v0.1.12의 로컬 단일 파일 게시에서는 게시 전용 컴파일이 일반 빌드보다 오래 걸렸으나 모든 분석기와 smoke를 통과했다. 전체 회귀 후 게시까지 끝낼 수 있도록 Release job 제한은45분이다. 검사 단계/성공 조건은 동일하다.

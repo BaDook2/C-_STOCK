@@ -76,7 +76,7 @@ public sealed partial class WorkspaceViewModel
             Changed();
         }
     }
-    public bool RealtimeScreeningRunning=>realtimeScreening?.Snapshot().Running==true;
+    public bool RealtimeScreeningRunning=>realtimeScreening?.Running==true;
     public bool RealtimeScreeningProtectionActive=>realtimeScreenTask is {IsCompleted:false}&&!RealtimeScreeningRunning;
     public bool CanStartRealtimeScreening=>RealtimeScreeningMode&&!RealtimeScreeningRunning&&!RealtimeScreeningProtectionActive&&CanConfigure&&ScreenCustomBars&&(IsOffline&&provider is ICurrentMarketData&&provider is IPublicMinuteMarketData&&provider is IPublicCurrentBatchData||RealtimeMockSupported);
     public bool CanAutoTradeRealtimeScreening=>RealtimeMockSupported;

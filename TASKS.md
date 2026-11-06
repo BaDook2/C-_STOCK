@@ -1,6 +1,15 @@
 # 현재 작업
 
-2026-11-06 DB 근본 원인 조사·전체 기능 점검·문서 정리 및 검증 성공 후 GitHub 릴리즈.
+2026-11-06 스크리닝 차트의 표시 봉 선택·실시간 시세·마우스 확대/축소 개선.
+
+- [x] 기존 주기 콤보를 분석 기준 텍스트로 교체. 별도 지정봉/숫자·단위/일·주·월 표시, 비동기 조회/캐시/취소, 스크리닝 snapshot 유지.
+- [x] 실시간 감시 snapshot의 현재가·전일 대비·체결시각을1초마다 표시. 지연/중지, 조회 취소·창 종료·미지원 처리. 온라인/오프라인 fixture 및 실제 네이버5분봉 경로 검증.
+- [x] 25봉 최소 제한으로 짧은 시간봉 휠 확대가 막히던 문제 수정(확대 상태 최소5봉/최초 확대 봉 수 최대). 마우스 포커스·렌더 병합·표식 이진 탐색/캐시. 실제 마우스·성능 비교·전체1,279개·빌드 경고0/오류0 성공. 근거: docs/verification/ScreeningChart-2026-11-06.md.
+- [x] 단일 EXE publish/smoke 성공(Success/NoBrokerCalls/RawNativeRendered=true). 게시 전용 컴파일 지연을 고려해 Actions 제한45분으로 조정, 검사 단계/성공 조건 유지.
+- [x] 검증된 로컬 EXE를 루트/release에 적용. 80,833,863 bytes / SHA256 A20F7B102C123514BCFEE4F29CA09882DF1E9C34F1257F13D957CCAADF0D74E0. 이전 공개본은 artifacts에 보존.
+- [~] v0.1.12 릴리즈 → Actions 전체 검사 → 공개 다운로드 hash/실행 → 공개본과 로컬 EXE 일치 확인.
+
+## 이전 작업 완료
 
 - [x] 사용자 요청에 따라 AGENTS/검증 문서에 필수 검사 전체 통과 시 커밋·push·GitHub Release·공개 EXE 재검증을 완료 루틴으로 추가.
 - [x] v0.1.11/44bc68b 게시 완료. Actions 42151757915: 전체1,257개·빌드 경고0/오류0·publish/smoke/Release 모두 성공. 공개 EXE 재다운로드→체크섬/GitHub digest/실제 해시 일치→실행 종료0/Success/NoBrokerCalls 확인→루트/release Stock.exe 교체 완료. 근거: docs/verification/Release-v0.1.11.md.
@@ -19,7 +28,7 @@
 - 실제 돈이 드는 주문·실제 API키 삭제/변경은 이번 점검에서 실행하지 않는다. 해당 기능은 격리 DB/더미 키/가짜 broker로 검사했다.
 - 시점별 종목 상태/위험 자료 미확인은 전략 일치/자동주문으로 통과시키지 않는다. 오프라인 공개 스크리닝은 신호 표시만이다.
 - 국내390분 정규장 내 7~12시간 완성 봉은 생성할 수 없다. 다른 봉으로 대체하지 않는다.
-- 최신 배포: [v0.1.11](https://github.com/BaDook2/C-_STOCK/releases/tag/v0.1.11). 루트/release/공개 Stock.exe: 80,854,787 bytes / SHA256 2BEA9661999FAD1C4702BB11C60CDCF11D97E34C546E658CDD394EF5163D93E3. 사전 로컬 publish 파일과 빌드 메타데이터/해시가 다름은 정상이다.
+- 현재 공개본은 [v0.1.11](https://github.com/BaDook2/C-_STOCK/releases/tag/v0.1.11), 80,854,787 bytes / SHA256 2BEA9661999FAD1C4702BB11C60CDCF11D97E34C546E658CDD394EF5163D93E3. 로컬에는 위의 새 차트 빌드를 먼저 적용했으며 v0.1.12 공개본 검증 후 최종 동기화한다.
 
 ## 재개 순서
 

@@ -8,7 +8,7 @@ public sealed record RealtimeScreeningStatusRow(
     string Key,string Name,string Code,decimal? Price,decimal? ChangePercent,decimal Proximity,
     int MetConditions,int TotalConditions,string UnmetConditions,string StrategyState,
     DateTimeOffset? LastAnalyzedAt,string DataState,string Error,bool Focused,bool BuySignal)
-{public bool MatchesStrategy {get;init;} public bool MissingConditions {get;init;}}
+{public bool MatchesStrategy {get;init;} public bool MissingConditions {get;init;} public DateTimeOffset? LastQuoteTime {get;init;}}
 public sealed record RealtimeScreeningSnapshot(
     bool Running,bool AutoTradingEnabled,string Status,string ConnectionState,string StrategyName,
     BarSpecification? BarSpecification,IReadOnlyList<RealtimeScreeningStatusRow> Rows)
@@ -52,6 +52,7 @@ public sealed class RealtimeOversoldScreeningService
     private BarSpecification? specification;
     private long version;
     public long Version {get{lock(sync)return version;}}
+    public bool Running {get{lock(sync)return running;}}
     public StockItem[] Targets {get{lock(sync)return rows.Values.Select(r=>r.Item.Stock).ToArray();}}
 
     /// <summary>Replace research state atomically; execution services retain ownership of existing positions.</summary>
@@ -268,7 +269,7 @@ public sealed class RealtimeOversoldScreeningService
         var last=row.Context.Last;decimal? change=last?.PreviousClose is >0&&row.Context.Price>0?(row.Context.Price/last.PreviousClose.Value-1)*100:null;
         return new(row.Item.Stock.Key,row.Item.Stock.Name,row.Item.Stock.Symbol,row.Context.Price>0?row.Context.Price:null,change,proximity,met,total,
             unmet.Length==0?"없음":string.Join(", ",unmet),state,row.Strategy.LastAnalyzedAt==default?null:row.Strategy.LastAnalyzedAt,row.DataState,row.Error,state.StartsWith("집중",StringComparison.Ordinal)||buy,buy)
-            {MatchesStrategy=matches,MissingConditions=relevant.Any(c=>c.Outcome is ConditionOutcome.MissingData or ConditionOutcome.NotEvaluated)};
+            {MatchesStrategy=matches,MissingConditions=relevant.Any(c=>c.Outcome is ConditionOutcome.MissingData or ConditionOutcome.NotEvaluated),LastQuoteTime=last?.ExchangeTime};
     }
 
     private static string Outcome(ConditionOutcome outcome)=>outcome switch

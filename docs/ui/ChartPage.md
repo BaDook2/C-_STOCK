@@ -59,6 +59,8 @@ workspace-v2.db의 trade-marker:*에 확인된 모의·실계좌 체결 기록�
 
 여러 봉이 같은 화면 픽셀에 겹치는 최대 축소 구간에서는 화면 표시용으로만 약 1.5px 단위의 OHLCV 열을 만든다. 시가·종가·고가·저가·거래량을 보존해 그리며 원본 분봉·시간봉 배열은 줄이거나 삭제하지 않는다. 확대, 마우스 정보, 매매 표식, 백테스트에는 원본 봉을 계속 사용한다.
 
+2026-11-06: 공통 CandleChart의 매매 표식/지지구간 봉 위치는 이진 탐색과 배열·주기별 캐시를 사용한다. 휠/드래그는 렌더를 프레임 단위로 병합하고, 일목이 꺼져 있으면 해당 계산을 건너뛴다. 스크리닝 팝업만 우클릭 확대 후 최소5봉·최초 확대 봉 수까지의 최대 축소 제한을 사용한다. 종목/차트 탭의 일반 확대 범위는 유지한다. 상세: [스크리닝 차트](ScreeningBacktestPopup.md).
+
 ## 관련 코드
 WorkspaceViewModel.cs, ChartWorkspace.cs, WorkspaceFeatures.cs, CandleChart.cs, TradeHistoryViewModel.cs, ConfiguredPractice.cs, Stock.Core/Research/PublicMarketData.cs, WorkspaceModels.cs.
 

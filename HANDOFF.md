@@ -1,10 +1,14 @@
-# 현재 상태 — 2026-11-06 DB 조사·기능 감사·GitHub 릴리즈
+# 현재 상태 — 2026-11-06 스크리닝 차트 개선
 
 ## 바로 이어갈 위치
 
 AGENTS.md → TASKS.md → docs/START_HERE.md. 이번 상세 보고서는 docs/verification/StorageAudit-2026-11-06.md와 FeatureAudit-2026-11-06.md다. 채팅/옛 누적 기록 전체를 다시 읽지 않는다.
 
-최신 요청 완료: 검증 성공 후 GitHub 게시를 AGENTS/Verification의 상시 완료 루틴에 추가했다. v0.1.11/코드44bc68b 게시, Actions 42151757915 전체1,257개·빌드 경고0/오류0·publish/smoke/Release 성공. 공개 다운로드 해시/실행 확인과 루트/release 교체도 완료. docs/verification/Release-v0.1.11.md 참고. 새 제품 변경 없이 이 릴리즈를 반복 실행하거나 태그를 덮어쓰지 않는다.
+구현/검증 완료, 배포 진행: 읽기 전용 기준 + 별도 지정봉/일·주·월, 실시간 가격/전일 대비1초, 우클릭 후 최소5봉 휠 확대/최초 확대 한도, 표식 이진 탐색·캐시·프레임 병합. 신규20/관련289/전체1,279개·경고0/오류0, 실제 마우스·공개5분봉325개·단일 EXE smoke 성공. 2만봉160표식 비교 P95 7,107→29.16ms. docs/verification/ScreeningChart-2026-11-06.md 참고. 다음: v0.1.12/Actions→공개 hash/smoke→로컬 EXE 동기화. 새 코드: ScreeningChart{ViewModel,Data,Dialog}, CandleChart, ScreeningChartInteractionTests.
+
+루트/release에는 새 로컬 EXE를 먼저 적용했다: 80,833,863 bytes / SHA256 A20F7B102C123514BCFEE4F29CA09882DF1E9C34F1257F13D957CCAADF0D74E0. 공개 v0.1.11 파일과 구분한다. 게시 전용 컴파일이 오래 걸렸지만 분석기/검사를 생략하지 않고 성공했으며 CI 제한은45분으로 조정했다.
+
+이전 요청 완료: v0.1.11/코드44bc68b, Actions 42151757915 전체1,257개·경고0/오류0·공개 다운로드 hash/smoke/로컬 EXE 갱신 성공. docs/verification/Release-v0.1.11.md 참고.
 
 ## DB 사실과 수정
 
@@ -20,7 +24,7 @@ AGENTS.md → TASKS.md → docs/START_HERE.md. 이번 상세 보고서는 docs/v
 - 전체1,257개 통과, 실제 WPF 버튼 Invoke33회 + 팝업, Release 빌드 경고0/오류0. 주문/키삭제는 임시 DB/더미키/fake broker 검사. 실제 주문0.
 - 사본 부하:340저장/660조회/20재연결. 수정 전3.634초/후4.779초, 양쪽 무결성 정상. 부하에서 과거 오류를 재현했다고 주장하지 않는다.
 - 사전 로컬 publish EXE SHA256 DE30F5EBB80BFC6396FD17539B0FA53BF4F1B0752C853B2677295A1359AC1DF9 / 80,823,213 bytes. 동일 출력 폴더 smoke2회 종료0/Success/NoBrokerCalls=true. fixture DB를 실행마다 격리하고 앱 watchdog가 실패 종료코드를 가리지 않도록 수정했다.
-- 현재 root/release는 GitHub v0.1.11 EXE와 일치: SHA256 2BEA9661999FAD1C4702BB11C60CDCF11D97E34C546E658CDD394EF5163D93E3 / 80,854,787 bytes. 공개 체크섬/자산 digest/다운로드 실제 해시 일치, 다운로드 EXE smoke 종료0/Success/NoBrokerCalls=true. CI 전체 회귀23분4초/전체job25분22초. artifacts/release-v0.1.11-{proof.json,ci.log}에 근거 보존.
+- 이전 공개 v0.1.11 검증: SHA256 2BEA9661999FAD1C4702BB11C60CDCF11D97E34C546E658CDD394EF5163D93E3 / 80,854,787 bytes. 공개 체크섬/자산 digest/다운로드 실제 해시 일치, smoke 성공. CI 전체 회귀23분4초/전체job25분22초. artifacts/release-v0.1.11-{proof.json,ci.log}에 근거 보존. 현재 로컬은 위의 차트 개선 빌드다.
 - 실제 root 앱에서 네이버 검색/시세·DB점검·기본 키움 연결/계좌 조회·20종목 실제 감시/11:00 완성봉 분석·HLB 차트15회 모형거래·선택 유지/중지/정상 종료 확인. 온라인 자동매매 체크박스의 연결 상태 갱신 누락도 고치고 실제 비활성→활성(OFF 유지) 확인. 관련 WPF40개. 자동매매는 켜지 않았고 실주문0. 검증 앱은 모두 정상 종료했다.
 - 최종 실제 DB CLI 종료0/Healthy=true.144,805,888 bytes/state42/events110,238/runs9. 원본 백업의98MB/state42/events73,123/runs7과 구분한다. 이 요청에서 즉시 가능한 구현/검증은 마쳤고 최초 과거 오류의 유발 사건만 미확정 추적 항목이다. 새 failure 증거 없이 정상 DB를 임의 재구축하지 않는다.
 - 이전 EXE 백업은 artifacts/Stock-before-storage-audit-3B1D6853.exe 및 Stock-before-v0.1.11-DE30F5EBB80BFC6396FD17539B0FA53BF4F1B0752C853B2677295A1359AC1DF9.exe. 최신 공개본은 https://github.com/BaDook2/C-_STOCK/releases/tag/v0.1.11 이다.

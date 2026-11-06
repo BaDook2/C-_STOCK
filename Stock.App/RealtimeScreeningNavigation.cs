@@ -59,7 +59,7 @@ public sealed partial class WorkspaceViewModel
                 return Load(codes[next],token);
                 async Task<ScreeningChartSnapshot?> Load(string code,CancellationToken cancellation)=>await LoadRealtimeScreeningChart(code,cancellation);
             }
-            dialog=new(snapshot,Navigate);
+            dialog=new(snapshot,Navigate,CreateScreeningChartViewModel(snapshot));
             if(System.Windows.Application.Current?.MainWindow is {} owner&&owner.IsVisible)dialog.Owner=owner;
             dialog.Show();Status=row.Name+" 실시간 전략 차트를 새 창으로 열었습니다.";
         }

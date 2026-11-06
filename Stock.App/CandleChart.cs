@@ -56,11 +56,15 @@ public sealed class CandleChart : FrameworkElement
     public IReadOnlyList<PriceBar>? Bars {get=>(IReadOnlyList<PriceBar>?)GetValue(BarsProperty);set=>SetValue(BarsProperty,value);}
     public bool MovingAverages {get=>(bool)GetValue(MovingAveragesProperty);set=>SetValue(MovingAveragesProperty,value);}
     public bool Ichimoku {get=>(bool)GetValue(IchimokuProperty);set=>SetValue(IchimokuProperty,value);}
-    private int visible=100,offset;private Point? hover,drag;private int dragOffset;private bool interactiveRenderQueued;private IndicatorCache? indicatorCache;private int indicatorCacheBuildCount;
+    private int visible=100,offset;private Point? hover,drag;private int dragOffset;private bool interactiveRenderQueued;private IndicatorCache? indicatorCache;private int indicatorCacheBuildCount;private int tooltipIndex=-1;
+    private IReadOnlyList<PriceBar>? mappedBars;private IReadOnlyList<TradeMarker>? mappedMarkers;private IReadOnlyList<ScreeningSupportZone>? mappedZones;private string? mappedPeriod;
+    private LocatedTrade[] locatedTrades=[];private LocatedZone[] locatedZones=[];private int markerMapBuildCount;
     private bool screeningReviewMode,screeningReviewFocused;private int screeningFocusLimit=500,screeningMaximumVisible=500;
     public int ViewOffset=>offset;
     public int VisibleBarCount=>visible;
     public int IndicatorCacheBuildCount=>indicatorCacheBuildCount;
+    public int MarkerMapBuildCount=>markerMapBuildCount;
+    public int RenderFrameCount {get;private set;}
     public bool ScreeningOverviewLocked=>screeningReviewMode&&!screeningReviewFocused;
     public bool ScreeningInteractionEnabled=>!screeningReviewMode||screeningReviewFocused;
     public int ScreeningMaximumVisibleBars=>screeningMaximumVisible;
@@ -79,7 +83,7 @@ public sealed class CandleChart : FrameworkElement
     private static readonly SolidColorBrush CloudRed=FrozenBrush(Color.FromArgb(28,240,68,82)),CloudBlue=FrozenBrush(Color.FromArgb(28,49,130,246)),CloudRedLine=FrozenBrush(Color.FromArgb(130,240,68,82)),CloudBlueLine=FrozenBrush(Color.FromArgb(130,49,130,246)),Conversion=FrozenBrush(Color.FromRgb(231,130,36)),BaseLine=FrozenBrush(Color.FromRgb(104,86,206)),Lagging=FrozenBrush(Color.FromRgb(24,159,136));
     private static readonly SolidColorBrush MaFast=FrozenBrush(Color.FromRgb(255,161,50)),MaSlow=FrozenBrush(Color.FromRgb(142,94,239)),Ma60=FrozenBrush(Color.FromRgb(34,166,140)),Ma120=FrozenBrush(Color.FromRgb(228,93,131));
     private static readonly Pen RedPen=FrozenPen(Red,1),BluePen=FrozenPen(Blue,1),GridPen=FrozenPen(Grid,1);
-    public CandleChart(){ClipToBounds=true;MinHeight=180;MouseMove+=(_,e)=>{if(!ScreeningInteractionEnabled){hover=null;ToolTip=null;Cursor=Cursors.Arrow;return;}hover=e.GetPosition(this);if(drag is {} p){PanFromGesture(hover.Value.X-p.X);ToolTip=null;Cursor=Cursors.SizeWE;return;}var i=HoverBarIndex(hover.Value.X);ToolTip=i>=0&&Bars!=null?BarHelp(Bars[i]):null;QueueInteractiveRender();};MouseLeave+=(_,_)=>{hover=null;ToolTip=null;if(drag==null)Cursor=Cursors.Arrow;QueueInteractiveRender();};MouseWheel+=(_,e)=>{if(ScreeningInteractionEnabled)ZoomAt(e.GetPosition(this).X,e.Delta);e.Handled=true;};MouseLeftButtonDown+=(_,e)=>{if(!ScreeningInteractionEnabled){e.Handled=true;return;}drag=e.GetPosition(this);dragOffset=offset;Cursor=Cursors.SizeWE;CaptureMouse();e.Handled=true;};MouseLeftButtonUp+=(_,e)=>{if(!ScreeningInteractionEnabled){drag=null;Cursor=Cursors.Arrow;if(IsMouseCaptured)ReleaseMouseCapture();e.Handled=true;return;}var point=e.GetPosition(this);var wasClick=drag is {} start&&Math.Abs(start.X-point.X)<4&&Math.Abs(start.Y-point.Y)<4;drag=null;hover=point;Cursor=Cursors.Arrow;if(IsMouseCaptured)ReleaseMouseCapture();InvalidateVisual();if(wasClick&&MarkerAtPoint(point) is {} marker)TradeMarkerClicked?.Invoke(marker);e.Handled=true;};}
+    public CandleChart(){ClipToBounds=true;Focusable=true;MinHeight=180;MouseMove+=(_,e)=>{if(!ScreeningInteractionEnabled){hover=null;ToolTip=null;Cursor=Cursors.Arrow;return;}hover=e.GetPosition(this);if(drag is {} p){PanFromGesture(hover.Value.X-p.X);ToolTip=null;Cursor=Cursors.SizeWE;return;}var i=HoverBarIndex(hover.Value.X);if(i!=tooltipIndex){tooltipIndex=i;ToolTip=i>=0&&Bars!=null?BarHelp(Bars[i]):null;}QueueInteractiveRender();};MouseLeave+=(_,_)=>{hover=null;tooltipIndex=-1;ToolTip=null;if(drag==null)Cursor=Cursors.Arrow;QueueInteractiveRender();};PreviewMouseWheel+=(_,e)=>{if(ScreeningInteractionEnabled)ZoomAt(e.GetPosition(this).X,e.Delta);e.Handled=true;};MouseLeftButtonDown+=(_,e)=>{if(!ScreeningInteractionEnabled){e.Handled=true;return;}Focus();drag=e.GetPosition(this);dragOffset=offset;Cursor=Cursors.SizeWE;CaptureMouse();e.Handled=true;};MouseLeftButtonUp+=(_,e)=>{if(!ScreeningInteractionEnabled){drag=null;Cursor=Cursors.Arrow;if(IsMouseCaptured)ReleaseMouseCapture();e.Handled=true;return;}var point=e.GetPosition(this);var wasClick=drag is {} start&&Math.Abs(start.X-point.X)<4&&Math.Abs(start.Y-point.Y)<4;drag=null;hover=point;Cursor=Cursors.Arrow;if(IsMouseCaptured)ReleaseMouseCapture();QueueInteractiveRender();if(wasClick&&MarkerAtPoint(point) is {} marker)TradeMarkerClicked?.Invoke(marker);e.Handled=true;};}
     /// <summary>Shows the complete screening interval first and reserves mouse navigation until the user right-clicks a focus point.</summary>
     public void EnableScreeningReviewMode(int maximumFocusedBars=500)
     {
@@ -91,7 +95,7 @@ public sealed class CandleChart : FrameworkElement
         if(!screeningReviewMode)return;
         if(screeningReviewFocused){ShowScreeningOverview();return;}
         var total=Bars?.Count??0;if(total==0)return;var index=HoverBarIndex(pointerX);var next=ScreeningFocusCount(total,screeningFocusLimit);var start=Math.Clamp(index-next/2,0,Math.Max(0,total-next));
-        visible=next;offset=Math.Clamp(total-(start+next),0,Math.Max(0,total-next));screeningMaximumVisible=next;screeningReviewFocused=true;hover=null;ToolTip=null;Cursor=Cursors.Arrow;InvalidateVisual();
+        visible=next;offset=Math.Clamp(total-(start+next),0,Math.Max(0,total-next));screeningMaximumVisible=next;screeningReviewFocused=true;hover=null;tooltipIndex=-1;ToolTip=null;Cursor=Cursors.Arrow;Focus();InvalidateVisual();
     }
     public static int ScreeningFocusCount(int total,int maximumFocusedBars=500)
     {
@@ -111,8 +115,8 @@ public sealed class CandleChart : FrameworkElement
     public void ZoomAt(double pointerX,int wheelDelta)
     {
         var total=Bars?.Count??0;if(total==0||wheelDelta==0||!ScreeningInteractionEnabled)return;
-        var width=Math.Max(50,ActualWidth-88);var ratio=Math.Clamp((pointerX-6)/width,0,1);var minimum=Math.Min(25,total);var maximum=screeningReviewMode&&screeningReviewFocused?Math.Max(minimum,Math.Min(total,screeningMaximumVisible)):Math.Min(2000,Math.Max(25,total));var next=Math.Clamp(visible+(wheelDelta>0?-15:15),minimum,maximum);
-        offset=CalculateZoomOffset(total,visible,offset,next,ratio);visible=next;InvalidateVisual();
+        var width=Math.Max(50,ActualWidth-88);var ratio=Math.Clamp((pointerX-6)/width,0,1);var minimum=Math.Min(screeningReviewMode&&screeningReviewFocused?5:25,total);var maximum=screeningReviewMode&&screeningReviewFocused?Math.Max(minimum,Math.Min(total,screeningMaximumVisible)):Math.Min(2000,Math.Max(25,total));var next=Math.Clamp(visible+(wheelDelta>0?-15:15),minimum,maximum);
+        if(next==visible)return;offset=CalculateZoomOffset(total,visible,offset,next,ratio);visible=next;tooltipIndex=-1;QueueInteractiveRender();
     }
     public static int CalculateZoomOffset(int total,int oldVisible,int oldOffset,int newVisible,double pointerRatio)
     {
@@ -155,14 +159,14 @@ public sealed class CandleChart : FrameworkElement
     private string BarHelp(PriceBar b)=>$"{(b.IsComplete||ChartPeriods.Intraday(Period)?b.KoreaTime:b.Time.ToOffset(TimeSpan.FromHours(9)).ToString("yyyy.MM.dd")+" 진행 중")} · 한국시간\n시가 {DisplayNumber.Price(b.Open)}  고가 {DisplayNumber.Price(b.High)}\n저가 {DisplayNumber.Price(b.Low)}  종가 {DisplayNumber.Price(b.Close)}\n거래량 {b.Volume:N0}";
     protected override void OnRender(DrawingContext dc)
     {
+        RenderFrameCount++;
         base.OnRender(dc);dc.DrawRectangle(Brushes.White,null,new Rect(RenderSize));var b=Bars;if(b==null||b.Count==0){var text=new FormattedText(EmptyMessage,CultureInfo.GetCultureInfo("ko-KR"),FlowDirection.LeftToRight,new Typeface("Malgun Gothic"),14,Muted,VisualTreeHelper.GetDpi(this).PixelsPerDip){MaxTextWidth=Math.Max(50,ActualWidth-48)};dc.DrawText(text,new(24,90));return;}
-        double width=Math.Max(50,ActualWidth-88),height=Math.Max(55,ActualHeight-130),top=34;int end=Math.Max(1,b.Count-Math.Min(offset,Math.Max(0,b.Count-2))),start=Math.Max(0,end-visible);double step=width/(end-start);decimal low=decimal.MaxValue,high=decimal.MinValue;for(var i=start;i<end;i++){var bar=b[i];if(bar.Low<low)low=bar.Low;if(bar.High>high)high=bar.High;}var pad=(high-low)*.07m;if(pad==0)pad=high*.01m;low-=pad;high+=pad;var indicators=IndicatorsFor(b);var renderStride=Math.Max(1,(int)Math.Ceiling(1.5/step));var renderBars=RenderBars(b,start,end,renderStride);var maxVol=Math.Max(1,renderBars.Max(x=>x.Volume));
+        double width=Math.Max(50,ActualWidth-88),height=Math.Max(55,ActualHeight-130),top=34;int end=Math.Max(1,b.Count-Math.Min(offset,Math.Max(0,b.Count-2))),start=Math.Max(0,end-visible);double step=width/(end-start);decimal low=decimal.MaxValue,high=decimal.MinValue;for(var i=start;i<end;i++){var bar=b[i];if(bar.Low<low)low=bar.Low;if(bar.High>high)high=bar.High;}var pad=(high-low)*.07m;if(pad==0)pad=high*.01m;low-=pad;high+=pad;var indicators=IndicatorsFor(b);EnsureMarkerMap(b);var renderStride=Math.Max(1,(int)Math.Ceiling(1.5/step));var renderBars=RenderBars(b,start,end,renderStride);var maxVol=Math.Max(1,renderBars.Max(x=>x.Volume));
         double X(double i)=>(i-start+.5)*step+6;double Y(decimal v)=>top+(double)((high-v)/(high-low))*height;
         for(int n=0;n<=4;n++){var val=low+(high-low)*n/4;var y=Y(val);dc.DrawLine(GridPen,new(0,y),new(width+8,y));Text(dc,DisplayNumber.Price(val),width+15,y-8,Muted,11);}
-        foreach(var zone in SupportZones??[])
+        foreach(var mapped in locatedZones)
         {
-            var first=TradeBarIndex(b,new("zone",b.Count>0&&b[0].Time.Offset==TimeSpan.FromHours(9)?"KRX:ZONE":"NASDAQ:ZONE",zone.From,true,0,zone.Lower,"zone"),Period);
-            var last=TradeBarIndex(b,new("zone",b.Count>0&&b[0].Time.Offset==TimeSpan.FromHours(9)?"KRX:ZONE":"NASDAQ:ZONE",zone.To,true,0,zone.Upper,"zone"),Period);
+            var zone=mapped.Zone;var first=mapped.First;var last=mapped.Last;
             if(first<0||last<0||last<start||first>=end)continue;first=Math.Max(first,start);last=Math.Min(last,end-1);
             var zoneTop=Y(Math.Min(high,zone.Upper));var zoneBottom=Y(Math.Max(low,zone.Lower));var fill=new SolidColorBrush(zone.UsedForEntry?Color.FromArgb(38,49,130,246):Color.FromArgb(20,139,149,161));var border=new Pen(new SolidColorBrush(zone.UsedForEntry?Color.FromArgb(150,49,130,246):Color.FromArgb(90,139,149,161)),zone.UsedForEntry?1.4:1);
             dc.DrawRectangle(fill,border,new Rect(Math.Max(6,X(first)-step/2),Math.Min(zoneTop,zoneBottom),Math.Max(2,X(last)-X(first)+step),Math.Max(2,Math.Abs(zoneBottom-zoneTop))));
@@ -185,8 +189,8 @@ public sealed class CandleChart : FrameworkElement
         if(MovingAverages){DrawLine(i=>indicators.Fast[i],MaFast,end);DrawLine(i=>indicators.Slow[i],MaSlow,end);DrawLine(i=>indicators.Sma60[i],Ma60,end);DrawLine(i=>indicators.Sma120[i],Ma120,end);}
         for(int i=start;i<end;i+=Math.Max(1,(end-start)/5))Text(dc,b[i].Time.ToOffset(TimeSpan.FromHours(9)).ToString(ChartPeriods.Intraday(Period)?"HH:mm:ss":"yy.MM.dd"),Math.Max(8,X(i)-17),top+height+64,Muted,11);
         Text(dc,"거래량",8,top+height+8,Muted,10);
-        var located=(TradeMarkers??[]).Select(t=>(Trade:t,Index:TradeBarIndex(b,t,Period))).Where(x=>x.Index>=start&&x.Index<end).ToArray();
-        if(step<15)
+        var located=locatedTrades.Where(x=>x.Index>=start&&x.Index<end).ToArray();
+        if(step<15||located.Length>Math.Max(12,width/60))
         {
             foreach(var cluster in ChartMarkerAggregation.Cluster(located,x=>x.Trade.Buy,x=>x.Index,x=>x.Trade.Price,start,end,width))
             {
@@ -223,7 +227,7 @@ public sealed class CandleChart : FrameworkElement
     }
     private IndicatorCache IndicatorsFor(IReadOnlyList<PriceBar> bars)
     {
-        if(indicatorCache is {} cached&&ReferenceEquals(cached.Source,bars)&&cached.FastPeriod==FastPeriod&&cached.SlowPeriod==SlowPeriod)return cached;
+        if(indicatorCache is {} cached&&ReferenceEquals(cached.Source,bars)&&cached.FastPeriod==FastPeriod&&cached.SlowPeriod==SlowPeriod&&cached.WithIchimoku==Ichimoku)return cached;
         var prefix=new decimal[bars.Count+1];for(var i=0;i<bars.Count;i++)prefix[i+1]=prefix[i]+bars[i].Close;
         decimal?[] Sma(int requested)
         {
@@ -233,6 +237,7 @@ public sealed class CandleChart : FrameworkElement
         }
         decimal?[] Mid(int period)
         {
+            if(!Ichimoku)return [];
             var values=new decimal?[bars.Count];
             for(var i=period-1;i<bars.Count;i++)
             {
@@ -242,9 +247,9 @@ public sealed class CandleChart : FrameworkElement
             }
             return values;
         }
-        indicatorCache=new(bars,FastPeriod,SlowPeriod,Sma(FastPeriod),Sma(SlowPeriod),Sma(60),Sma(120),Mid(9),Mid(26),Mid(52));indicatorCacheBuildCount++;return indicatorCache;
+        indicatorCache=new(bars,FastPeriod,SlowPeriod,Ichimoku,Sma(FastPeriod),Sma(SlowPeriod),Sma(60),Sma(120),Mid(9),Mid(26),Mid(52));indicatorCacheBuildCount++;return indicatorCache;
     }
-    private sealed record IndicatorCache(IReadOnlyList<PriceBar> Source,int FastPeriod,int SlowPeriod,decimal?[] Fast,decimal?[] Slow,decimal?[] Sma60,decimal?[] Sma120,decimal?[] Mid9,decimal?[] Mid26,decimal?[] Mid52);
+    private sealed record IndicatorCache(IReadOnlyList<PriceBar> Source,int FastPeriod,int SlowPeriod,bool WithIchimoku,decimal?[] Fast,decimal?[] Slow,decimal?[] Sma60,decimal?[] Sma120,decimal?[] Mid9,decimal?[] Mid26,decimal?[] Mid52);
     private static RenderBar[] RenderBars(IReadOnlyList<PriceBar> bars,int start,int end,int stride)
     {
         var result=new List<RenderBar>((end-start+stride-1)/stride);
@@ -259,27 +264,36 @@ public sealed class CandleChart : FrameworkElement
     private readonly record struct RenderBar(double Index,decimal Open,decimal High,decimal Low,decimal Close,decimal Volume);
     public static int TradeBarIndex(IReadOnlyList<PriceBar> bars,TradeMarker trade,string period)
     {
+        if(bars.Count==0)return -1;
         var zone=TimeZoneInfo.FindSystemTimeZoneById(trade.StockKey.StartsWith("KRX:")?"Korea Standard Time":"Eastern Standard Time");
         DateTime Day(DateTimeOffset t)=>TimeZoneInfo.ConvertTime(t,zone).Date;
         DateTime Bucket(DateTime day)=>period=="월봉"?new(day.Year,day.Month,1):period=="주봉"?day.AddDays(-((int)day.DayOfWeek+6)%7):day;
         // Reports with only a KST date are placed as date annotations, not intraday fills.
         var day=trade.DateOnly?trade.Time.ToOffset(TimeSpan.FromHours(9)).Date:Day(trade.Time);
-        for(int i=0;i<bars.Count;i++)
-        {
-            var barDay=trade.DateOnly?bars[i].Time.ToOffset(TimeSpan.FromHours(9)).Date:Day(bars[i].Time);
-            if(!ChartPeriods.Intraday(period)||trade.DateOnly){if(Bucket(barDay)==Bucket(day))return i;}
-            else if(ChartPeriods.Minutes(period) is >0 and var minutes)
-            {if(ChartPeriods.MinuteBucket(bars[i],minutes)==ChartPeriods.MinuteBucket(new(trade.Time,1,1,1,1,0),minutes))return i;}
-            else if(barDay==day&&bars[i].Time>=trade.Time&&(i==0||bars[i-1].Time<trade.Time))return i;
-        }
-        return -1;
+        var calendar=!ChartPeriods.Intraday(period)||trade.DateOnly;var minutes=ChartPeriods.Minutes(period);
+        long Key(DateTimeOffset time)=>calendar?Bucket(trade.DateOnly?time.ToOffset(TimeSpan.FromHours(9)).Date:Day(time)).Ticks:minutes>0?ChartPeriods.MinuteBucket(new(time,1,1,1,1,0),minutes):time.UtcTicks;
+        var target=Key(trade.Time);int left=0,right=bars.Count;
+        while(left<right){var middle=left+(right-left)/2;if(Key(bars[middle].Time)<target)left=middle+1;else right=middle;}
+        if(left>=bars.Count)return -1;
+        return calendar||minutes>0?Key(bars[left].Time)==target?left:-1:Day(bars[left].Time)==day?left:-1;
+    }
+    private sealed record LocatedTrade(TradeMarker Trade,int Index);
+    private sealed record LocatedZone(ScreeningSupportZone Zone,int First,int Last);
+    /// <summary>Binary-search immutable source bars once; pointer and viewport changes reuse the mapping.</summary>
+    private void EnsureMarkerMap(IReadOnlyList<PriceBar> bars)
+    {
+        if(ReferenceEquals(mappedBars,bars)&&ReferenceEquals(mappedMarkers,TradeMarkers)&&ReferenceEquals(mappedZones,SupportZones)&&mappedPeriod==Period)return;
+        locatedTrades=(TradeMarkers??[]).Select(t=>new LocatedTrade(t,TradeBarIndex(bars,t,Period))).ToArray();
+        var key=bars[0].Time.Offset==TimeSpan.FromHours(9)?"KRX:ZONE":"NASDAQ:ZONE";
+        locatedZones=(SupportZones??[]).Select(z=>new LocatedZone(z,TradeBarIndex(bars,new("zone",key,z.From,true,0,z.Lower,"zone"),Period),TradeBarIndex(bars,new("zone",key,z.To,true,0,z.Upper,"zone"),Period))).ToArray();
+        mappedBars=bars;mappedMarkers=TradeMarkers;mappedZones=SupportZones;mappedPeriod=Period;markerMapBuildCount++;
     }
     public TradeMarker? MarkerAtPoint(Point point)
     {
         var b=Bars;var markers=TradeMarkers;if(b==null||b.Count==0||markers==null||markers.Count==0)return null;
-        int end=Math.Max(1,b.Count-Math.Min(offset,Math.Max(0,b.Count-2))),start=Math.Max(0,end-visible);double width=Math.Max(50,ActualWidth-88),height=Math.Max(55,ActualHeight-130),top=34,step=width/(end-start);var slice=b.Skip(start).Take(end-start).ToArray();decimal low=slice.Min(x=>x.Low),high=slice.Max(x=>x.High);var pad=(high-low)*.07m;if(pad==0)pad=high*.01m;low-=pad;high+=pad;
+        EnsureMarkerMap(b);int end=Math.Max(1,b.Count-Math.Min(offset,Math.Max(0,b.Count-2))),start=Math.Max(0,end-visible);double width=Math.Max(50,ActualWidth-88),height=Math.Max(55,ActualHeight-130),top=34,step=width/(end-start);decimal low=decimal.MaxValue,high=decimal.MinValue;for(var i=start;i<end;i++){low=Math.Min(low,b[i].Low);high=Math.Max(high,b[i].High);}var pad=(high-low)*.07m;if(pad==0)pad=high*.01m;low-=pad;high+=pad;
         double Y(decimal v)=>top+(double)((high-v)/(high-low))*height;var clicked=HoverBarIndex(point.X);
-        return markers.Select(m=>(Marker:m,Index:TradeBarIndex(b,m,Period))).Where(x=>x.Index==clicked&&x.Index>=start&&x.Index<end).OrderBy(x=>Math.Abs((x.Marker.DateOnly?top+height+20:Y(x.Marker.Price??b[x.Index].Close))-point.Y)).Select(x=>x.Marker).FirstOrDefault();
+        return locatedTrades.Where(x=>x.Index==clicked&&x.Index>=start&&x.Index<end).OrderBy(x=>Math.Abs((x.Trade.DateOnly?top+height+20:Y(x.Trade.Price??b[x.Index].Close))-point.Y)).Select(x=>x.Trade).FirstOrDefault();
     }
     private void DrawBadge(DrawingContext dc,string label,double centerX,double y,Brush brush)
     {
