@@ -15,7 +15,9 @@ internal static class PublishedSmoke
         Directory.CreateDirectory(output);
         try
         {
-            using var store=new TradingStore(Path.Combine(output,"workspace.db"));using var vm=new WorkspaceViewModel(_=>false,provider:publicData?new PublicMarketData():new FixtureMarketData(),store:store);
+            // Re-running a smoke check must not inherit its previous strategy edits.
+            var fixtureDirectory=Path.Combine(output,"fixture-"+Guid.NewGuid().ToString("N"));Directory.CreateDirectory(fixtureDirectory);
+            using var store=new TradingStore(Path.Combine(fixtureDirectory,"workspace.db"));using var vm=new WorkspaceViewModel(_=>false,provider:publicData?new PublicMarketData():new FixtureMarketData(),store:store);
             var window=new MainWindow(vm){ShowActivated=false,WindowStartupLocation=WindowStartupLocation.Manual,Left=-20000,Top=0};window.Show();
             async Task Do(string name){vm.Actions[name].Execute(null);await Until(()=>!vm.Busy);}
             await Do("검색");if(vm.SearchResults.Count==0)throw new InvalidOperationException("Korean name search failed: "+vm.Status);await vm.OpenStock(vm.SearchResults[0]);if(vm.ChartBars.Count<80)throw new InvalidOperationException("Domestic chart failed: "+vm.Status);

@@ -54,7 +54,7 @@ public sealed class ScreeningChartDialog:Window
     private async Task Navigate(int delta)
     {
         if(navigate==null)return;navigationCancellation?.Cancel();navigationCancellation?.Dispose();navigationCancellation=new();var token=navigationCancellation.Token;var mine=++generation;IsEnabled=false;source.Text="백테스트 자료를 불러오는 중...";
-        try{var next=await navigate(delta,token);if(next!=null&&mine==generation&&!token.IsCancellationRequested)ApplySnapshot(next);}catch(OperationCanceledException){}catch(InvalidOperationException ex){source.Text=ex.Message;}finally{if(mine==generation)IsEnabled=true;}
+        try{var next=await navigate(delta,token);if(next!=null&&mine==generation&&!token.IsCancellationRequested)ApplySnapshot(next);}catch(OperationCanceledException){}catch(InvalidOperationException ex){if(mine==generation)source.Text=ex.Message;}catch(Exception){if(mine==generation)source.Text="차트 자료 또는 저장소 읽기 오류입니다. 기존 차트와 데이터는 유지합니다.";}finally{if(mine==generation)IsEnabled=true;}
     }
     private void SelectTrade(DateTimeOffset time,bool buy)
     {var match=Snapshot.Trades.OrderBy(t=>Math.Abs((t.Time-time).Ticks)).FirstOrDefault(t=>t.Buy==buy);if(match!=null){trades.SelectedItem=match;trades.ScrollIntoView(match);}}

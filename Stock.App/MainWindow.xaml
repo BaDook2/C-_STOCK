@@ -373,6 +373,7 @@
                                     <Button Content="실시간 스크리닝 시작" Command="{Binding Actions[실시간스크리닝시작]}" ToolTip="오프라인은 공개 현재가·완성 분봉으로 신호를 감시합니다. 온라인 키움 연결은 실제 체결·호가 피드를 사용합니다." />
                                     <Button x:Name="RealtimeScreenStopButton" Content="중지" Command="{Binding Actions[실시간스크리닝중지]}" Background="#FFF0F0" Foreground="#D94848" BorderBrush="#FFD1D1" ToolTip="신규 탐색과 진입을 중지합니다. 기존 가상 보유분의 보호 관리는 유지합니다." />
                                     <TextBlock Text="{Binding RealtimeScreenConnection,StringFormat=연결 상태 · {0}}" VerticalAlignment="Center" Foreground="#3182F6" FontWeight="SemiBold" Margin="8,0,0,0" />
+                                    <CheckBox Content="전체 대상·미충족 사유 보기" IsChecked="{Binding ShowAllRealtimeScreening}" Margin="12,0,0,0" ToolTip="기본 표는 전략의 활성 조건을 모두 충족한 종목만 표시합니다. 이 옵션은 감시 중인 전체 대상과 제외 사유를 보여줍니다. 자료 미확인은 전략 일치로 간주하지 않습니다."/>
                                 </StackPanel>
                             </WrapPanel>
                             <TextBlock Text="{Binding ScreenInfo}" Visibility="{Binding RegularScreeningMode,Converter={StaticResource Visible}}" Margin="0,14,0,20" Foreground="#6B7684" TextWrapping="Wrap" />
@@ -499,6 +500,7 @@
                             <ComboBox ItemsSource="{Binding History}" SelectedItem="{Binding SelectedRun}" DisplayMemberPath="Title" ToolTip="저장된 이전 테스트를 선택합니다. 현재 계좌와 차트는 바뀌지 않습니다." />
                             <TextBlock Text="{Binding SelectedRun.Summary}" FontSize="16" Margin="0,12,0,8" />
                             <Button Content="과매도·낙주 상세 기록 열기" Command="{Binding Actions[낙주기록상세]}" Visibility="{Binding HasOversoldHistory,Converter={StaticResource Visible}}" HorizontalAlignment="Left" Margin="0,0,0,8" />
+                            <Button Content="저장소 점검" Command="{Binding Actions[저장소점검]}" HorizontalAlignment="Left" Margin="0,0,0,8" Style="{StaticResource Secondary}" ToolTip="현재 DB의 전체 무결성과 저장 데이터 형식을 검사하고 진단 보고서를 저장합니다. 데이터는 변경하지 않습니다." />
                         </StackPanel>
                         <DataGrid Grid.Row="1" ItemsSource="{Binding SelectedRun.Fills}">
                             <DataGrid.Columns>

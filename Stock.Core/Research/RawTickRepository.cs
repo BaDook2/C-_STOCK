@@ -13,7 +13,7 @@ public sealed record TickPage(RawTick[] Ticks,bool More);
 /// <summary>Read-only chart projection of the original event table; keys preserve all equal-time executions.</summary>
 public sealed class RawTickRepository(string path)
 {
-    private SqliteConnection Open(){var db=new SqliteConnection(new SqliteConnectionStringBuilder{DataSource=path,Mode=SqliteOpenMode.ReadOnly,DefaultTimeout=10}.ToString());db.Open();return db;}
+    private SqliteConnection Open(){var db=new SqliteConnection(new SqliteConnectionStringBuilder{DataSource=path,Mode=SqliteOpenMode.ReadOnly,DefaultTimeout=10,Pooling=false}.ToString());db.Open();return db;}
     public Task<string[]> Sources(string symbol,CancellationToken token)=>Task.Run(()=>{using var db=Open();using var c=db.CreateCommand();c.CommandText="SELECT DISTINCT source FROM events WHERE market_key=$k AND kind='Trade' ORDER BY source";c.Parameters.AddWithValue("$k",symbol);using var r=c.ExecuteReader();var sources=new List<string>();while(r.Read()){token.ThrowIfCancellationRequested();sources.Add(r.GetString(0));}return sources.ToArray();},token);
     public Task<TickExtent?> Extent(string symbol,string source,CancellationToken token)=>Task.Run(()=>
     {

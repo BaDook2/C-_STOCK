@@ -96,6 +96,7 @@ public sealed partial class WorkspaceViewModel
         }
         catch(OperationCanceledException){Status="선택 종목 상세 차트 열기가 취소됐습니다.";}
         catch(InvalidOperationException ex){Status="선택 종목 상세 차트를 열 수 없습니다. "+ex.Message;}
+        catch(Exception){Status="선택 종목 차트 자료 또는 저장소를 읽지 못했습니다.";alert(Status+" 기존 데이터는 보존했습니다.");}
         finally{screeningNavigationBusy=false;}
     }
     private IReadOnlyList<TradeMarker> BacktestTradeMarkers()

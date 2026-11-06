@@ -7,6 +7,7 @@ internal static partial class Program
 {
     private static void RealtimeScreeningTests()
     {
+        RealtimeRepairTests().GetAwaiter().GetResult();
         var now=DailyTime(2,9,0);
         var config=DailyConfig();
         config.MinimumAverageTradingValue=0;
@@ -47,9 +48,11 @@ internal static partial class Program
             service.Pulse();
         }
 
-        Event(0);Event(1);Event(2);
+        Event(0);Event(1);
+        Check(service.Snapshot().Rows.Single().MatchesStrategy,"realtime strategy match requires actual active conditions, not proximity alone");
+        Event(2);
         var snapshot=service.Snapshot();
-        Check(signals.Count==1&&!signals[0].AutoTradingEligible&&snapshot.Rows.Single() is {BuySignal:true,StrategyState:"매수 신호 발생"},"realtime screening displays a shared-engine buy signal while automatic trading is off");
+        Check(signals.Count==1&&!signals[0].AutoTradingEligible&&!snapshot.Rows.Single().MatchesStrategy&&snapshot.Rows.Single().UnmetConditions.Contains("Crash"),"prior buy signal does not keep a stock matched after its current crash condition expires");
         Check(snapshot.Rows.Single().Proximity is >=0 and <=100&&snapshot.Rows.Single().LastAnalyzedAt!=null,"realtime screening publishes bounded condition proximity and last analysis time");
 
         service.SetAutoTrading(true);

@@ -70,7 +70,7 @@ public sealed partial class WorkspaceViewModel
         }
         if(prepared.Count==0)throw new InvalidOperationException("공개 분봉을 준비한 종목이 없습니다. 잠시 후 다시 시도하세요.");
         if(!IsOffline)throw new InvalidOperationException("실행 준비 중 계좌 모드가 변경되었습니다.");
-        RealtimeScreening.Start(new(prepared.ToArray(),strategyName,specification));
+        await Task.Run(()=>RealtimeScreening.Start(new(prepared.ToArray(),strategyName,specification)),Token);
         RealtimeScreening.SetConnectionState("공개 시세 연결 중");
         realtimeScreenAutoTrade=false;Changed(nameof(RealtimeAutoTrade));
         RealtimeScreeningRows.Clear();foreach(var failure in failures)RealtimeScreeningRows.Add(failure);

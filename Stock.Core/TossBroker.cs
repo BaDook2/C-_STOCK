@@ -146,6 +146,10 @@ public interface IRangedMinuteIntervalHistoryBroker
     bool SupportsMinuteInterval(int minutes);
     Task<PriceBar[]> MinuteHistory(string symbol,DateOnly from,DateOnly to,int minutes,CancellationToken cancellation);
 }
+public interface IRecentMinuteIntervalHistoryBroker
+{
+    Task<PriceBar[]> RecentMinuteHistory(string symbol,int minutes,int minimumBars,CancellationToken cancellation);
+}
 
 /// <summary>Broker-provided historical executions represented as one PriceBar per raw tick.</summary>
 public interface ITickHistoryBroker

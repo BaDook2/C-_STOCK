@@ -9,6 +9,7 @@ release/
 TestResults/
 *.trx
 *.pdb
+*_wpftmp.csproj
 *.log
 Stock.exe
 

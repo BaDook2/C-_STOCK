@@ -18,7 +18,8 @@ public sealed partial class WorkspaceViewModel
         var run=OversoldScreeningRun.Start(targets,data.Configuration,data.Specification,now,first,last,data.StrategyName) with{FactsJson=Serialization.Pack(data.Facts),Status="실시간 감시 스냅샷"};
         var from=new DateTimeOffset(first.ToDateTime(TimeOnly.MinValue),TimeSpan.FromHours(9));
         var markers=new List<TradeMarker>();
-        foreach(var row in store.States("trade-marker:"))
+        var savedMarkers=ChartTradeHistory.Read(()=>store.States("trade-marker:"),out var historyUnavailable);
+        foreach(var row in savedMarkers)
         {
             try{var marker=Serialization.Unpack<TradeMarker>(row.Json);if(marker.StockKey==data.Stock.Key&&marker.Price.HasValue&&marker.Time>=from&&marker.Time<=now)markers.Add(marker);}
             catch(System.Text.Json.JsonException){}
@@ -26,6 +27,7 @@ public sealed partial class WorkspaceViewModel
         var trades=markers.OrderBy(m=>m.Time).Select(m=>new ScreeningChartTrade(m.Time,m.Buy,m.Quantity,m.Price!.Value,m.Reason,m.Source,TradeNumber:m.TradeNumber,RealizedPnl:m.RealizedPnl)).ToList();
         var series=new ScreeningChartSeries(data.Specification.ToString(),data.Specification.ToString(),bars.Select(b=>b.Price with{Time=b.OpenTime}).ToArray(),string.Join(", ",bars.Select(b=>b.Source).Distinct()));
         var notices=new List<string>{"창을 연 시점의 완성 봉과 확인된 실제·가상 체결을 표시합니다. 같은 전략의 과거 백테스트 모형체결은 출처로 구분하며 실제 주문/체결로 기록하지 않습니다."};
+        if(historyUnavailable)notices.Add("저장 DB 읽기 오류로 실제·가상 체결 기록을 읽지 못했습니다. 해당 기록은 표시하지 않으며 기존 데이터는 보존했습니다. 테스트 기록의 저장소 점검으로 진단을 확인하세요. 아래 모형체결은 실제 거래 기록이 아닙니다.");
         OversoldResult? result=null;
         try
         {
@@ -63,6 +65,7 @@ public sealed partial class WorkspaceViewModel
         }
         catch(OperationCanceledException){}
         catch(InvalidOperationException ex){alert("실시간 종목 차트를 열 수 없습니다. "+ex.Message);}
+        catch(Exception){alert("실시간 차트 자료를 읽지 못했습니다. 저장소 또는 자료 형식 오류를 확인하세요. 프로그램과 기존 데이터는 유지됩니다.");}
         finally{screeningNavigationBusy=false;}
     }
 }

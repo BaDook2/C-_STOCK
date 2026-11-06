@@ -14,7 +14,7 @@ public sealed class KiwoomCredentials
     public required string SecretKey { get; init; }
     public void Validate(){if(string.IsNullOrWhiteSpace(AppKey)||string.IsNullOrWhiteSpace(SecretKey))throw new InvalidOperationException("앱의 로컬 연결 설정에서 키움 App Key와 Secret을 입력하세요.");}
 }
-public sealed class KiwoomBroker : IAccountBroker,IExecutionHistoryBroker,IMinuteHistoryBroker,IRangedMinuteHistoryBroker,IRangedMinuteIntervalHistoryBroker,ITickHistoryBroker,ICurrentMarketData
+public sealed class KiwoomBroker : IAccountBroker,IExecutionHistoryBroker,IMinuteHistoryBroker,IRangedMinuteHistoryBroker,IRangedMinuteIntervalHistoryBroker,IRecentMinuteIntervalHistoryBroker,ITickHistoryBroker,ICurrentMarketData
 {
     public string Id=>"kiwoom";
     public string Name=>"키움증권";
@@ -101,21 +101,29 @@ public sealed class KiwoomBroker : IAccountBroker,IExecutionHistoryBroker,IMinut
     }
     /// <summary>Official ka10079 domestic one-tick history. Every returned execution remains an individual chart point.</summary>
     public Task<PriceBar[]> TickHistory(string symbol,CancellationToken cancellation)=>DomesticChartHistory("ka10079","stk_tic_chart_qry",symbol,true,cancellation);
-    private async Task<PriceBar[]> DomesticChartHistory(string api,string list,string symbol,bool tick,CancellationToken cancellation,int maxPages=3,DateOnly? baseDate=null,DateTimeOffset? oldestNeeded=null,int minuteScope=1)
+    public Task<PriceBar[]> RecentMinuteHistory(string symbol,int minutes,int minimumBars,CancellationToken cancellation)
+    {
+        if(!SupportsMinuteInterval(minutes)||minimumBars is <1 or >20000)throw new ArgumentOutOfRangeException(nameof(minimumBars));
+        return DomesticChartHistory("ka10080","stk_min_pole_chart_qry",symbol,false,cancellation,maxPages:30,minuteScope:minutes,minimumRows:minimumBars);
+    }
+    private async Task<PriceBar[]> DomesticChartHistory(string api,string list,string symbol,bool tick,CancellationToken cancellation,int maxPages=3,DateOnly? baseDate=null,DateTimeOffset? oldestNeeded=null,int minuteScope=1,int minimumRows=0)
     {
         if(Us)throw new InvalidOperationException("키움 틱·분봉 과거 조회는 현재 국내주식만 지원합니다.");
         new Instrument(symbol,Exchange.KRX).Validate();
         object body=tick?new{stk_cd=symbol,tic_scope="1",upd_stkpc_tp="1"}:new{stk_cd=symbol,tic_scope=minuteScope.ToString(CultureInfo.InvariantCulture),upd_stkpc_tp="1",base_dt=(baseDate??KoreaClock.Today).ToString("yyyyMMdd")};
         // A chart only needs a bounded recent window. Following every continuation can take over a minute
         // on an active symbol and eventually discard otherwise valid pages at the generic 100-page guard.
+        var observedTimes=new HashSet<string>(StringComparer.Ordinal);
         bool ReachedStart(JsonElement page)
         {
-            if(oldestNeeded==null)return false;
             foreach(var row in Rows([page],list))
-                if(DateTime.TryParseExact(Text(row,"cntr_tm"),"yyyyMMddHHmmss",CultureInfo.InvariantCulture,DateTimeStyles.None,out var parsed)&&DateOnly.FromDateTime(parsed)<=DateOnly.FromDateTime(oldestNeeded.Value.DateTime))return true;
-            return false;
+            {
+                observedTimes.Add(Text(row,"cntr_tm"));
+                if(oldestNeeded is {} oldest&&DateTime.TryParseExact(Text(row,"cntr_tm"),"yyyyMMddHHmmss",CultureInfo.InvariantCulture,DateTimeStyles.None,out var parsed)&&DateOnly.FromDateTime(parsed)<=DateOnly.FromDateTime(oldest.DateTime))return true;
+            }
+            return minimumRows>0&&observedTimes.Count>=minimumRows;
         }
-        var pages=await Query(api,"/api/dostk/chart",body,cancellation,maxPages:maxPages,acceptPartialAtLimit:true,stopAfterPage:oldestNeeded==null?null:ReachedStart);var rows=new List<(PriceBar Bar,long Order)>();long order=0;var malformed=0;
+        var pages=await Query(api,"/api/dostk/chart",body,cancellation,maxPages:maxPages,acceptPartialAtLimit:true,stopAfterPage:oldestNeeded==null&&minimumRows==0?null:ReachedStart);var rows=new List<(PriceBar Bar,long Order)>();long order=0;var malformed=0;
         foreach(var row in Rows(pages,list))
         {
             cancellation.ThrowIfCancellationRequested();

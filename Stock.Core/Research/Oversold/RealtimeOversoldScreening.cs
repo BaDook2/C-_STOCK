@@ -7,7 +7,8 @@ public sealed record RealtimeScreeningSignal(string Key,string Name,DateTimeOffs
 public sealed record RealtimeScreeningStatusRow(
     string Key,string Name,string Code,decimal? Price,decimal? ChangePercent,decimal Proximity,
     int MetConditions,int TotalConditions,string UnmetConditions,string StrategyState,
-    DateTimeOffset? LastAnalyzedAt,string DataState,string Error,bool Focused,bool BuySignal);
+    DateTimeOffset? LastAnalyzedAt,string DataState,string Error,bool Focused,bool BuySignal)
+{public bool MatchesStrategy {get;init;} public bool MissingConditions {get;init;}}
 public sealed record RealtimeScreeningSnapshot(
     bool Running,bool AutoTradingEnabled,string Status,string ConnectionState,string StrategyName,
     BarSpecification? BarSpecification,IReadOnlyList<RealtimeScreeningStatusRow> Rows)
@@ -240,12 +241,12 @@ public sealed class RealtimeOversoldScreeningService
     {
         lock(sync)
         {
-            var output=rows.Values.Select(ToStatus).OrderByDescending(r=>r.BuySignal).ThenByDescending(r=>r.Proximity).ThenBy(r=>r.Name,StringComparer.Ordinal).ToArray();
+            var output=rows.Values.Select(r=>ToStatus(r,clock())).OrderByDescending(r=>r.BuySignal).ThenByDescending(r=>r.Proximity).ThenBy(r=>r.Name,StringComparer.Ordinal).ToArray();
             return new(running,autoTrading,status,connectionState,strategyName,specification,output){Version=version};
         }
     }
 
-    private static RealtimeScreeningStatusRow ToStatus(Row row)
+    private static RealtimeScreeningStatusRow ToStatus(Row row,DateTimeOffset now)
     {
         var evaluation=row.Strategy.LatestEntryEvaluation;
         var relevant=evaluation?.Conditions.Where(c=>!c.Diagnostic&&c.Condition is not("전체" or "최종")&&c.Outcome!=ConditionOutcome.Disabled).ToArray()??[];
@@ -253,7 +254,10 @@ public sealed class RealtimeOversoldScreeningService
         var unmet=relevant.Where(c=>c.Outcome!=ConditionOutcome.Passed).Select(c=>$"{c.Condition}({Outcome(c.Outcome)})").ToArray();
         var proximity=evaluation==null?0:RealtimeConditionProximity.Calculate(evaluation,row.Item.Oversold!.Configuration);
         var buy=row.Strategy.ReadySignalTime!=null;
-        var state=buy?"매수 신호 발생":evaluation?.State switch
+        var fresh=row.LastReceived is {} received&&(now-received).Duration()<=TimeSpan.FromSeconds(row.Item.Oversold!.PublicPaper?20:10)
+            &&LiveBatchSupport.RegularSession(now)&&(!row.Item.Oversold.PublicPaper||row.PublicSnapshot?.Quote.State=="OPEN");
+        var matches=row.Enabled&&row.Error==""&&fresh&&evaluation?.TechnicalCandidate==true&&relevant.Length>0&&relevant.All(c=>c.Outcome==ConditionOutcome.Passed);
+        var state=buy&&matches?"매수 신호 발생":matches?"전략 조건 일치":evaluation?.State switch
         {
             OversoldState.WaitingForRebound=>"집중 감시 · 반등 대기",
             OversoldState.SupportApproached=>"집중 감시 · 지지 접근",
@@ -263,7 +267,8 @@ public sealed class RealtimeOversoldScreeningService
         };
         var last=row.Context.Last;decimal? change=last?.PreviousClose is >0&&row.Context.Price>0?(row.Context.Price/last.PreviousClose.Value-1)*100:null;
         return new(row.Item.Stock.Key,row.Item.Stock.Name,row.Item.Stock.Symbol,row.Context.Price>0?row.Context.Price:null,change,proximity,met,total,
-            unmet.Length==0?"없음":string.Join(", ",unmet),state,row.Strategy.LastAnalyzedAt==default?null:row.Strategy.LastAnalyzedAt,row.DataState,row.Error,state.StartsWith("집중",StringComparison.Ordinal)||buy,buy);
+            unmet.Length==0?"없음":string.Join(", ",unmet),state,row.Strategy.LastAnalyzedAt==default?null:row.Strategy.LastAnalyzedAt,row.DataState,row.Error,state.StartsWith("집중",StringComparison.Ordinal)||buy,buy)
+            {MatchesStrategy=matches,MissingConditions=relevant.Any(c=>c.Outcome is ConditionOutcome.MissingData or ConditionOutcome.NotEvaluated)};
     }
 
     private static string Outcome(ConditionOutcome outcome)=>outcome switch

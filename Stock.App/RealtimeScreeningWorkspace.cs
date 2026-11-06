@@ -37,6 +37,15 @@ public sealed partial class WorkspaceViewModel
     private RealtimeScreeningDisplayRow? selectedRealtimeScreeningRow;
 
     public ObservableCollection<RealtimeScreeningDisplayRow> RealtimeScreeningRows {get;}=[];
+    private bool showAllRealtimeScreening;
+    private RealtimeScreeningSnapshot? lastRealtimeScreeningSnapshot;
+    private IReadOnlyDictionary<string,LiveBatchRowStatus> lastRealtimeOrders=new Dictionary<string,LiveBatchRowStatus>();
+    private IReadOnlyList<RealtimeScreeningDisplayRow> lastRealtimeFailures=[];
+    public bool ShowAllRealtimeScreening
+    {
+        get=>showAllRealtimeScreening;
+        set{if(showAllRealtimeScreening==value)return;showAllRealtimeScreening=value;Changed();if(lastRealtimeScreeningSnapshot is {} snapshot)ApplyRealtimeSnapshot(snapshot,lastRealtimeOrders,lastRealtimeFailures);}
+    }
     public RealtimeScreeningDisplayRow? SelectedRealtimeScreeningRow {get=>selectedRealtimeScreeningRow;set{selectedRealtimeScreeningRow=value;Changed();}}
     public bool RegularScreeningMode {get=>!realtimeScreenMode;set{if(value)RealtimeScreeningMode=false;}}
     public bool RealtimeScreeningMode
@@ -154,7 +163,8 @@ public sealed partial class WorkspaceViewModel
         if(prepared.Count==0)throw new InvalidOperationException("실시간 감시에 필요한 준비 봉을 가져온 종목이 없습니다.");
 
         var plan=new RealtimeScreeningPlan(prepared.ToArray(),strategyName,specification);
-        RealtimeScreening.Start(plan);
+        RealtimeScreenInfo=$"{prepared.Count:N0}종목 · 전략 조건 계산 중";
+        await Task.Run(()=>RealtimeScreening.Start(plan),Token);
         realtimeScreenPapers.Clear();
         try
         {
@@ -165,7 +175,7 @@ public sealed partial class WorkspaceViewModel
                 var items=chunk.ToArray();if(items.Length==0)continue;
                 var total=items.Sum(i=>i.Budget);var paper=new RealtimePaperStrategyBatch(store,multiClock);
                 paper.FillRecorded+=_=>dispatcher.BeginInvoke(()=>{if(!disposed){ReloadTradeMarkers();Refresh();}});
-                paper.Start(new(items,total,Math.Max(1,total)));
+                await Task.Run(()=>paper.Start(new(items,total,Math.Max(1,total))),Token);
                 paper.SetEntryEnabled(realtimeScreenAutoTrade);
                 realtimeScreenPapers.Add(paper);
             }
@@ -254,13 +264,19 @@ public sealed partial class WorkspaceViewModel
         {
             try
             {
-                var facts=baseFacts.Snapshot();DailySecurityStatus? currentStatus=null;
-                if(currentData!=null)try{currentStatus=await currentData.CurrentSecurity(stock,Token);}catch(OperationCanceledException){throw;}catch{}
+                var facts=baseFacts.Snapshot();
+                var warmupTask=ScreeningBars(stock,specification,facts,now,Token,recentBars:RealtimeWarmup.RequiredBars(config));
+                async Task<DailySecurityStatus?> ReadStatus()
+                {if(currentData==null)return null;try{return await currentData.CurrentSecurity(stock,Token);}catch(OperationCanceledException){throw;}catch{return null;}}
+                var statusTask=ReadStatus();
+                // Observe both concurrent requests, including cancellation and query failures.
+                await Task.WhenAll(warmupTask,statusTask);
+                var currentStatus=await statusTask;
                 if(currentStatus!=null)facts.StatusRecords=[..facts.StatusRecords.Where(s=>s.Symbol!=stock.Symbol||s.Date!=today),currentStatus];
                 bool? risk=store.State<bool>("exclude:"+stock.Key)?true:store.State<string>("review:"+stock.Key)==KoreaClock.Today.ToString()?false:null;
                 if(risk.HasValue)facts.RiskRecords=[..facts.RiskRecords.Where(r=>r.Symbol!=stock.Symbol||r.Date!=today),new(stock.Symbol,today,risk.Value,now)];
                 facts.Validate();
-                var warmup=await ScreeningBars(stock,specification,facts,now,Token);
+                var warmup=await warmupTask;
                 if(warmup.Length==0)throw new InvalidOperationException("검증된 준비 봉이 없습니다.");
                 if(warmup.Length>20000)warmup=warmup.TakeLast(20000).ToArray();
                 facts=LiveBatchSupport.WithObservedWarmupSessions(facts,warmup);
@@ -277,14 +293,15 @@ public sealed partial class WorkspaceViewModel
     private void ApplyRealtimeSnapshot(RealtimeScreeningSnapshot snapshot,IReadOnlyDictionary<string,LiveBatchRowStatus> orders,IReadOnlyList<RealtimeScreeningDisplayRow> failures)
     {
         if(disposed||RealtimeScreeningStrategyChanging||snapshot.Version!=realtimeScreening?.Version)return;
+        lastRealtimeScreeningSnapshot=snapshot;lastRealtimeOrders=orders;lastRealtimeFailures=failures;
         var updated=new List<RealtimeScreeningDisplayRow>();
-        foreach(var row in snapshot.Rows)
+        foreach(var row in snapshot.Rows.Where(r=>ShowAllRealtimeScreening||r.MatchesStrategy))
         {
             var order=orders.GetValueOrDefault(row.Key);
             var orderText=IsOffline?"공개시세 · 신호만":order==null?(snapshot.AutoTradingEnabled?"자동매매 불가 · 상태/위험 확인":"자동매매 꺼짐"):order.Status+(string.IsNullOrWhiteSpace(order.Error)?"":" · "+order.Error);
             updated.Add(new(row.Code,row.Name,row.Price is {} p?$"{DisplayNumber.Price(p)}원":"—",row.ChangePercent is {} c?$"{c:+0.00;-0.00;0.00}%":"—",$"{row.Proximity:N1}점",$"{row.MetConditions:N0}/{row.TotalConditions:N0}",row.UnmetConditions,row.StrategyState,row.LastAnalyzedAt?.ToOffset(TimeSpan.FromHours(9)).ToString("HH:mm:ss")??"—",row.DataState,orderText,row.Error));
         }
-        updated.AddRange(failures);
+        if(ShowAllRealtimeScreening)updated.AddRange(failures);
         // Retain item identity and ordering while quotes change: no Reset/Remove event can
         // clear a DataGrid selection or invalidate the row between two clicks.
         var existing=RealtimeScreeningRows.ToDictionary(r=>r.Code,StringComparer.Ordinal);
@@ -293,7 +310,7 @@ public sealed partial class WorkspaceViewModel
         var keys=updated.Select(r=>r.Code).ToHashSet(StringComparer.Ordinal);
         foreach(var old in RealtimeScreeningRows.Where(r=>!keys.Contains(r.Code)).ToArray())RealtimeScreeningRows.Remove(old);
         RealtimeScreenConnection=snapshot.ConnectionState;
-        RealtimeScreenInfo=$"{snapshot.Status} · {snapshot.Rows.Count:N0}종목 · 집중 {snapshot.Rows.Count(r=>r.Focused):N0} · 신호 {snapshot.Rows.Count(r=>r.BuySignal):N0} · 접근도는 발동 확률이 아닙니다."+(IsOffline?" · 공개시세 신호 표시만 · 체결/호가 아님 · 지연 가능":"");
+        RealtimeScreenInfo=$"검사 대상 {snapshot.Rows.Count+failures.Count:N0} · 분석 {snapshot.Rows.Count:N0} · 전략 일치 {snapshot.Rows.Count(r=>r.MatchesStrategy):N0} · 자료 미확인 {snapshot.Rows.Count(r=>r.MissingConditions)+failures.Count:N0} · 새 매수 신호 {snapshot.Rows.Count(r=>r.BuySignal&&r.MatchesStrategy):N0} · {(ShowAllRealtimeScreening?"전체 판단 표시":"전략 일치 종목만 표시 (확정봉 기준)")}"+(IsOffline?" · 공개시세 신호 표시만 · 지연 가능":"");
         if(realtimeScreenAutoTrade!=snapshot.AutoTradingEnabled){realtimeScreenAutoTrade=snapshot.AutoTradingEnabled;Changed(nameof(RealtimeAutoTrade));}
         NotifyRealtimeState();
     }

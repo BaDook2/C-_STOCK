@@ -59,9 +59,9 @@ public static class StrategyBarAggregator
         }
         return new(output.ToArray(),incomplete,missing,missing>0?"체결 누락/수집 시작 구간 부족":output.Count==0?"완성된 봉이 없습니다.":"");
     }
-    public static BarAggregation FromMinutes(IEnumerable<StrategyBar> input,BarSpecification spec,IReadOnlyList<DailyMarketSession> sessions,DateTimeOffset asOf)
+    public static BarAggregation FromMinutes(IEnumerable<StrategyBar> input,BarSpecification spec,IReadOnlyList<DailyMarketSession> sessions,DateTimeOffset asOf,int sourceMinutes=1)
     {
-        spec.Validate();ValidateSessions(sessions);if(spec.Unit==BarUnit.Tick)return new([],0,1,"분봉을 틱으로 변환할 수 없습니다.");
+        spec.Validate();ValidateSessions(sessions);if(sourceMinutes<1)throw new ArgumentOutOfRangeException(nameof(sourceMinutes));if(spec.Unit==BarUnit.Tick)return new([],0,1,"분봉을 틱으로 변환할 수 없습니다.");
         var bars=input.OrderBy(b=>b.OpenTime).ToArray();foreach(var b in bars)b.Price.Validate();
         if(bars.GroupBy(b=>b.OpenTime).Any(g=>g.Count()>1))return new([],0,1,"중복 원본 분봉입니다.");
         long span=checked((long)spec.Value*(spec.Unit==BarUnit.Hour?60:1));var output=new List<StrategyBar>();int incomplete=0,missing=0;long ordinal=0;
@@ -73,12 +73,12 @@ public static class StrategyBarAggregator
             var items=group.ToArray();var start=session.Open.AddTicks(group.Key*span*TimeSpan.TicksPerMinute);var length=span*TimeSpan.TicksPerMinute;
             if(length>(session.Close-start).Ticks){incomplete++;continue;}var end=start.AddTicks(length);
             if(end>asOf||items.Any(b=>!b.Price.IsComplete||b.ClosedAt>asOf)){incomplete++;continue;}
-            if(items.LongLength!=span||items.Where((b,i)=>b.OpenTime!=start.AddMinutes(i)||b.ClosedAt!=b.OpenTime.AddMinutes(1)).Any()){missing++;continue;}
+            if(span%sourceMinutes!=0||items.LongLength!=span/sourceMinutes||items.Where((b,i)=>b.OpenTime!=start.AddMinutes((long)i*sourceMinutes)||b.ClosedAt!=b.OpenTime.AddMinutes(sourceMinutes)).Any()){missing++;continue;}
             decimal? value=items.All(b=>b.TradingValue.HasValue)?items.Sum(b=>b.TradingValue!.Value):null;
             output.Add(new(new(end,items[0].Price.Open,items.Max(b=>b.Price.High),items.Min(b=>b.Price.Low),items[^1].Price.Close,items.Sum(b=>b.Price.Volume)),start,end,++ordinal,value,string.Join(" / ",items.Select(b=>b.Source).Distinct())));
         }
         }
-        return new(output.ToArray(),incomplete,missing,missing>0?"원본 1분봉 구간에 누락이 있습니다.":output.Count==0?"완성된 봉이 없습니다.":"");
+        return new(output.ToArray(),incomplete,missing,missing>0?$"원본 {sourceMinutes}분봉 구간에 누락이 있습니다.":output.Count==0?"완성된 봉이 없습니다.":"");
     }
     private static StrategyBar Build(MarketEvent[] group,DateTimeOffset start,DateTimeOffset end,long ordinal,string source)
         =>new(new(end,group[0].TradePrice!.Value,group.Max(e=>e.TradePrice!.Value),group.Min(e=>e.TradePrice!.Value),group[^1].TradePrice!.Value,group.Sum(e=>e.TradeSize!.Value)),start,end,ordinal,group.Sum(e=>e.TradePrice!.Value*e.TradeSize!.Value),source);

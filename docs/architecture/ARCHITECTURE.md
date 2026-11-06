@@ -1,5 +1,13 @@
 ﻿# 아키텍처
 
+## 2026-11-06 실시간 평가/표시 경계와 조회 오류 격리
+
+추가 DB 조사/수명 수정의 현재 기준은 [저장소 운영](../maintenance/Storage.md)이다. 아래 과거 기록의 "문자열/locale 손상" 가설은 재검사에서 확인되지 않았다. TradingStore는 작업별 비풀링 연결을 사용하고 실제 SQLite 실패의 확장코드와 독립 연결 점검을 보관한다. DB 무결성/JSON 정합성을 별도로 검사하며 파일 수리는 확인된 손상이 있을 때만 수행한다. 전체 문서 지도는 [시작 안내](../START_HERE.md).
+
+`RealtimeOversoldScreeningService`는 선택 대상 전체의 공통 전략 평가를 유지하고 `MatchesStrategy`(활성 비진단 조건 전체 통과·현재 시세 신선도·정규장·오류 없음)를 별도로 제공한다. Workspace 기본 projection은 이 값으로 결과를 선별한다. 전체 대상 진단 보기와 주문 상태는 독립적이며 결과에서 이탈해도 내부 감시를 중단하지 않는다. 전략 준비는 Background에서, 데이터/종목 상태 조회는 병렬로 수행한다. 키움 native 최근 봉 인터페이스는 준비용 과다 조회를 줄이며 기존 엔진·차트·기간 백테스트를 대체하지 않는다.
+
+`TradingStore.States`의 ASCII prefix 조회는 state PK의 BINARY 범위 인덱스를 사용한다. 전체 상태와 대용량 백테스트/캐시 행을 읽지 않고 해당 namespace만 가져온다. 비ASCII/빈 prefix는 기존 호환 경로를 유지한다. `ChartTradeHistory.Read`는 SQLite 읽기 예외를 실제 체결 없음과 구분해 차트에 알리고, 바깥 비동기 WPF 진입/이동도 예외를 격리한다. 이 경로는 사용자 DB 삭제·자동 복구·초기화를 수행하지 않는다.
+
 ## 프로젝트 구조
 
 - Stock.App: .NET 10 WPF 화면, WorkspaceViewModel, 명령, 차트 렌더링, 로컬 키 입력창.

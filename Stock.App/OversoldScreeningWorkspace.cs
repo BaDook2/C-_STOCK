@@ -44,7 +44,7 @@ public sealed partial class WorkspaceViewModel
         if(store.State<string>("oversold-screen-latest") is {} id)LatestScreening=store.State<OversoldScreeningRun>(id);
         Actions["스크리닝결과"]=new(()=>{var dialog=new ScreeningResultDialog(()=>LatestScreening,ScreeningTradeDetails,(stock,run)=>OpenScreeningStock(stock,run));if(System.Windows.Application.Current?.MainWindow is {} owner&&owner.IsVisible)dialog.Owner=owner;dialog.Show();return Task.CompletedTask;},()=>LatestScreening!=null);
     }
-    private async Task<StrategyBar[]> ScreeningBars(StockItem item,BarSpecification? spec,HistoricalFacts facts,DateTimeOffset asOf,CancellationToken token,DateOnly? from=null,DateOnly? to=null)
+    private async Task<StrategyBar[]> ScreeningBars(StockItem item,BarSpecification? spec,HistoricalFacts facts,DateTimeOffset asOf,CancellationToken token,DateOnly? from=null,DateOnly? to=null,int? recentBars=null)
     {
         if(spec==null)
         {
@@ -54,7 +54,7 @@ public sealed partial class WorkspaceViewModel
             return data.Bars.Select((b,i)=>{var day=DailyDates.Of(b);return new StrategyBar(b,b.Time,b.Time,i,facts.TradingValue(item.Symbol,day,b.Time),data.Source);}).ToArray();
         }
         // Existing raw event repository is authoritative only when its capture coverage was verified.
-        var coverage=store.State<BarCoverage>("verified-tick-coverage:"+item.Key);
+        var coverage=recentBars.HasValue&&broker is IRecentMinuteIntervalHistoryBroker&&spec.Unit!=BarUnit.Tick?null:store.State<BarCoverage>("verified-tick-coverage:"+item.Key);
         if(coverage!=null)
         {
             var raw=store.ReadEvents(item.Key,"KIWOOM",coverage.From,coverage.To);
@@ -64,11 +64,16 @@ public sealed partial class WorkspaceViewModel
         }
         if(spec.Unit!=BarUnit.Tick&&IsOnline&&broker is IMinuteHistoryBroker minute&&broker.Exchange==item.Exchange)
         {
-            var cacheKey=$"{item.Key}|{spec.Unit}|{spec.Value}|{from}|{to}|{broker.Id}";
+            var cacheKey=$"{item.Key}|{spec.Unit}|{spec.Value}|{from}|{to}|{broker.Id}|{recentBars}";
             lock(screeningBarCacheGate)if(screeningBarCache.TryGetValue(cacheKey,out var cached)&&DateTimeOffset.UtcNow-cached.StoredAt<TimeSpan.FromMinutes(2))return cached.Bars;
             var targetMinutes=checked(spec.Value*(spec.Unit==BarUnit.Hour?60:1));var sourceMinutes=1;
             PriceBar[] source;
-            if(minute is IRangedMinuteIntervalHistoryBroker interval&&from is {} intervalFrom&&to is {} intervalTo&&interval.SupportsMinuteInterval(targetMinutes))
+            if(recentBars.HasValue&&minute is IRecentMinuteIntervalHistoryBroker recent&&minute is IRangedMinuteIntervalHistoryBroker native)
+            {
+                sourceMinutes=RealtimeWarmup.SourceInterval(targetMinutes,native.SupportsMinuteInterval);
+                source=await recent.RecentMinuteHistory(item.Symbol,sourceMinutes,RealtimeWarmup.SourceBars(recentBars.Value,targetMinutes,sourceMinutes),token);
+            }
+            else if(minute is IRangedMinuteIntervalHistoryBroker interval&&from is {} intervalFrom&&to is {} intervalTo&&interval.SupportsMinuteInterval(targetMinutes))
             {sourceMinutes=targetMinutes;source=await interval.MinuteHistory(item.Symbol,intervalFrom,intervalTo,sourceMinutes,token);}
             else source=minute is IRangedMinuteHistoryBroker ranged&&from is {} rangeFrom&&to is {} rangeTo
                 ?await ranged.MinuteHistory(item.Symbol,rangeFrom,rangeTo,token)
@@ -77,7 +82,8 @@ public sealed partial class WorkspaceViewModel
             var minuteRows=source.DistinctBy(b=>b.Time).OrderBy(b=>b.Time).Select((bar,index)=>
             {
                 var open=new DateTimeOffset(bar.Time.Year,bar.Time.Month,bar.Time.Day,bar.Time.Hour,bar.Time.Minute,0,bar.Time.Offset);
-                var close=open.AddMinutes(sourceMinutes);var complete=bar.IsComplete&&close<=asOf;
+                var close=open.AddMinutes(sourceMinutes);
+                var complete=bar.IsComplete&&close<=asOf;
                 var normalized=new PriceBar(close,bar.Open,bar.High,bar.Low,bar.Close,bar.Volume,complete);
                 // Kiwoom ka10080 exposes OHLCV but no per-minute traded notional. Keep the
                 // estimate explicit in the source so results never present it as an exact API value.
@@ -87,18 +93,9 @@ public sealed partial class WorkspaceViewModel
             var days=minuteRows.Select(b=>DateOnly.FromDateTime(b.OpenTime.ToOffset(TimeSpan.FromHours(9)).DateTime)).Distinct().ToArray();
             var known=facts.Sessions.Where(s=>days.Contains(s.Date)).ToDictionary(s=>s.Date);
             var sessions=days.Select(day=>known.GetValueOrDefault(day)??new DailyMarketSession(day,new DateTimeOffset(day.ToDateTime(new TimeOnly(9,0)),TimeSpan.FromHours(9)),new DateTimeOffset(day.ToDateTime(new TimeOnly(15,30)),TimeSpan.FromHours(9)))).OrderBy(s=>s.Open).ToArray();
-            StrategyBar[] result;
-            if(sourceMinutes==targetMinutes)
-            {
-                result=minuteRows.Where(b=>b.Price.IsComplete&&sessions.Any(s=>b.OpenTime>=s.Open&&b.ClosedAt<=s.Close)).ToArray();
-                if(result.Length==0)throw new InvalidOperationException("자료 부족 · 선택 기간에 완성된 증권사 지정봉이 없습니다.");
-            }
-            else
-            {
-                var aggregate=StrategyBarAggregator.FromMinutes(minuteRows,spec,sessions,asOf);
-                if(aggregate.Bars.Length==0)throw new InvalidOperationException("자료 부족 · "+aggregate.Reason);
-                result=aggregate.Bars;
-            }
+            var aggregate=StrategyBarAggregator.FromMinutes(minuteRows,spec,sessions,asOf,sourceMinutes);
+            if(aggregate.Bars.Length==0)throw new InvalidOperationException("자료 부족 · "+aggregate.Reason);
+            var result=aggregate.Bars;
             lock(screeningBarCacheGate)
             {
                 screeningBarCache[cacheKey]=new(DateTimeOffset.UtcNow,result);
