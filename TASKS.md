@@ -1,28 +1,23 @@
-# 현재 작업 — 2026-11-06 스크리닝 지정봉 체결·선택 보완
+# 완료 — 2026-11-06 스크리닝 지정봉 체결·선택
 
-- [x] 분·시간봉 상세에서도 공통 백테스트 엔진으로 당시 설정/기간의 모형체결을 계산하고 매수·매도 표식을 표시한다.
-- [x] 우클릭 전후 범위가 같은 짧은 차트는 처음부터 탐색 가능하게 하고, 표식/묶음 글자 클릭 시 정확한 거래 행을 선택·스크롤한다. 전용58개/관련328개 및 Windows 실제 마우스 확인, 빌드 경고0·오류0.
-- [~] 전체1,317개/빌드 경고0·오류0/publish·EXE smoke 통과. 새 v0.1.14 릴리즈의 CI 전체 검사·공개 다운로드 검증·루트 EXE 반영 진행.
+- [x] 일반 스크리닝 분·시간봉 상세에서 공통 백테스트 엔진으로 당시 설정/기간의 모형체결과 지지 snapshot을 계산해 표시. 준비 봉 정책은 메인 백테스트와 공유.
+- [x] 우클릭 전후 범위가 같은25봉 이하 차트는 즉시 탐색. 개별/묶음 글자·체결 봉 클릭 시 해당 거래 표 행을 선택·스크롤하고 상세 표시. 오른쪽 표식 잘림 방지.
+- [x] 빌드 경고0·오류0, 전용58개/관련328개/전체1,317개, publish·EXE smoke 종료0/Success/NoBrokerCalls=true. Windows 실제 마우스 확인. 실제 주문/키 변경 없음.
+- [x] v0.1.14/bb1d510 공개. [Actions42183510638](https://github.com/BaDook2/C-_STOCK/actions/runs/42183510638) 빌드0경고·0오류, 전체1,317개/배포 EXE smoke/Release 성공. 전체 검사21분31초, job23분19초.
+- [x] 공개 EXE checksum/자산 digest/실제 SHA256 일치, 다운로드 EXE smoke 종료0/Success/NoBrokerCalls=true. 루트와 release/Stock.exe도 동일 공개 파일로 교체·해시 대조 완료.
 
-## 직전 완료 — 스크리닝 차트 개선
+## 근거·배포
 
-- [x] 기존 시리즈 콤보 제거·스크리닝 기준 읽기 전용, 별도 지정봉(분1~59/시간1~12)/일·주·월. 기존 제공자/원본 재사용, 비동기 조회·취소·bounded cache, 분석/체결 snapshot 유지.
-- [x] 실시간 가격·전일 종가 대비 등락률·수신시각1초 표시. 지연/중지 상태와 창 종료 처리. 온라인/오프라인 fixture, 실제 네이버5분봉325개, Windows 실제 마우스 검증.
-- [x] 우클릭 이후 최소5봉 확대/최초 확대 봉 수의 최대 축소. 포커스·PreviewMouseWheel·프레임 병합·표식 이진 탐색/캐시·툴팁 무효화. 동일2만봉160표식 재렌더 P95 7,107→29.16ms.
-- [x] 전용21개/최종 전체1,280개/빌드 경고0·오류0/publish·EXE smoke 통과. 실제 주문·키 변경 없음.
-- [x] v0.1.13/c51f668 공개, Actions42175965891 전체1,280개·경고0/오류0·배포 smoke 성공. 공개 다운로드 checksum/digest/실제 해시·실행 검증 후 루트/release EXE 동기화 완료.
-
-## 배포와 근거
-
-- [최신 Release](https://github.com/BaDook2/C-_STOCK/releases/tag/v0.1.13), [Stock.exe](https://github.com/BaDook2/C-_STOCK/releases/download/v0.1.13/Stock.exe).
-- 소스 c51f668544672436e5c7d47e099f416cedf47f55. 공개/루트/release EXE 80,866,955 bytes / SHA256 6CB0CEF0018E6BB205981259040FF0012248B793CCB7960FFBA3692264B8894A.
-- docs/verification/ScreeningChart-2026-11-06.md, Release-v0.1.13.md. v0.1.12는 게시 전 취소했고 태그만 보존한다. 동일 변경으로 릴리즈를 반복 생성하지 않는다.
-- 이전 DB·전체 기능 점검 완료 기록: docs/verification/StorageAudit-2026-11-06.md와 FeatureAudit-2026-11-06.md. 사전 로컬 빌드/이전 공개 EXE는 artifacts에 보존했다.
+- docs/verification/ScreeningTradeChart-2026-11-06.md, docs/verification/Release-v0.1.14.md.
+- 로컬 검증 EXE: publish/win-x64/Stock.exe, 80,835,673 bytes / SHA256 FDD5538DA55E444BC3F5AB42AF27A75543640C6E205D9EEC2F42E89364A915B4.
+- [최신 릴리즈](https://github.com/BaDook2/C-_STOCK/releases/tag/v0.1.14), [Stock.exe](https://github.com/BaDook2/C-_STOCK/releases/download/v0.1.14/Stock.exe). 공개/루트/release EXE80,868,637 bytes / SHA256 77A647E6F86ECA9C069B991C31FAD2BC35C9EB921F11C6724766422A46F8B7DB. 이전 루트 파일은 artifacts에 보존했다.
 
 ## 유지할 미확정·제한
 
-- [!] 09:18/09:20 최초 SQLite11의 유발 사건은 재현/확정되지 않았다. 원본/실패 사본4개/최종 실제 DB의 무결성·JSON은 정상이다. 새 failure 증거 없이 정상 DB를 임의로 초기화·재구축·수리하지 않는다. docs/maintenance/Storage.md 참고.
-- 실계좌 주문/실제 키 삭제·변경은 이번 작업에서 실행하지 않았다. 계좌/주문 기능은 격리 DB·더미 키·가짜 broker로 검사한다.
-- 과거 시점별 종목 상태·위험 자료 미확인은 자동 주문 승인으로 통과시키지 않는다. 국내390분 정규장 내7~12시간 완성 봉은 다른 분석 봉으로 가장하지 않는다.
+- [!] 09:18/09:20 최초 SQLite11의 유발 사건은 재현/확정되지 않았다. 원본/실패 사본4개/최종 실제 DB의 무결성·JSON 정상. 새 증거 없이 정상 DB를 초기화·재구축·수리하지 않는다. docs/maintenance/Storage.md 참고.
+- 실계좌 주문/실제 키 변경은 실행하지 않았다. 테스트는 격리 DB/가짜 증권사. 과거 상태·위험 미확인은 실제 주문 승인으로 통과시키지 않는다.
+- 체결이 발생하지 않은 결과에 매매 표식을 만들지 않는다. 국내390분 정규장 내7~12시간 완성 봉이나 제공자가 반환하지 않은 분봉을 다른 자료로 가장하지 않는다.
 
-새 작업이 없으면 완료 작업을 재실행하지 않는다. AGENTS → TASKS → HANDOFF → docs/START_HERE.md 순서로 필요한 문서만 확인한다.
+## 완료 기록
+
+현재 요청은 완료됐다. 다음 요청이 없으면 동일 검사/태그/릴리즈를 반복하지 않는다. 코드와 검증은 docs/verification/ScreeningTradeChart-2026-11-06.md, 공개 배포는 Release-v0.1.14.md를 확인한다. 실제 주문/키 변경/정상 DB 수리는 실행하지 않았다.

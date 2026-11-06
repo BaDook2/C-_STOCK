@@ -10,4 +10,12 @@
 
 ## 공개 배포
 
-진행 중. 소스 커밋·Actions 전체 검사·공개 다운로드 해시/실행·루트 EXE 동기화 결과를 게시 후 갱신한다. 성공하지 않은 CI나 미확인 다운로드를 완료로 표시하지 않는다.
+- [GitHub Release](https://github.com/BaDook2/C-_STOCK/releases/tag/v0.1.14), [Stock.exe 다운로드](https://github.com/BaDook2/C-_STOCK/releases/download/v0.1.14/Stock.exe), [체크섬](https://github.com/BaDook2/C-_STOCK/releases/download/v0.1.14/Stock.exe.sha256).
+- 소스 bb1d510a2c85a1a33c81b7ed7082bbef4f8ed319, [Actions42183510638](https://github.com/BaDook2/C-_STOCK/actions/runs/42183510638) 성공. 전체1,317개/빌드0경고·0오류/publish/배포 EXE smoke 성공. 전체 검사21분31초, job23분19초.
+- 게시시각2026-11-06 17:13:42 KST. 공개 자산80,868,637 bytes / SHA256 `77a647e6f86eca9c069b991c31fad2bc35c9eb921f11c6724766422a46f8b7db`.
+- 공개 EXE와 checksum을 다시 다운로드해 checksum/자산digest/실제SHA256/크기를 대조했다. 모두 일치했다.
+- 다운로드 EXE smoke 종료0, Success/NoBrokerCalls=true. artifacts/download-v0.1.14-smoke-20261106-171427/result.json.
+- 실행 중인 Stock 프로세스가 없는 상태에서 공개 검증 EXE를 루트 Stock.exe와 release/Stock.exe에 반영했고 세 파일의 SHA256이 일치했다. 이전 루트 EXE는 artifacts에 보존했다.
+- artifacts/release-v0.1.14-{ci.log,job.log,job.json,proof.json}에 근거 보관. Git에는 키/개인 DB/실제 진단 원문/EXE를 추가하지 않았다.
+
+현재 요청의 구현·로컬 검증·공개 배포 검증은 완료됐다. 실계좌 주문·실제 키 변경은 실행하지 않았다. 과거 SQLite11 최초 유발 사건은 이 변경의 원인으로 단정하지 않으며 기존 미확정 기록을 유지한다.
