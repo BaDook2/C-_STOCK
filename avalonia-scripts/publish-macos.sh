@@ -24,9 +24,12 @@ cp "$ROOT/packaging/macos/Info.plist" "$APP/Contents/Info.plist"
 /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION" "$APP/Contents/Info.plist"
 plutil -lint "$APP/Contents/Info.plist" "$ROOT/packaging/macos/Stock.entitlements"
 chmod +x "$APP/Contents/MacOS/Stock.Avalonia"
-while IFS= read -r -d '' STOCK_NATIVE; do
-  if file -b "$STOCK_NATIVE" | grep -q 'Mach-O'; then
-    codesign --force --sign - "$STOCK_NATIVE"
+while IFS= read -r -d '' STOCK_CODE; do
+  # In the flat Avalonia bundle, managed DLLs and data are nested code too.
+  # Seal every leaf first; signing the CFBundleExecutable can validate the
+  # whole bundle, so leave that executable for the final bundle operation.
+  if [[ "$STOCK_CODE" != "$APP/Contents/MacOS/Stock.Avalonia" ]]; then
+    codesign --force --sign - "$STOCK_CODE"
   fi
 done < <(find "$APP/Contents/MacOS" -type f -print0)
 codesign --force --options runtime --identifier com.stock.desktop.avalonia --entitlements "$ROOT/packaging/macos/Stock.entitlements" --sign - "$APP"
