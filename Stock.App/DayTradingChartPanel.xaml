@@ -1,0 +1,11 @@
+<UserControl x:Class="Stock.App.DayTradingChartPanel" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="clr-namespace:Stock.App">
+ <Grid><Grid.RowDefinitions><RowDefinition Height="*" MinHeight="150"/><RowDefinition Height="130"/><RowDefinition Height="100"/></Grid.RowDefinitions>
+  <local:CandleChart x:Name="PriceChart" Bars="{Binding ChartBars}" TradeMarkers="{Binding Markers}" SupportZones="{Binding Zones}" Period="{Binding ChartPeriod}" DisplayBarCount="300" MovingAverages="False"/>
+  <DataGrid x:Name="Fills" Grid.Row="1" ItemsSource="{Binding VisibleFills}" SelectionChanged="FillSelected" Margin="0,8"><DataGrid.Columns>
+   <DataGridTextColumn Header="시간" Binding="{Binding Time}" Width="185"/><DataGridTextColumn Header="구분" Binding="{Binding Side}" Width="60"/>
+   <DataGridTextColumn Header="가격" Binding="{Binding Price}" Width="100"/><DataGridTextColumn Header="수량" Binding="{Binding Quantity}" Width="80"/>
+   <DataGridTextColumn Header="실현손익" Binding="{Binding Profit}" Width="110"/><DataGridTextColumn Header="사유" Binding="{Binding Reason}" Width="*"/>
+  </DataGrid.Columns></DataGrid>
+  <TextBox Grid.Row="2" Text="{Binding Detail,Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" AcceptsReturn="True" FontFamily="Consolas" FontSize="12"/>
+ </Grid>
+</UserControl>

@@ -25,7 +25,7 @@ Stock.exe
 **/order-guards/
 *.db-journal
 Stock.Avalonia.exe
-*.app/
+Stock.Avalonia.app/
 **/*-live-*.json
 appsettings.Local.json
 secrets.json
