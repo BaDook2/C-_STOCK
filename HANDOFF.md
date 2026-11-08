@@ -1,5 +1,9 @@
 # 현재 — Avalonia Windows v0.1.16 공개·교체 완료
 
+## 새 작업 우선 — Apple Silicon 앱 게시
+
+2026-11-08 사용자는 Mac 파일을 릴리즈에 추가하고 Apple Silicon용 실행 가능한 앱으로 만들어 달라고 요청했다. 기존 v0.1.16 앱/Windows 자산은 유지하고 Mac ARM64 CI로 Stock.app/DMG/ZIP을 만든다. 작업은 TASKS의 M1~M3, docs/avalonia/MACOS_APPLE_SILICON.md를 우선한다. 신규 macos-v0.1.16-r번호 태그만 Mac workflow를 실행한다. 현재 패키징/검증 도구와 고유 더미 Keychain 검사 추가, 로컬 문법·빌드/관련 검사 및 Mac CI 실행·결과 확인·공개 다운로드 검증이 남았다. 실제 돈 주문 금지. Developer ID/공증은 제공받지 않았으므로 ad-hoc 서명과 구분한다.
+
 2026-11-08. “미완료 기능부터 완성” 답변에 따라 E1~E4를 구현했고, 앞선 조건부 Windows 교체·릴리즈 요청을 검증 후 이행했다. 현재 진행 작업 없음. 이전 “답변 대기/교체 전/주간40% 중단” 기록은 이력이다. 추가 릴리즈는 새 명시 요청이 필요하다.
 
 ## 현재 소스·실행 파일

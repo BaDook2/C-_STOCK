@@ -5,9 +5,11 @@
  <key>CFBundleIdentifier</key><string>com.stock.desktop.avalonia</string>
  <key>CFBundleName</key><string>STOCK</string>
  <key>CFBundleDisplayName</key><string>STOCK Avalonia</string>
- <key>CFBundleVersion</key><string>0.1.0</string>
- <key>CFBundleShortVersionString</key><string>0.1.0</string>
+ <key>CFBundleVersion</key><string>__VERSION__</string>
+ <key>CFBundleShortVersionString</key><string>__VERSION__</string>
  <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
  <key>CFBundlePackageType</key><string>APPL</string>
  <key>NSHighResolutionCapable</key><true/>
+ <key>LSMinimumSystemVersion</key><string>14.0</string>
+ <key>LSApplicationCategoryType</key><string>public.app-category.finance</string>
 </dict></plist>

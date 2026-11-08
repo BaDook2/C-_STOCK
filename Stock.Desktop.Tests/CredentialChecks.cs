@@ -20,6 +20,24 @@ internal static partial class Program
             Check(!Encoding.UTF8.GetString(File.ReadAllBytes(file)).Contains(Connection().Secret)&&new BrokerCredentialVault(new WindowsDpapiSecretStore(dir),dir).Load(Brokerage.Kiwoom)?.AppKey==Connection().AppKey,"real Windows CurrentUser DPAPI encrypts isolated dummy keys and decrypts them after vault recreation");
             var bytes=File.ReadAllBytes(file);bytes[^1]^=0x7F;File.WriteAllBytes(file,bytes);invalid=false;try{windows.Load(Brokerage.Kiwoom);}catch(InvalidOperationException){invalid=true;}Check(invalid,"DPAPI tampering fails closed and never produces a usable connection");windows.DeleteAll();
         }
+        if(OperatingSystem.IsMacOS())
+        {
+            var macDir=Path.Combine(dir,"mac-native",Guid.NewGuid().ToString("N"));
+            var native=new MacKeychainSecretStore(macDir);
+            var mac=new BrokerCredentialVault(native,macDir);
+            try
+            {
+                Check(native.Read("Kiwoom")==null,"unique macOS Keychain test scope starts without an existing user credential");
+                mac.Save(Connection());
+                var restored=new BrokerCredentialVault(new MacKeychainSecretStore(macDir),macDir);
+                Check(restored.Load(Brokerage.Kiwoom)?.Secret==Connection().Secret&&restored.DefaultBroker==Brokerage.Kiwoom,"native macOS Keychain round-trips dummy credentials and restored default account");
+                var changed=new BrokerConnection{Brokerage=Brokerage.Kiwoom,AppKey=Connection().AppKey,Secret="DUMMY-UPDATED-MAC-SECRET",UseAsDefault=true};mac.Save(changed);
+                Check(mac.Load(Brokerage.Kiwoom)?.Secret==changed.Secret&&Directory.EnumerateFiles(macDir).All(path=>!File.ReadAllText(path).Contains("DUMMY-")),"macOS Keychain updates the dummy secret without plaintext credential files");
+                mac.DeleteAll();
+                Check(native.Read("Kiwoom")==null&&mac.DefaultBroker==null,"macOS Keychain dummy reset removes only its isolated record and metadata");
+            }
+            finally { mac.DeleteAll(); }
+        }
         var now=new DateTimeOffset(2026,11,6,10,30,0,TimeSpan.FromHours(9));var failed=new ReadOnlyBroker(now){BalanceTimeout=true};
         using(var services=new AppServices(Path.Combine(dir,"failed"),new MarketFixture(),brokerFactory:(_,_)=>failed,credentials:vault))
         using(var account=new AccountWorkspace(services))
