@@ -38,14 +38,14 @@ internal static class PublishedSmoke
             if(vm.RecurringCards.Count!=6||vm.ChartEquity.Count==0)throw new InvalidOperationException("Recurring backtest failed: "+vm.Status);
             var recurringSessions=vm.ChartEquity.Count;await Screenshot(window,Path.Combine(output,"recurring-purchases.png"));
             vm.ActiveTab=2;vm.StrategyChoice="Pipeline";await Do("파이프라인Mock");
-            if(!vm.OversoldUsageGroups.Select(s=>s.Count).SequenceEqual(new[]{8,51,0}))throw new InvalidOperationException("Parameter usage scope grouping failed");
+            if(!vm.OversoldUsageGroups.Select(s=>s.Count).SequenceEqual(new[]{8,53,0}))throw new InvalidOperationException("Parameter usage scope grouping failed");
             window.UpdateLayout();await app.Dispatcher.InvokeAsync(()=>{},DispatcherPriority.ApplicationIdle);
             foreach(var expander in Find(window).OfType<Expander>().Where(e=>e.DataContext is ParameterGroup g&&g.Name is "분할매수" or "모형 계좌 · 체결 비용").ToArray())expander.IsExpanded=true;
             window.UpdateLayout();await app.Dispatcher.InvokeAsync(()=>{},DispatcherPriority.ApplicationIdle);
             var ratioBox=Find(window).OfType<TextBox>().Single(b=>b.DataContext is ParameterField f&&f.Metadata.Key=="EntryRatios");
             var feeField=vm.OversoldGroups.SelectMany(g=>g.Fields).Single(f=>f.Metadata.Key=="CommissionPercent");var originalFee=feeField.Value;
             var feeBox=Find(window).OfType<TextBox>().Single(b=>ReferenceEquals(b.DataContext,feeField));feeBox.Focus();System.Windows.Input.Keyboard.ClearFocus();
-            var fixedEditorVerified=ratioBox.Text=="40.00, 30.00, 30.00"&&feeBox.Text=="0.02"&&feeField.Value==originalFee&&vm.OversoldGroups.Sum(g=>g.Rows!.Count)==26;
+            var fixedEditorVerified=ratioBox.Text=="40.00, 30.00, 30.00"&&feeBox.Text=="0.02"&&feeField.Value==originalFee&&vm.OversoldGroups.Sum(g=>g.Rows!.Count)==27;
             if(!fixedEditorVerified)throw new InvalidOperationException("Published fixed decimal input or explicit rows failed");
             var boundary=FixedDecimalEdit.Type("1.00",1,0,"2",ParameterInputKind.Decimal);var integerInsertionVerified=boundary.Text=="12.00"&&boundary.Caret==2;if(!integerInsertionVerified)throw new InvalidOperationException("Integer boundary insertion failed");
             var screeningSnapshotVerified=vm.LatestScreening!=null&&store.State<OversoldScreeningRun>(vm.LatestScreening.Id)!=null&&vm.LatestScreening.Funnel().All(f=>f.Total==vm.LatestScreening.Targets.Length);

@@ -1,4 +1,4 @@
-using Stock.Core;
+﻿using Stock.Core;
 using Stock.Core.Research;
 using Stock.Core.Research.Oversold;
 using Stock.Core.Trading;
@@ -22,9 +22,9 @@ public sealed partial class WorkspaceViewModel
         if(last>KoreaClock.Today)throw new InvalidOperationException("미래 날짜는 스크리닝할 수 없습니다.");
         return(first,last);
     }
-    public bool ScreenDaily {get=>!IsOnline&&!RealtimeScreeningMode||screenDaily;set{screenDaily=value;Changed();Changed(nameof(ScreenCustomBars));}}
-    public bool ScreenCustomBars {get=>(IsOnline||RealtimeScreeningMode)&&!screenDaily;set{if(IsOnline||RealtimeScreeningMode)ScreenDaily=!value;else ScreenDaily=true;}}
-    public bool ShowScreenCustomBars=>IsOnline||RealtimeScreeningMode;
+    public bool ScreenDaily {get=>IsForeignScreening||!IsOnline||screenDaily;set{screenDaily=value;Changed();Changed(nameof(ScreenCustomBars));}}
+    public bool ScreenCustomBars {get=>!IsForeignScreening&&IsOnline&&!screenDaily;set{if(IsOnline)ScreenDaily=!value;else ScreenDaily=true;}}
+    public bool ShowScreenCustomBars=>!IsForeignScreening&&IsOnline;
     public string ScreenBarValue {get=>screenBarValue;set{screenBarValue=value;Changed();}}
     public string ScreenBarUnit {get=>screenBarUnit;set{var normalized=TimeBarSelection.NormalizeUnit(value);if(screenBarUnit==normalized)return;screenBarUnit=normalized;screenBarValue=TimeBarSelection.NormalizeValue(screenBarValue,normalized);Changed();Changed(nameof(ScreenBarValue));Changed(nameof(ScreenBarValues));}}
     public string[] ScreenBarUnits {get;}=["분","시"];
@@ -32,6 +32,11 @@ public sealed partial class WorkspaceViewModel
     public string[] ScreenBarValues=>TimeBarSelection.Values(ScreenBarUnit);
     public OversoldScreeningRun? LatestScreening {get;private set;}
     private long screeningGeneration;
+    private bool regularScreeningRunning;
+    public bool CanReviewScreeningResults=>!disposed&&!apiPaused&&(!Busy||regularScreeningRunning);
+    private void SetRegularScreeningRunning(bool value)
+    {regularScreeningRunning=value;Changed(nameof(CanReviewScreeningResults));Refresh();}
+
     private void PublishScreening(OversoldScreeningRun run,bool persist=true)
     {
         if(persist){store.State(run.Id,run);store.State("oversold-screen-latest",run.Id);}
@@ -42,16 +47,16 @@ public sealed partial class WorkspaceViewModel
         if(store.State<ScreeningBarPreference>("oversold-screen-bars") is {} saved){screenDaily=saved.Daily;screenBarUnit=TimeBarSelection.NormalizeUnit(saved.Unit);screenBarValue=TimeBarSelection.NormalizeValue(saved.Value,screenBarUnit);}
         if(store.State<ScreeningPeriodPreference>("oversold-screen-period") is {} period){screenFrom=period.From;screenTo=period.To;}
         if(store.State<string>("oversold-screen-latest") is {} id)LatestScreening=store.State<OversoldScreeningRun>(id);
-        Actions["스크리닝결과"]=new(()=>{var dialog=new ScreeningResultDialog(()=>LatestScreening,ScreeningTradeDetails,(stock,run)=>OpenScreeningStock(stock,run));if(System.Windows.Application.Current?.MainWindow is {} owner&&owner.IsVisible)dialog.Owner=owner;dialog.Show();return Task.CompletedTask;},()=>LatestScreening!=null);
+        Actions["스크리닝결과"]=new(()=>{var dialog=new ScreeningResultDialog(()=>LatestScreening,ScreeningTradeDetails,(stock,run)=>OpenScreeningStock(stock,run));if(System.Windows.Application.Current?.MainWindow is {} owner&&owner.IsVisible)dialog.Owner=owner;dialog.Show();return Task.CompletedTask;},()=>LatestScreening!=null&&CanReviewScreeningResults);
     }
     private async Task<StrategyBar[]> ScreeningBars(StockItem item,BarSpecification? spec,HistoricalFacts facts,DateTimeOffset asOf,CancellationToken token,DateOnly? from=null,DateOnly? to=null,int? recentBars=null)
     {
-        if(spec==null)
+        if(spec==null||spec.Unit==BarUnit.Day)
         {
             var data=store.State<BarDataset>("bars:"+item.Key);
             if(data==null||data.Stock.Key!=item.Key||DateTimeOffset.UtcNow-data.RetrievedAt>TimeSpan.FromMinutes(10))
             {data=await provider.History(item,token);store.State("bars:"+item.Key,data);}
-            return data.Bars.Select((b,i)=>{var day=DailyDates.Of(b);return new StrategyBar(b,b.Time,b.Time,i,facts.TradingValue(item.Symbol,day,b.Time),data.Source);}).ToArray();
+            return data.Bars.Where(b=>b.IsComplete&&b.Time<=asOf).Select((b,i)=>{var day=DailyDates.Of(b);var open=spec?.Unit==BarUnit.Day&&item.Exchange==Exchange.KRX?new DateTimeOffset(day.ToDateTime(new TimeOnly(9,0)),TimeSpan.FromHours(9)):b.Time;return new StrategyBar(b,open,b.Time,i,facts.TradingValue(item.Symbol,day,b.Time),data.Source);}).ToArray();
         }
         // Existing raw event repository is authoritative only when its capture coverage was verified.
         var coverage=recentBars.HasValue&&broker is IRecentMinuteIntervalHistoryBroker&&spec.Unit!=BarUnit.Tick?null:store.State<BarCoverage>("verified-tick-coverage:"+item.Key);
@@ -64,8 +69,11 @@ public sealed partial class WorkspaceViewModel
         }
         if(spec.Unit!=BarUnit.Tick&&IsOnline&&broker is IMinuteHistoryBroker minute&&broker.Exchange==item.Exchange)
         {
-            var cacheKey=$"{item.Key}|{spec.Unit}|{spec.Value}|{from}|{to}|{broker.Id}|{recentBars}";
-            lock(screeningBarCacheGate)if(screeningBarCache.TryGetValue(cacheKey,out var cached)&&DateTimeOffset.UtcNow-cached.StoredAt<TimeSpan.FromMinutes(2))return cached.Bars;
+            // Historical closed ranges cannot acquire new candles. Reuse them for this process;
+            // live/recent requests retain their short TTL and the broker's freshness rules.
+            var calendar=TradingStore.Hash(Serialization.Pack(facts.Sessions));
+            var cacheKey=$"{item.Key}|{spec.Unit}|{spec.Value}|{from}|{to}|{broker.Id}|{recentBars}|{calendar}";
+            lock(screeningBarCacheGate)if(screeningBarCache.TryGetValue(cacheKey,out var cached)&&(recentBars==null&&to is {} historicalEnd&&historicalEnd<KoreaClock.Today||DateTimeOffset.UtcNow-cached.StoredAt<TimeSpan.FromMinutes(2))&&cached.Bars.All(b=>b.ClosedAt<=asOf))return cached.Bars;
             var targetMinutes=checked(spec.Value*(spec.Unit==BarUnit.Hour?60:1));var sourceMinutes=1;
             PriceBar[] source;
             if(recentBars.HasValue&&minute is IRecentMinuteIntervalHistoryBroker recent&&minute is IRangedMinuteIntervalHistoryBroker native)
@@ -108,7 +116,7 @@ public sealed partial class WorkspaceViewModel
     public string ScreeningTradeDetails(StockItem stock)
     {
         var results=History.Where(h=>h.Stock.Key==stock.Key&&h.OversoldResultId!=null).Select(h=>store.State<OversoldResult>(h.OversoldResultId!)).Where(r=>r!=null).ToArray();
-        var events=results.SelectMany(r=>r!.Trades.SelectMany(t=>t.Executions)).Select(e=>(Time:e.ExecutionTime,Text:$"[시뮬레이션 · {e.ExecutionMode}] {e.Reason}\n신호 {e.SignalTime.ToOffset(TimeSpan.FromHours(9)):yyyy.MM.dd HH:mm:ss} → 체결 {e.ExecutionTime.ToOffset(TimeSpan.FromHours(9)):yyyy.MM.dd HH:mm:ss}\n{(e.Buy?"매수":"매도")} {e.Quantity:N0}주 × {e.Price:N2} · 금액 {e.Quantity*e.Price:N2} · 평균 {e.AveragePriceAfter:N2} · 실현손익 {e.RealizedPnl:N2}\n"+DecisionSnapshotText.Format(e.Snapshot)));
+        var events=results.SelectMany(r=>r!.Trades.SelectMany(t=>t.Executions)).Select(e=>(Time:e.ExecutionTime,Text:$"[시뮬레이션 · {e.ExecutionMode}] {e.Reason}\n신호 {e.SignalTime.ToOffset(TimeSpan.FromHours(9)):yyyy.MM.dd HH:mm:ss} → 체결 {e.ExecutionTime.ToOffset(TimeSpan.FromHours(9)):yyyy.MM.dd HH:mm:ss}\n{(e.Buy?"매수":"매도")} {e.Quantity:N0}주 × {DisplayNumber.Price(e.Price)} · 금액 {e.Quantity*e.Price:N2} · 평균 {DisplayNumber.Price(e.AveragePriceAfter)} · 실현손익 {e.RealizedPnl:N2}\n"+DecisionSnapshotText.Format(e.Snapshot)));
         var signals=results.SelectMany(r=>r!.Signals).Select(s=>(Time:s.SignalTime,Text:$"[백테스트 전략 신호 · 체결 아님] {s.SignalTime.ToOffset(TimeSpan.FromHours(9)):yyyy.MM.dd HH:mm:ss} {s.Action} {s.Reason}\n"+DecisionSnapshotText.Format(s.Snapshot)));
         var rows=events.Concat(signals).OrderBy(e=>e.Time).ToArray();
         return rows.Length==0?"발생한 낙주 전략 체결 기록이 없습니다. 스크리닝은 신호만 평가하며 매수·매도 기록을 만들지 않습니다.":string.Join("\n\n",rows.Select(e=>e.Text));

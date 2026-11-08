@@ -1,0 +1,47 @@
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Class="Stock.Desktop.AccountPanel">
+    <Border Classes="card" Margin="0,16,0,0">
+        <Grid RowDefinitions="Auto,*,*,*">
+            <StackPanel Spacing="14">
+                <TextBlock Text="{Binding Accounts.Mode}" FontSize="18" FontWeight="Bold" />
+                <WrapPanel>
+                    <Button Content="계좌 새로고침" Command="{Binding Accounts.Refresh}" Classes="secondary" />
+                    <Button Content="선택 주문 취소" Command="{Binding Accounts.CancelOrder}" Classes="secondary" ToolTip.Tip="확인 후 취소 요청합니다. 접수를 취소 완료로 처리하지 않습니다." Margin="4,0" />
+                    <Button Content="실제 계좌 키 설정" Command="{Binding OpenAccounts}" Classes="secondary" />
+                </WrapPanel>
+                <TextBlock Text="계좌 내역은 선택 종목의 시장 기준입니다. 국내·미국 금액은 환산 합산하지 않습니다." Classes="muted" />
+                <TextBlock Text="{Binding Accounts.Status}" Classes="muted" TextWrapping="Wrap" FontSize="11" />
+            </StackPanel>
+            <DataGrid Grid.Row="1" ItemsSource="{Binding Accounts.Holdings}" AutoGenerateColumns="False" Margin="0,16,0,0">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="보유 종목" Binding="{Binding Name,Mode=OneWay}" Width="*" />
+                    <DataGridTextColumn Header="수량" Binding="{Binding Quantity,Mode=OneWay}" Width="90" />
+                    <DataGridTextColumn Header="평균 매수가" Binding="{Binding AveragePrice,Converter={StaticResource IntegerPrice},Mode=OneWay}" Width="140" />
+                    <DataGridTextColumn Header="현재가" Binding="{Binding CurrentPrice,Converter={StaticResource IntegerPrice},Mode=OneWay}" Width="140" />
+                    <DataGridTextColumn Header="평가손익" Binding="{Binding Profit,Converter={StaticResource IntegerPrice},Mode=OneWay}" Width="140" />
+                    <DataGridTextColumn Header="통화" Binding="{Binding Currency,Mode=OneWay}" Width="85" />
+                </DataGrid.Columns>
+            </DataGrid>
+            <DataGrid Grid.Row="2" ItemsSource="{Binding Accounts.Orders}" SelectedItem="{Binding Accounts.SelectedOrder,Mode=TwoWay}" AutoGenerateColumns="False" Margin="0,20,0,0">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="주문번호" Binding="{Binding Number,Mode=OneWay}" Width="140" />
+                    <DataGridTextColumn Header="종목" Binding="{Binding Name,Mode=OneWay}" Width="*" />
+                    <DataGridTextColumn Header="구분" Binding="{Binding Side,Mode=OneWay}" Width="90" />
+                    <DataGridTextColumn Header="주문 수량" Binding="{Binding Quantity,Mode=OneWay}" Width="100" />
+                    <DataGridTextColumn Header="체결 수량" Binding="{Binding Filled,Mode=OneWay}" Width="100" />
+                    <DataGridTextColumn Header="미체결 수량" Binding="{Binding Remaining,Mode=OneWay}" Width="110" />
+                    <DataGridTextColumn Header="상태" Binding="{Binding Status,Mode=OneWay}" Width="150" />
+                </DataGrid.Columns>
+            </DataGrid>
+            <DataGrid Grid.Row="3" ItemsSource="{Binding Accounts.Executions}" AutoGenerateColumns="False" Margin="0,16,0,0">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="확인 체결 시각" Binding="{Binding Time,Mode=OneWay,StringFormat='{}{0:yyyy.MM.dd HH:mm:ss}'}" Width="210" />
+                    <DataGridTextColumn Header="종목" Binding="{Binding StockKey,Mode=OneWay}" Width="*" />
+                    <DataGridTextColumn Header="구분" Binding="{Binding SideLabel,Mode=OneWay}" Width="100" />
+                    <DataGridTextColumn Header="수량" Binding="{Binding Quantity,Mode=OneWay}" Width="90" />
+                    <DataGridTextColumn Header="체결가" Binding="{Binding Price,Converter={StaticResource IntegerPrice},Mode=OneWay}" Width="130" />
+                    <DataGridTextColumn Header="사유" Binding="{Binding Reason,Mode=OneWay}" Width="240" />
+                </DataGrid.Columns>
+            </DataGrid>
+        </Grid>
+    </Border>
+</UserControl>

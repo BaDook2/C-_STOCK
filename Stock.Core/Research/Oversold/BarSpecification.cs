@@ -2,13 +2,13 @@ using System.Globalization;
 using Stock.Core.Trading;
 namespace Stock.Core.Research.Oversold;
 
-public enum BarUnit { Tick,Minute,Hour }
+public enum BarUnit { Tick,Minute,Hour,Day }
 public sealed record BarSpecification(int Value,BarUnit Unit)
 {
-    public void Validate(){if(Value<=0||!Enum.IsDefined(Unit))throw new InvalidOperationException("데이터 기준은 양의 정수와 틱/분/시를 선택하세요.");}
+    public void Validate(){if(Value<=0||!Enum.IsDefined(Unit)||Unit==BarUnit.Day&&Value!=1)throw new InvalidOperationException("데이터 기준은 양의 정수와 틱/분/시 또는 일봉을 선택하세요.");}
     public static BarSpecification Parse(string value,BarUnit unit)
     {if(value==null||!System.Text.RegularExpressions.Regex.IsMatch(value,@"^(?:\d+|\d{1,3}(?:,\d{3})+)$")||!int.TryParse(value.Replace(",",""),NumberStyles.None,CultureInfo.InvariantCulture,out var n)||n<=0)throw new InvalidOperationException("데이터 기준은 1~2,147,483,647의 정수로 입력하세요.");var result=new BarSpecification(n,unit);result.Validate();return result;}
-    public override string ToString()=>$"{Value:N0}{(Unit==BarUnit.Tick?"틱":Unit==BarUnit.Minute?"분":"시")}";
+    public override string ToString()=>Unit==BarUnit.Day?"일봉":$"{Value:N0}{(Unit==BarUnit.Tick?"틱":Unit==BarUnit.Minute?"분":"시")}";
 }
 /// <summary>Explicit capture coverage: absence of records is never evidence of a zero-volume interval.</summary>
 public sealed record BarCoverage(DateTimeOffset From,DateTimeOffset To,bool Complete,string Source,long FirstSequence=long.MinValue,long LastSequence=long.MaxValue);
@@ -44,7 +44,7 @@ public static class StrategyBarAggregator
             }
             else
             {
-                var requestedTicks=(decimal)spec.Value*(spec.Unit==BarUnit.Hour?TimeSpan.TicksPerHour:TimeSpan.TicksPerMinute);
+                var requestedTicks=spec.Unit==BarUnit.Day?(session.Close-session.Open).Ticks:(decimal)spec.Value*(spec.Unit==BarUnit.Hour?TimeSpan.TicksPerHour:TimeSpan.TicksPerMinute);
                 if(requestedTicks>(session.Close-session.Open).Ticks){incomplete++;continue;}
                 var ticks=(long)requestedTicks;
                 foreach(var group in trades.GroupBy(e=>(e.ExchangeTime-session.Open).Ticks/ticks))
@@ -67,6 +67,7 @@ public static class StrategyBarAggregator
         long span=checked((long)spec.Value*(spec.Unit==BarUnit.Hour?60:1));var output=new List<StrategyBar>();int incomplete=0,missing=0;long ordinal=0;
         foreach(var session in sessions.OrderBy(s=>s.Open))
         {
+        if(spec.Unit==BarUnit.Day)span=(long)(session.Close-session.Open).TotalMinutes;
         if((decimal)span*TimeSpan.TicksPerMinute>(session.Close-session.Open).Ticks){if(bars.Any(b=>b.OpenTime>=session.Open&&b.OpenTime<session.Close))incomplete++;continue;}
         foreach(var group in bars.Where(b=>b.OpenTime>=session.Open&&b.OpenTime<session.Close).GroupBy(b=>(b.OpenTime-session.Open).Ticks/(span*TimeSpan.TicksPerMinute)))
         {

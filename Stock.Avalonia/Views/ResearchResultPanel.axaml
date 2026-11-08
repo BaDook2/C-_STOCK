@@ -1,0 +1,10 @@
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="clr-namespace:Stock.Desktop" x:Class="Stock.Desktop.ResearchResultPanel">
+ <Grid RowDefinitions="Auto,*,160,130" Margin="10">
+  <StackPanel Spacing="8"><TextBlock Text="{Binding Title}" FontWeight="Bold" FontSize="18"/><TextBlock Text="{Binding Summary}" Foreground="#3182F6" FontWeight="SemiBold"/></StackPanel>
+  <local:StockChart x:Name="Chart" Grid.Row="1" Bars="{Binding Bars}" Markers="{Binding Markers}" Zones="{Binding Zones}" Period="{Binding Period}" MinHeight="220"/>
+  <DataGrid x:Name="Trades" Grid.Row="2" ItemsSource="{Binding Trades}" SelectedItem="{Binding Selected,Mode=TwoWay}" AutoGenerateColumns="False" Margin="0,8"><DataGrid.Columns>
+   <DataGridTextColumn Header="#" Binding="{Binding Number,Mode=OneWay}" Width="55"/><DataGridTextColumn Header="시간" Binding="{Binding Time,Mode=OneWay}" Width="175"/><DataGridTextColumn Header="구분" Binding="{Binding Side,Mode=OneWay}" Width="70"/><DataGridTextColumn Header="가격" Binding="{Binding Price,Mode=OneWay}" Width="100"/><DataGridTextColumn Header="수량" Binding="{Binding Quantity,Mode=OneWay}" Width="75"/><DataGridTextColumn Header="실현손익" Binding="{Binding Profit,Mode=OneWay}" Width="110"/><DataGridTextColumn Header="사유" Binding="{Binding Reason,Mode=OneWay}" Width="*"/>
+  </DataGrid.Columns></DataGrid>
+  <TextBox Grid.Row="3" Text="{Binding Detail,Mode=OneWay}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" VerticalContentAlignment="Top" ScrollViewer.VerticalScrollBarVisibility="Auto" FontFamily="monospace" FontSize="12"/>
+ </Grid>
+</UserControl>

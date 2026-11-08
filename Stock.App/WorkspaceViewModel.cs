@@ -1,4 +1,4 @@
-﻿using System.Collections.ObjectModel;
+using System.Collections.ObjectModel;
 using System.Globalization;
 using System.IO;
 using System.Reflection;
@@ -9,7 +9,7 @@ using Stock.Core.Trading;
 namespace Stock.App;
 
 public sealed record ScreeningRow(StockItem Stock,decimal Close,decimal Change,string Signal,string Date)
-{public string Code=>Stock.Symbol;public decimal? Drawdown {get;init;} public decimal? Rsi {get;init;} public decimal? VolumeRatio {get;init;} public int SupportCount {get;init;} public string Status {get;init;}="";public string Name=>Stock.Name;public string Region=>Stock.Board switch{"KOSPI"=>"코스피","KOSDAQ"=>"코스닥",_=>Stock.Region};public string Sector=>Stock.Sector;public string Price=>$"{DisplayNumber.Price(Close)} {(Stock.Currency=="KRW"?"원":"달러")}";}
+{public string Code=>Stock.Symbol;public decimal Proximity {get;init;}public decimal? Drawdown {get;init;} public decimal? Rsi {get;init;} public decimal? VolumeRatio {get;init;} public int SupportCount {get;init;} public string Status {get;init;}="";public string Name=>Stock.Name;public string Region=>Stock.Board switch{"KOSPI"=>"코스피","KOSDAQ"=>"코스닥",_=>Stock.Region};public string Sector=>Stock.Sector;public string Price=>$"{DisplayNumber.Price(Close)} {(Stock.Currency=="KRW"?"원":"달러")}";}
 public sealed partial class WorkspaceViewModel : Observable,IDisposable
 {
     private readonly IPublicMarketData provider;
@@ -56,20 +56,22 @@ public sealed partial class WorkspaceViewModel : Observable,IDisposable
     public ObservableCollection<BrokerOrder> Orders {get;}=[];
     public ObservableCollection<Holding> Holdings {get;}=[];
     public string[] Regions {get;}=["전체","국내","해외"];
-    public string[] ScreeningMarkets {get;}=["코스피","코스닥","코스피+코스닥"];
-    public string ScreeningMarketSelection {get=>screeningMarketSelection;set{if(!CanConfigure||value==screeningMarketSelection||!ScreeningMarkets.Contains(value))return;screeningMarketSelection=value;Sector="전체";Changed();UpdateSectors();}}
+    public string[] ScreeningMarkets {get;}=["코스피","코스닥","코스피+코스닥","S&P500","나스닥100","S&P500+나스닥100"];
+    public string ScreeningMarketSelection {get=>screeningMarketSelection;set{if(!CanConfigure||value==screeningMarketSelection||!ScreeningMarkets.Contains(value))return;screeningMarketSelection=value;if(IsForeignScreening){var day=DailyQuoteMerger.Date(multiClock(),Exchange.NASDAQ).ToDateTime(TimeOnly.MinValue);if(ScreenTo>day)ScreenTo=day;if(ScreenFrom>ScreenTo)ScreenFrom=day.AddDays(-7);}Sector="전체";Changed();Changed(nameof(IsForeignScreening));Changed(nameof(ShowScreenMarketSize));Changed(nameof(ShowScreenCustomBars));Changed(nameof(ScreenDaily));UpdateSectors();}}
     public int[] ScreeningSizes {get;}=[10,25,50,100];
     public int ScreeningSize {get;set;}=10;
     private bool screenWatchlist;
-    public bool ScreenWatchlist {get=>screenWatchlist;set{if(!CanConfigure||screenWatchlist==value)return;screenWatchlist=value;Changed();Changed(nameof(ScreenMarket));UpdateSectors();ScreenInfo=value?"관심그룹을 여러 개 선택하세요. 중복 종목은 한 번만 검사합니다.":"시가총액 상위 종목을 검사합니다.";}}
+    public bool ScreenWatchlist {get=>screenWatchlist;set{if(!CanConfigure||screenWatchlist==value)return;screenWatchlist=value;Changed();Changed(nameof(ScreenMarket));Changed(nameof(ShowScreenMarketSize));UpdateSectors();ScreenInfo=value?"관심그룹을 여러 개 선택하세요. 중복 종목은 한 번만 검사합니다.":"시가총액 상위 종목을 검사합니다.";}}
     public bool ScreenMarket {get=>!screenWatchlist;set{if(value)ScreenWatchlist=false;}}
     public IReadOnlyList<StockItem> SelectedScreeningStocks()=>WatchGroups.Where(g=>g.IncludeInScreening).SelectMany(g=>g.Items).Select(e=>e.Stock).DistinctBy(s=>s.Key).Where(s=>MatchesScreeningMarket(s)&&(Sector=="전체"||s.Sector==Sector)).ToArray();
-    private bool MatchesScreeningMarket(StockItem stock)=>stock.Exchange==Exchange.KRX&&ScreeningMarketSelection switch{"코스피"=>stock.Board=="KOSPI","코스닥"=>stock.Board=="KOSDAQ",_=>true};
+    public bool IsForeignScreening=>ScreeningMarketSelection is "S&P500" or "나스닥100" or "S&P500+나스닥100";
+    public bool ShowScreenMarketSize=>ScreenMarket&&!IsForeignScreening;
+    private bool MatchesScreeningMarket(StockItem stock)=>IsForeignScreening?stock.Exchange!=Exchange.KRX&&new[]{stock}.Concat(Catalog.Where(c=>c.Key==stock.Key)).Any(c=>c.Indices.Any(index=>ScreeningMarketSelection=="S&P500+나스닥100"||index==(ScreeningMarketSelection=="S&P500"?"SP500":"NASDAQ100"))):stock.Exchange==Exchange.KRX&&ScreeningMarketSelection switch{"코스피"=>stock.Board=="KOSPI","코스닥"=>stock.Board=="KOSDAQ",_=>true};
     private int activeTab;
     public int ActiveTab {get=>activeTab;set{activeTab=value;Changed();if(!apiPaused&&value==5)_=RefreshMarket();if(!apiPaused&&value==6)_=RefreshWatchlist();if(value==7&&RawTicks==null)OpenRawTickChart();}}
     public bool Busy {get=>busy;private set{busy=value;Changed();Refresh();}}
     public bool CanConfigure=>!Busy&&!Replaying;
-    public bool IsOnline {get=>online;set{if(!CanConfigure||online==value)return;if(value)_=Run(EnterOnline);else _=Run(async()=>{await StopRealtimeScreening(true);await StopMulti();Disconnect();ChangeMode(false);});}}
+    public bool IsOnline {get=>online;set{if(!CanConfigure||online==value)return;if(value)_=Run(EnterOnline);else _=Run(async()=>{await StopRealtimeScreening(true);await StopMulti();SuspendConnection();ChangeMode(false);});}}
     public bool IsOffline {get=>!online;set{if(value)IsOnline=false;}}
     public string ModeDescription=>IsOnline?"수동 주문과 검증된 낙주 전략 실시간 실행은 선택한 실제 계좌에서만 처리합니다.":"인증키 없이 실제 과거 가격으로 연습해요. 주문은 가상 계좌에서만 처리됩니다.";
     public string ConnectedAccountText=>IsOnline&&broker!=null?$"연결 · {broker.Name}{(string.IsNullOrWhiteSpace(broker.MaskedAccount)?"":" "+broker.MaskedAccount)}":"";
@@ -101,7 +103,7 @@ public sealed partial class WorkspaceViewModel : Observable,IDisposable
         {
             if(LiveHeader)return displayedDaily!.Quote.ChangeText;
             if(HeaderPrice is not {} price||HeaderPreviousClose is not {} previous||previous<=0)return "";
-            var change=price-previous;return $"{(change>=0?"▲":"▼")} {Math.Abs(change):N0} ({(price/previous-1)*100:+#,##0.00;-#,##0.00;0.00}%)";
+            var change=price-previous;return $"{(change>=0?"▲":"▼")} {DisplayNumber.Price(Math.Abs(change))} ({(price/previous-1)*100:+#,##0.00;-#,##0.00;0.00}%)";
         }
     }
     public string PriceColor=>HeaderChange is not {} change||change==0?"#333D4B":change>0?"#F04452":"#3182F6";
@@ -117,7 +119,7 @@ public sealed partial class WorkspaceViewModel : Observable,IDisposable
     public string Preset {get=>preset;set{preset=value;Changed();}}
     public DateTime? From {get=>from;set{from=value;Changed();}}
     public DateTime? To {get=>to;set{to=value;Changed();}}
-    public IReadOnlyList<PriceBar> ChartBars {get=>chartBars;private set{visibleDaily=value;chartBars=ChartPeriods.Intraday(ChartPeriod)?IntradayBars():ChartPeriods.Aggregate(value,ChartPeriod);Changed();Changed(nameof(PriceText));Changed(nameof(ChangeText));Changed(nameof(PriceColor));Changed(nameof(PriceDate));}}
+    public IReadOnlyList<PriceBar> ChartBars {get=>chartBars;private set{visibleDaily=value;chartBars=ChartDisplayBars(value);Changed();Changed(nameof(PriceText));Changed(nameof(ChangeText));Changed(nameof(PriceColor));Changed(nameof(PriceDate));}}
     public bool ShowMa {get=>showMa;set{showMa=value;Changed();}}
     public bool ShowCloud {get=>showCloud;set{showCloud=value;Changed();}}
     public int FastPeriod=>settings.Fast;
@@ -137,7 +139,7 @@ public sealed partial class WorkspaceViewModel : Observable,IDisposable
     }
     public WorkspaceViewModel(Func<string,bool> confirm,Func<KiwoomCredentials?>? prompt=null,IPublicMarketData? provider=null,TradingStore? store=null,Action<string>? alert=null,Func<KiwoomCredentials,Exchange,KiwoomBroker>? brokerFactory=null,Func<BrokerConnection?>? connectionPrompt=null,Action<BrokerConnection>? saveConnection=null,Func<BrokerConnection,Exchange,IAccountBroker>? accountFactory=null,string? sessionDirectory=null,Func<IAccountBroker,IReadOnlyList<Instrument>,DataSettings,Action<string>,IMarketDataProvider>? multiFeedFactory=null,Func<DateTimeOffset>? multiClock=null,IOversoldBacktestService? oversoldBacktestService=null,Func<BrokerConnection?>? defaultConnectionLoader=null,IStrategyFileDialogs? strategyFileDialogs=null)
     {
-        this.strategyFileDialogs=strategyFileDialogs??new StrategyFileDialogs();this.multiFeedFactory=multiFeedFactory;this.multiClock=multiClock??(()=>DateTimeOffset.UtcNow);this.confirm=confirm;this.prompt=prompt??(()=>null);this.provider=provider??new PublicMarketData();oversoldBacktests=oversoldBacktestService??new OversoldBacktestService();ownsStore=store==null;this.store=store??new TradingStore(Path.Combine(MainViewModel.StateDirectory,"workspace-v2.db"));settings=new();BuildFields();
+        this.strategyFileDialogs=strategyFileDialogs??new StrategyFileDialogs();this.multiFeedFactory=multiFeedFactory;this.multiClock=multiClock??(()=>DateTimeOffset.UtcNow);this.confirm=confirm;this.prompt=prompt??(()=>null);this.provider=provider??new PublicMarketData();oversoldBacktests=oversoldBacktestService??new OversoldBacktestService();ownsStore=store==null;this.store=store??new TradingStore(Path.Combine(MainViewModel.StateDirectory,"workspace-v2.db"),memoryMarketData:true);settings=new();BuildFields();
         foreach(var p in this.store.State<string[]>("chart-presets")??["기본"])Presets.Add(p);
         foreach(var s in this.store.State<StockItem[]>("catalog")??[])Catalog.Add(s);UpdateSectors();
         Add("원본틱",()=>{OpenRawTickChart();return Task.CompletedTask;},()=>CanConfigure&&selected!=null);Add("검색",Search,()=>CanConfigure);Add("데이터",LoadData,()=>CanConfigure);Add("목록",LoadCatalog,()=>CanConfigure);
@@ -160,7 +162,7 @@ public sealed partial class WorkspaceViewModel : Observable,IDisposable
         Actions["취소"]=new ActionCommand(()=>{operation?.Cancel();return Task.CompletedTask;},()=>Busy);
         replayTimer=new DispatcherTimer{Interval=TimeSpan.FromMilliseconds(800)};replayTimer.Tick+=(_,_)=>{try{Step();}catch(Exception ex){replayTimer.Stop();Replaying=false;Status=ex.Message;}};
         this.connectionPrompt=connectionPrompt;this.defaultConnectionLoader=defaultConnectionLoader;this.saveConnection=saveConnection;this.accountFactory=accountFactory;this.sessionDirectory=sessionDirectory??MainViewModel.StateDirectory;
-        InitializeFeatures(alert,brokerFactory);showTradeMarkers=this.store.State<bool>("show-trade-markers");showLiveTradeMarkers=this.store.State<bool>("show-live-trade-markers");showBacktestTradeMarkers=false;ReloadTradeMarkers();InitializeOnlyOversold();InitializeRealtimeScreening();
+        InitializeFeatures(alert,brokerFactory);showTradeMarkers=this.store.State<bool>("show-trade-markers");showLiveTradeMarkers=this.store.State<bool>("show-live-trade-markers");showBacktestTradeMarkers=false;ReloadTradeMarkers();InitializeOnlyOversold();InitializeRealtimeScreening();InitializeResearchHistory();InitializeDayTrading();
     }
     private void Add(string key,Func<Task> fn,Func<bool> can)=>Actions[key]=new ActionCommand(()=>Run(fn),can);
     private void Refresh(){Changed(nameof(CanOpenMulti));Changed(nameof(CanOpenRealtimePaper));Changed(nameof(VirtualTradingHelp));Changed(nameof(MultiSessionExists));Changed(nameof(CanStartRealtimeScreening));Changed(nameof(CanStopRealtimeScreening));Changed(nameof(CanAutoTradeRealtimeScreening));multiTrading?.Refresh();Changed(nameof(CanConfigure));Changed(nameof(CanUseIntraday));Changed(nameof(CanUseMinutes));Changed(nameof(BacktestDaily));Changed(nameof(BacktestCustomBars));Changed(nameof(BacktestBarDescription));Changed(nameof(IntradayHelp));foreach(var c in Actions.Values)c.Refresh();}
@@ -171,9 +173,11 @@ public sealed partial class WorkspaceViewModel : Observable,IDisposable
     {
         if(emergencyStopping)return;emergencyStopping=true;Actions["긴급중지"].Refresh();
         operation?.Cancel();SuspendApiRequests();ChartLoading=false;if(Busy)Busy=false;TickStatus="긴급중지 · 진행 중인 시세 조회와 차트 로딩을 중단했습니다.";Changed(nameof(TickStatus));Changed(nameof(ChartMessage));
+        DayTrading.EmergencyStop();
         Status="긴급중지 처리 중 · 신규 주문과 데이터 요청을 중단했습니다.";
         try
         {
+            suspendedConnection?.Session.BlockNewOrders();
             replayTimer.Stop();Replaying=false;paper?.Cancel();configuredPaper?.EmergencyStop();await StopRealtimeScreening(true);await StopMulti();
             if(IsOnline&&session!=null)await session.EmergencyStop();
             Status="긴급중지 완료 · 신규 주문과 API 로딩을 중단했습니다. 실제 취소 결과는 계좌 조회에서 확인하세요.";
@@ -186,7 +190,7 @@ public sealed partial class WorkspaceViewModel : Observable,IDisposable
     private ChartStrategySettings Apply(){foreach(var f in StrategyFields)f.Apply();settings.Validate();Changed(nameof(FastPeriod));Changed(nameof(SlowPeriod));Changed(nameof(IndicatorLegend));return WithReview(settings.Clone(),selected??dataset?.Stock);}
     private decimal InitialCash(){if(!decimal.TryParse(Capital,NumberStyles.Number,CultureInfo.InvariantCulture,out var n)||n<=0||n>1_000_000_000_000)throw new InvalidOperationException("가상 시작 금액을 올바르게 입력하세요.");return n;}
     private void Select(StockItem? item){var oldCurrency=selected?.Currency;if(selected?.Key==item?.Key&&(item!=null||dataset==null))return;if(selected?.Key!=item?.Key){ResetVisibleBacktest();StopDailyQuotes();dataset=null;ResetConfiguredPractice();StopTicks();tickBars.Clear();tickHistoryStock="";minuteBars=[];minuteStock="";ChartBars=[];ChartMessage="데이터가 없습니다.";paper=null;replayIndex=-1;Trades.Clear();ResultInfo="새 종목의 데이터를 가져와 테스트를 시작하세요.";DataInfo="선택한 종목의 데이터를 가져와주세요.";}selected=item;RawTicks?.Dispose();RawTicks=null;Changed(nameof(RawTicks));StockQuote=null;AverageVolume="종목 데이터를 가져오면 최근 20거래일 평균을 표시합니다.";Changed(nameof(AverageVolume));Changed(nameof(StockQuote));Changed(nameof(RiskStockName));Changed(nameof(RiskReviewed));Changed(nameof(RiskExcluded));if(item!=null){Query=item.Name;if(oldCurrency!=item.Currency){Capital=item.Currency=="KRW"?"10,000,000":"10,000";LiveOrderLimit=item.Currency=="KRW"?1000000:1000;}}Changed(nameof(SelectedStock));Changed(nameof(IsWatchRegistered));Changed(nameof(WatchRegistrationStar));RefreshRecurringChart();Changed(nameof(StockName));Changed(nameof(StockDetail));Changed(nameof(PaperSummary));Refresh();ReloadTradeMarkers();if(IsTick)BeginIntraday();}
-    private async Task Search() {ResetVisibleBacktest();ChartLoading=true;try{await SearchCore();if(selected!=null)await LoadSelectedData();}finally{ChartLoading=false;}}
+    private async Task Search() {ResetVisibleBacktest();ChartLoading=true;try{await SearchCore();if(selected!=null)await LoadSelectedData();}catch(StorageException){ChartMessage="저장소 오류로 차트를 열지 못했습니다. 테스트 기록의 저장소 점검에서 진단을 확인하세요.";throw;}finally{ChartLoading=false;}}
     private async Task SearchCore()
     {
         var name=Query;IReadOnlyList<StockItem> found;bool cached=false;
@@ -195,7 +199,7 @@ public sealed partial class WorkspaceViewModel : Observable,IDisposable
     }
     /// <summary>검색 결과의 클릭과 키보드 선택을 같은 데이터 조회 경로로 처리합니다.</summary>
     public Task OpenStock(StockItem stock)
-    {if(!CanConfigure)return Task.CompletedTask;return Run(async()=>{if(dataset?.Stock.Key==stock.Key&&selected?.Key==stock.Key)return;ChartLoading=true;try{Select(stock);await LoadSelectedData();}finally{ChartLoading=false;}});}
+    {if(!CanConfigure)return Task.CompletedTask;return Run(async()=>{if(dataset?.Stock.Key==stock.Key&&selected?.Key==stock.Key)return;ChartLoading=true;try{Select(stock);await LoadSelectedData();}catch(StorageException){ChartMessage="저장소 오류로 차트를 열지 못했습니다. 테스트 기록의 저장소 점검에서 진단을 확인하세요.";throw;}finally{ChartLoading=false;}});}
     private async Task LoadData()
     {
         ChartLoading=true;
@@ -206,7 +210,8 @@ public sealed partial class WorkspaceViewModel : Observable,IDisposable
     {
         var item=selected!;try{item=await provider.Describe(item,Token);}catch(OperationCanceledException){throw;}catch{item=item with{Sector="미분류"};}
         Status=item.Name+"의 과거 가격을 가져오고 있어요…";
-        BarDataset data;bool cached=false;try{data=await provider.History(item,Token);store.State("bars:"+item.Key,data);}catch(OperationCanceledException){throw;}catch{data=store.State<BarDataset>("bars:"+item.Key)??throw new InvalidOperationException("다운로드에 실패했고 저장된 자료도 없습니다. 인터넷 연결을 확인하세요.");cached=true;}
+        BarDataset data;bool cached=false;try{data=await provider.History(item,Token);}catch(OperationCanceledException){throw;}catch{data=store.State<BarDataset>("bars:"+item.Key)??throw new InvalidOperationException("다운로드에 실패했고 저장된 자료도 없습니다. 인터넷 연결을 확인하세요.");cached=true;}
+        if(!cached)store.State("bars:"+item.Key,data);
         selected=data.Stock;Changed(nameof(SelectedStock));Changed(nameof(IsWatchRegistered));Changed(nameof(WatchRegistrationStar));if(!Catalog.Any(s=>s.Key==item.Key)){Catalog.Add(data.Stock);store.State("catalog",Catalog.ToArray());UpdateSectors();}LoadDataset(data);StartDailyQuotes(data.Stock);if(ChartPeriods.Minutes(ChartPeriod)>0)await LoadMinutes();else if(ChartPeriod.EndsWith("틱")&&broker is ITickHistoryBroker)await LoadTicks();if(cached)DataInfo="저장된 캐시 · 최신 조회 실패 · "+DataInfo;Log(item.Name+(cached?" · 저장된 자료로 열었어요. 수집 시각을 확인하세요.":" · 실제 과거 일봉을 불러왔어요."));
     }
     public void LoadDataset(BarDataset data)
@@ -231,7 +236,7 @@ public sealed partial class WorkspaceViewModel : Observable,IDisposable
         if(!ScreeningSizes.Contains(ScreeningSize))throw new InvalidOperationException("검사할 종목 수를 확인하세요.");
         var items=await provider.Universe(ScreeningMarketSelection,ScreeningSize,Token);Catalog.Clear();catalogRegion="";
         foreach(var item in items){Token.ThrowIfCancellationRequested();Catalog.Add(item);}
-        catalogRegion=ScreeningMarketSelection;catalogSize=ScreeningSize;store.State("catalog",Catalog.ToArray());UpdateSectors();ScreenInfo=$"{Catalog.Count:N0}개 종목 준비 · {ScreeningMarketSelection} 시가총액 상위 목록 기준입니다.";
+        catalogRegion=ScreeningMarketSelection;catalogSize=ScreeningSize;store.State("catalog",Catalog.ToArray());UpdateSectors();ScreenInfo=$"{Catalog.Count:N0}개 종목 준비 · {ScreeningMarketSelection} 목록 기준입니다. 지수 선택은 현재 전체 구성 종목이며 과거 편입·편출을 재현하지 않습니다.";
     }
     private async Task Screen()
     {
@@ -287,5 +292,5 @@ public sealed partial class WorkspaceViewModel : Observable,IDisposable
     private async Task Cancel(){if(IsOnline){if(SelectedOrder==null||session==null)return;if(!confirm(SelectedOrder.Name+"의 미체결 주문을 취소할까요?"))return;await session.Cancel(SelectedOrder.Number,SelectedOrder.Symbol);await RefreshAccount();}else{paper?.Cancel();CancelConfiguredPractice();}Changed(nameof(PaperSummary));}
     private void Disconnect(){StopTicks();broker?.Dispose();broker=null;session=null;Orders.Clear();Holdings.Clear();AccountInfo="실제 계좌 미연결";Changed(nameof(ConnectedAccountText));}
     private static void Replace<T>(ObservableCollection<T> c,IEnumerable<T> values){var a=values.ToArray();c.Clear();foreach(var v in a)c.Add(v);}
-    public void Dispose(){if(MultiSessionExists)throw new InvalidOperationException("StopMulti를 기다린 뒤 종료하세요.");DisposeRealtimeScreening();DisposeFeatures();replayTimer.Stop();operation?.Cancel();broker?.Dispose();if(provider is IDisposable d)d.Dispose();try{tickWrites.GetAwaiter().GetResult();}finally{if(ownsStore)store.Dispose();}}
+    public void Dispose(){if(MultiSessionExists)throw new InvalidOperationException("StopMulti를 기다린 뒤 종료하세요.");dayTradingTimer?.Stop();DayTrading.DisposeAsync().AsTask().GetAwaiter().GetResult();DisposeRealtimeScreening();DisposeFeatures();replayTimer.Stop();operation?.Cancel();broker?.Dispose();suspendedConnection?.Broker.Dispose();suspendedConnection=null;if(provider is IDisposable d)d.Dispose();try{tickWrites.GetAwaiter().GetResult();}finally{if(ownsStore)store.Dispose();}}
 }

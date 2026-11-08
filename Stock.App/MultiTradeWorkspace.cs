@@ -1,4 +1,4 @@
-﻿using System.IO;
+using System.IO;
 using Stock.Core;
 using Stock.Core.Research;
 using Stock.Core.Research.Oversold;
@@ -15,7 +15,7 @@ public sealed partial class WorkspaceViewModel
     public string MultiStatus {get;private set;}="오프라인은 네이버 KRX 공개시세, 온라인은 지원 증권사 시세로 가상 전략을 실행합니다.";
     public bool CanOpenMulti=>CanConfigure&&!RealtimeScreeningRunning&&!RealtimeScreeningProtectionActive&&(IsOffline||IsOnline&&session!=null);
     public bool CanOpenRealtimePaper=>CanConfigure;
-    public string VirtualTradingHelp=>IsOnline?RealtimeMockSupported?"연결 증권사 시세로 가상 계좌에서 매매합니다.":"현재 연결 계좌는 실시간 가상 전략매매 피드를 지원하지 않습니다.":"네이버 KRX 공개 현재가·분봉으로 실시간 모의매매합니다. 설정을 편집하고 저장할 수 있으며 실제 체결과 차이가 있습니다.";
+    public string VirtualTradingHelp=>IsOnline?RealtimeMockSupported?"연결 증권사 시세로 가상 계좌에서 매매합니다.":"현재 연결 계좌는 실시간 가상 전략매매 피드를 지원하지 않습니다.":"네이버 KRX 공개 현재가·확정 일봉으로 실시간 모의매매합니다. 일봉 신호는 봉 마감 후 다음 거래일부터 실행됩니다. 설정을 편집하고 저장할 수 있으며 실제 체결과 차이가 있습니다.";
     public MultiTradeViewModel MultiTrading=>multiTrading??=new(provider,store,StartMulti,StopMulti,ReviewMulti,LoadMultiPreset,()=>IsOffline?"오프라인 · 네이버 KRX 공개시세 가상 계좌":broker==null?"연결된 실제 시세 계정이 없습니다.":broker.Name+" · "+broker.MaskedAccount+" · "+(MultiSupported?"실시간 모의 또는 선택한 국내 실계좌":"이 계좌의 자동매매 피드/체결 대사는 미지원"),()=>MultiSupported,()=>IsOffline,StartMockMulti,()=>LatestScreening?.FinalCandidates.AsEnumerable()??[],StartRealtimeMockMulti,()=>RealtimeMockSupported,()=>Presets);
     private bool MultiSupported=>IsOnline&&broker?.Id=="kiwoom"&&broker.IsLive&&broker.Exchange==Exchange.KRX&&broker is IExecutionHistoryBroker&&session!=null;
     private bool RealtimeMockSupported=>IsOnline&&credentials!=null&&broker?.Id=="kiwoom"&&broker.IsLive&&broker.Exchange==Exchange.KRX&&session!=null;
@@ -81,8 +81,8 @@ public sealed partial class WorkspaceViewModel
         if(IsOffline){await StartPublicPaperMulti();return;}
         if(!RealtimeMockSupported||credentials==null)throw new InvalidOperationException("설정은 오프라인에서도 저장할 수 있습니다. 실시간 실행에는 키움 국내 실제 체결·호가 시세 연결이 필요합니다. 공개 현재가만으로는 체결·호가 기반 전략을 실행할 수 없습니다.");
         if(MultiSessionExists)throw new InvalidOperationException("이전 다중매매를 전체 중지한 뒤 시작하세요.");
-        if(ScreenDaily)throw new InvalidOperationException("전략 설정의 데이터 기준에서 분봉 또는 시간봉을 선택하세요. 일봉은 실시간 전략 실행 기준으로 사용할 수 없습니다.");
-        var spec=TimeBarSelection.Parse(ScreenBarValue,ScreenBarUnit);
+
+        var spec=MultiTrading.PublicDaily?new BarSpecification(1,BarUnit.Day):TimeBarSelection.Parse(MultiTrading.PublicBarValue,MultiTrading.PublicBarUnit);
         var facts=oversoldFacts.Snapshot();
         var now=multiClock();var today=DateOnly.FromDateTime(now.ToOffset(TimeSpan.FromHours(9)).DateTime);
         if(!facts.Sessions.Any(s=>s.Date==today&&now>=s.Open&&now<s.Close))throw new InvalidOperationException("오늘의 검증된 한국 시장 세션이 없습니다.");
@@ -127,8 +127,7 @@ public sealed partial class WorkspaceViewModel
     {
         if(!MultiSupported||credentials==null||MultiTrading.UseMock)throw new InvalidOperationException("선택한 키움 국내 실계좌와 모의 해제를 확인하세요.");
         if(MultiSessionExists||session!.AutomationClaimed)throw new InvalidOperationException("이전 다중매매를 전체 중지한 뒤 시작하세요.");
-        if(ScreenDaily)throw new InvalidOperationException("전략 설정의 데이터 기준에서 분봉 또는 시간봉을 선택하세요. 일봉으로 실시간 주문하지 않습니다.");
-        var spec=TimeBarSelection.Parse(ScreenBarValue,ScreenBarUnit);
+        var spec=MultiTrading.PublicDaily?new BarSpecification(1,BarUnit.Day):TimeBarSelection.Parse(MultiTrading.PublicBarValue,MultiTrading.PublicBarUnit);
         var facts=oversoldFacts.Snapshot();
         var now=multiClock();var today=DateOnly.FromDateTime(now.ToOffset(TimeSpan.FromHours(9)).DateTime);
         if(!facts.Sessions.Any(s=>s.Date==today&&now>=s.Open&&now<s.Close))throw new InvalidOperationException("오늘의 검증된 한국 시장 세션이 없습니다.");
@@ -173,6 +172,7 @@ public sealed partial class WorkspaceViewModel
     }
     public async Task StopMulti(string? key=null)
     {
+        if(key==null)DayTrading?.EmergencyStop();
         if(key==null&&(RealtimeScreeningRunning||RealtimeScreeningProtectionActive))await StopRealtimeScreening(false);
         if(multiPaperActive&&realtimePaperBatch is {} paper)
         {

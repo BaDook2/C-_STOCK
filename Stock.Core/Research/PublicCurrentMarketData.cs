@@ -98,7 +98,7 @@ public sealed partial class PublicMarketData:IPublicCurrentBatchData,IFastCurren
             &&extendedAt>traded&&Number(Text(extended,"overPrice")) is >0 and var extendedPrice)
         {
             var session=Text(extended,"tradingSessionType");
-            var baseClose=price;
+            var baseClose=session=="PRE_MARKET"?price:previous;
             if(baseClose>0)
             {
                 price=extendedPrice;change=price-baseClose;previous=baseClose;traded=extendedAt;

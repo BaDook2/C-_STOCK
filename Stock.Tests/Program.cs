@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Text;
@@ -21,10 +21,20 @@ internal static partial class Program
     [STAThread]public static int Main(string[] args)
     {
         Directory.CreateDirectory(Dir);
+        if(args.Length==2&&args[0]=="--day-trading-ui"){try{DayTradingUiChecks(args[1]);Console.WriteLine($"PASS: {passed} day-trading UI checks; fixtures only");return 0;}catch(Exception ex){Console.Error.WriteLine(ex);return 1;}}
+        if(args.Length==2&&args[0]=="--day-trading-perf"){try{DayTradingPerformance(args[1]);return 0;}catch(Exception ex){Console.Error.WriteLine(ex);return 1;}}
+        if(args.Contains("--day-trading-checks")){try{DayTradingChecks();Console.WriteLine($"PASS: {passed} day-trading checks; no broker calls");return 0;}catch(Exception ex){Console.Error.WriteLine(ex);return 1;}}
         if(args.Length==2&&args[0] is "--screening-chart-checks" or "--screening-chart-demo" or "--screening-trade-demo")
         {
             try{Directory.CreateDirectory(args[1]);SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(Dispatcher.CurrentDispatcher));var app=new Stock.App.App{ManualWindowStartup=true};app.InitializeComponent();if(args[0]=="--screening-chart-demo")ScreeningChartDemo(args[1]);else if(args[0]=="--screening-trade-demo")ScreeningTradeChartDemo(args[1]);else ScreeningChartInteractionTests(args[1]);app.Shutdown();Console.WriteLine($"PASS: {passed} screening chart checks");return 0;}catch(Exception ex){Console.Error.WriteLine(ex);return 1;}
         }
+        if(args.Length==2&&args[0]=="--foreign-public-checks"){try{ForeignPublicChecks(args[1]).GetAwaiter().GetResult();Console.WriteLine($"PASS: {passed} foreign public checks");return 0;}catch(Exception ex){Console.Error.WriteLine(ex);return 1;}}
+        if(args.Length==2&&args[0]=="--research-demo"){try{SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(Dispatcher.CurrentDispatcher));var app=new Stock.App.App{ManualWindowStartup=true};app.InitializeComponent();ResearchExpansionDemo(args[1]);app.Shutdown();return 0;}catch(Exception ex){Console.Error.WriteLine(ex);return 1;}}
+        if(args.Length==2&&args[0] is "--compact-ui" or "--compact-demo"){try{Directory.CreateDirectory(args[1]);SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(Dispatcher.CurrentDispatcher));var app=new Stock.App.App{ManualWindowStartup=true};app.InitializeComponent();if(args[0]=="--compact-demo")CompactDemo(args[1]);else CompactUiChecks(args[1]);app.Shutdown();Console.WriteLine($"PASS: {passed} compact UI checks");return 0;}catch(Exception ex){Console.Error.WriteLine(ex);return 1;}}
+        if(args.Length==2&&args[0]=="--screening-perf"){try{ScreeningPerformanceChecks(args[1]);return 0;}catch(Exception ex){Console.Error.WriteLine(ex);return 1;}}
+        if(args.Length==2&&args[0]=="--memory-mode-checks"){try{Directory.CreateDirectory(args[1]);SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(Dispatcher.CurrentDispatcher));var app=new Stock.App.App{ManualWindowStartup=true};app.InitializeComponent();MemoryModeTests(args[1]);app.Shutdown();Console.WriteLine($"PASS: {passed} memory and mode checks");return 0;}catch(Exception ex){Console.Error.WriteLine(ex);return 1;}}
+        if(args.Length==2&&args[0]=="--research-expansion"){try{Directory.CreateDirectory(args[1]);SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(Dispatcher.CurrentDispatcher));var app=new Stock.App.App{ManualWindowStartup=true};app.InitializeComponent();ResearchExpansionTests(args[1]);app.Shutdown();Console.WriteLine($"PASS: {passed} research expansion checks");return 0;}catch(Exception ex){Console.Error.WriteLine(ex);return 1;}}
+        if(args.Contains("--broker-checks")){try{BrokerTests().GetAwaiter().GetResult();Console.WriteLine($"PASS: {passed} broker checks");return 0;}catch(Exception ex){Console.Error.WriteLine(ex);return 1;}}
         if(args.Contains("--public-paper-checks")){try{PublicPaperTests();Console.WriteLine($"PASS: {passed} public paper checks");return 0;}catch(Exception ex){Console.Error.WriteLine(ex);return 1;}}
         if(args.Length==2&&args[0]=="--public-quote-monitor"){try{PublicQuoteMonitor(args[1]).GetAwaiter().GetResult();return 0;}catch(Exception ex){Console.Error.WriteLine(ex);return 1;}}
         if(args.Length==2&&args[0]=="--ui-smoke"){try{UiSmoke(args[1]);Console.WriteLine($"PASS: {passed} UI smoke checks");return 0;}catch(Exception ex){Console.Error.WriteLine(ex);return 1;}}
@@ -51,6 +61,8 @@ internal static partial class Program
     private static TradingSettings Settings(){var s=new TradingSettings();s.Scalping.Enabled=s.Box.Enabled=s.Rebound.Enabled=false;s.Execution.SlippagePercent=0;s.Execution.FeePercent=.1m;s.Execution.ParticipationPercent=50;s.Execution.LatencyMs=0;return s;}
     private static void CoreTests()
     {
+        DayTradingChecks();
+        CompactCalculationChecks();
         StoreLifecycleTests();
         StorageDiagnosticsTests();
         var s=new TradingSettings();s.Validate();Check(true,"typed defaults validate");s.Scalping.RelativeVolume=-1;Throws<InvalidOperationException>(s.Validate,"negative strategy threshold blocked");s=new();s.Scalping.CurrentSeconds=s.Scalping.AverageSeconds;Throws<InvalidOperationException>(s.Validate,"overlapping volume baseline invalid");s=new();s.Data.Universe="NASDAQ:AAPL,NASDAQ:AAPL";Throws<InvalidOperationException>(s.Validate,"duplicate universe rejected");s=new();s.Backtest.To=s.Backtest.From;Throws<InvalidOperationException>(s.Validate,"empty backtest range rejected");

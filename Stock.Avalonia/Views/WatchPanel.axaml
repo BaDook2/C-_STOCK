@@ -1,0 +1,51 @@
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Class="Stock.Desktop.WatchPanel">
+    <Border Classes="card" Margin="0,16,0,0">
+        <DockPanel>
+            <StackPanel DockPanel.Dock="Top">
+                <DockPanel>
+                    <Button DockPanel.Dock="Right" Content="+ 그룹 추가" Command="{Binding AddWatchGroup}" Classes="secondary" />
+                    <TextBlock Text="관심종목" FontSize="28" FontWeight="Bold" />
+                </DockPanel>
+                <TextBlock Text="자주 보는 주식을 그룹으로 모아보세요" Classes="muted" Margin="0,8,0,20" />
+                <ListBox ItemsSource="{Binding WatchGroups}" SelectedItem="{Binding SelectedWatchGroup,Mode=TwoWay}" ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollBarVisibility="Disabled">
+                    <ListBox.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Orientation="Horizontal" />
+                        </ItemsPanelTemplate>
+                    </ListBox.ItemsPanel>
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel Orientation="Horizontal" Margin="8,6,14,6">
+                                <TextBlock Text="{Binding Name}" FontSize="17" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                <Button Content="편집" Click="RenameGroup" FontSize="12" Foreground="#3182F6" Background="#E8F3FF" Padding="8,4" Margin="7,0,0,0" />
+                            </StackPanel>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+                <DockPanel Margin="0,20,0,14">
+                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                        <Button Content="차트 열기" Command="{Binding OpenWatchStock}" Classes="secondary" />
+                        <Button Content="이 그룹에서 해제" Command="{Binding RemoveWatchStock}" Classes="secondary" Margin="4,0" />
+                    </StackPanel>
+                    <TextBlock Text="{Binding SelectedWatchGroup.Name}" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center" />
+                </DockPanel>
+                <TextBlock Text="종목을 검색한 뒤 그룹을 골라 관심종목으로 등록하세요." Classes="muted" Margin="0,0,0,14" />
+            </StackPanel>
+            <Grid>
+                <DataGrid ItemsSource="{Binding WatchItems}" SelectedItem="{Binding SelectedWatchStock,Mode=TwoWay}" AutoGenerateColumns="False">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="종목" Binding="{Binding Name,Mode=OneWay}" Width="*" />
+                        <DataGridTextColumn Header="종목코드" Binding="{Binding Symbol,Mode=OneWay}" Width="160" />
+                        <DataGridTextColumn Header="국가 · 분야" Binding="{Binding Sector,Mode=OneWay}" Width="250" />
+                        <DataGridTextColumn Header="시장" Binding="{Binding Board,Mode=OneWay}" Width="180" />
+                    </DataGrid.Columns>
+                </DataGrid>
+                <StackPanel IsVisible="{Binding !WatchItems.Count}" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8">
+                    <TextBlock Text="☆" Foreground="#C9D0D7" FontSize="42" HorizontalAlignment="Center" />
+                    <TextBlock Text="아직 등록한 종목이 없어요" FontSize="22" FontWeight="Bold" />
+                    <TextBlock Text="종목 · 차트에서 그룹을 고르고 관심등록을 눌러주세요." Classes="muted" />
+                </StackPanel>
+            </Grid>
+        </DockPanel>
+    </Border>
+</UserControl>

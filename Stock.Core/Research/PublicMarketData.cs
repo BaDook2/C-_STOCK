@@ -10,6 +10,7 @@ public sealed record StockItem(string Symbol,string Name,Exchange Exchange,strin
 {
     /// <summary>Domestic listing board (KOSPI/KOSDAQ) when the source identifies it.</summary>
     public string Board {get;init;}="";
+    public string[] Indices {get;init;}=[];
     public string Region=>Exchange==Exchange.KRX?"국내":"해외";
     public string Country=>Exchange==Exchange.KRX?"한국":"미국";
     public string Currency=>Exchange==Exchange.KRX?"KRW":"USD";
@@ -68,6 +69,7 @@ public sealed partial class PublicMarketData : IPublicMarketData,IMarketOverview
     }
     public async Task<IReadOnlyList<StockItem>> Universe(string region,int perExchange,CancellationToken token)
     {
+        if(region is "S&P500" or "나스닥100" or "S&P500+나스닥100")return await IndexConstituents(region,token);
         var stocks=new List<StockItem>();
         var markets=region switch
         {
@@ -115,8 +117,8 @@ public sealed partial class PublicMarketData : IPublicMarketData,IMarketOverview
         }
         else
         {
-            var root=await Json($"https://query1.finance.yahoo.com/v8/finance/chart/{Uri.EscapeDataString(stock.Symbol.Replace('.','-'))}?range=5y&interval=1d",token);
-            bars=ParseYahoo(root);source="Yahoo Finance 공개 일봉";
+            var root=await Json($"https://api.stock.naver.com/chart/foreign/item/{Uri.EscapeDataString(stock.ProviderCode)}?periodType=month&range=120",token);
+            bars=ParseNaverForeignDaily(root);source="네이버 미국 공개 일봉 · StockViewer와 동일 종목 식별자 · USD";
         }
         // Display the provider's latest candle, but never use an unfinished session in research.
         var now=DateTimeOffset.UtcNow;

@@ -20,7 +20,7 @@ public sealed partial class WorkspaceViewModel
     private bool LiveHeader=>displayedDaily?.Stock.Key==dataset?.Stock.Key&&displayedDaily!=null&&!Replaying&&paper==null;
     private async Task<MarketQuote> DisplayQuote(StockItem item)
     {
-        if(IsOnline&&broker!=null)return (await new BrokerCurrentMarketData(broker,s=>store.State<BarDataset>("bars:"+s.Key)?.CompletedBars.LastOrDefault(b=>DailyDates.Of(b)<KoreaClock.Today)?.Close).Current(item,ApiToken)).Quote;
+        if(IsOnline&&broker!=null&&broker.Exchange==item.Exchange)return (await new BrokerCurrentMarketData(broker,s=>store.State<BarDataset>("bars:"+s.Key)?.CompletedBars.LastOrDefault(b=>DailyDates.Of(b)<KoreaClock.Today)?.Close).Current(item,ApiToken)).Quote;
         if(provider is ICurrentMarketData current)return (await current.Current(item,ApiToken)).Quote;
         return await ((IMarketOverviewData)provider).Quote(item,ApiToken);
     }
@@ -34,7 +34,7 @@ public sealed partial class WorkspaceViewModel
     {
         StopDailyQuotes();historyDescription=DataInfo;
         if(disposed||apiPaused)return;
-        var current=IsOnline&&broker!=null?new BrokerCurrentMarketData(broker,s=>dataset?.CompletedBars.LastOrDefault(b=>DailyDates.Of(b)<KoreaClock.Today)?.Close):provider as ICurrentMarketData;
+        var current=IsOnline&&broker!=null&&broker.Exchange==item.Exchange?new BrokerCurrentMarketData(broker,s=>dataset?.CompletedBars.LastOrDefault(b=>DailyDates.Of(b)<KoreaClock.Today)?.Close):provider as ICurrentMarketData;
         if(current==null)return;
         var generation=dailyGeneration;
         dailyPump=new(current,fast:IsOffline);
@@ -42,7 +42,7 @@ public sealed partial class WorkspaceViewModel
             message=>dispatcher.BeginInvoke(()=>{if(!disposed&&generation==dailyGeneration)dailyFailure=message;}));
         dailyTimer=new DispatcherTimer{Interval=TimeSpan.FromSeconds(1)};
         dailyTimer.Tick+=(_,_)=>RefreshDailyDisplay();dailyTimer.Start();
-        if(IsOnline&&credentials!=null&&!IsTick)StartTicks();
+        if(IsOnline&&credentials!=null&&!IsTick&&broker?.Exchange==item.Exchange)StartTicks();
     }
     /// <summary>Dispatcher-only coalescing. Chart zoom/range is not reset; unfinished quotes never enter dataset research bars.</summary>
     private void RefreshDailyDisplay()
@@ -68,7 +68,7 @@ public sealed partial class WorkspaceViewModel
         var state=current.Quote.State=="OPEN"?(ChartPeriods.Minutes(ChartPeriod)>0?$"진행 중 · 미완성 {ChartPeriod} 관측봉":"진행 중 · 미완성 일봉"):current.Quote.State is "HALT" or "SUSPENDED"?"거래정지":"장 종료/휴장 · 마지막 관측값";
         DataInfo=$"{current.Source} · {state} · {(current.ExchangeTimestamp?"시세":"서버 관측")} {current.Quote.TradeTime.ToOffset(TimeSpan.FromHours(9)):MM.dd HH:mm:ss} · 수신 {current.ReceivedAt.ToOffset(TimeSpan.FromHours(9)):HH:mm:ss} · 화면 1초 / 조회 {current.PollInterval.TotalSeconds:N0}초"+(age>TimeSpan.FromSeconds(20)?" · 지연/새 체결 없음":"")+(dailyFailure!=""?" · "+dailyFailure:"");
         _=RefreshClosedHistory(current,now,dailyGeneration);
-        _=RefreshPublicChartMinutes(current,now,dailyGeneration);
+
     }
     private async Task RefreshPublicChartMinutes(CurrentMarketSnapshot current,DateTimeOffset now,long generation)
     {

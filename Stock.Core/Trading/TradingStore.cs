@@ -8,9 +8,12 @@ public sealed class TradingStore : IDisposable
     private readonly object gate=new();
     private readonly string connectionString;
     private bool disposed;
+    private readonly SessionMarketData? marketData;
+    public bool MemoryMarketData=>marketData!=null;
     public string Path { get; }
-    public TradingStore(string path)
+    public TradingStore(string path,bool memoryMarketData=false)
     {
+        marketData=memoryMarketData?new SessionMarketData():null;
         Path=System.IO.Path.GetFullPath(path); Directory.CreateDirectory(System.IO.Path.GetDirectoryName(Path)!);
         connectionString=new SqliteConnectionStringBuilder{DataSource=Path,Mode=SqliteOpenMode.ReadWriteCreate,DefaultTimeout=10,Pooling=false}.ToString();
         // Durable rollback journal. A normal crash alone does not imply SQLite file corruption.
@@ -49,6 +52,7 @@ public sealed class TradingStore : IDisposable
     }
     public int InsertEvents(IEnumerable<MarketEvent> events)
     {
+        if(marketData!=null){lock(gate){ObjectDisposedException.ThrowIf(disposed,this);return marketData.Insert(events);}}
         return Access(db=>
         {
             using var tx=db.BeginTransaction();using var command=db.CreateCommand();command.Transaction=tx;
@@ -61,6 +65,7 @@ public sealed class TradingStore : IDisposable
     }
     public IReadOnlyList<MarketEvent> ReadEvents(string instrument,string source,DateTimeOffset from,DateTimeOffset to,int limit=int.MaxValue)
     {
+        if(marketData!=null){lock(gate){ObjectDisposedException.ThrowIf(disposed,this);var rows=marketData.Read(instrument,source,from,to);if(rows.Length>limit)throw new InvalidOperationException($"명시한 조회 한도 {limit:N0}건을 초과했습니다.");return rows;}}
         return Access(db=>{using var c=db.CreateCommand();c.CommandText="SELECT json FROM events WHERE market_key=$key AND source=$source AND at >= $from AND at <= $to ORDER BY at,id LIMIT $limit";c.Parameters.AddWithValue("$key",instrument);c.Parameters.AddWithValue("$source",source);c.Parameters.AddWithValue("$from",from.UtcTicks);c.Parameters.AddWithValue("$to",to.UtcTicks);c.Parameters.AddWithValue("$limit",(long)limit+1);using var r=c.ExecuteReader();var x=new List<MarketEvent>();while(r.Read())x.Add(Serialization.Unpack<MarketEvent>(r.GetString(0)));if(x.Count>limit)throw new InvalidOperationException($"명시한 조회 한도 {limit:N0}건을 초과했습니다.");return x;});
     }
     public string BeginRun(string mode,TradingSettings settings,string dataHash="")
@@ -68,6 +73,7 @@ public sealed class TradingStore : IDisposable
     /// <summary>All original events in database order, independent of any chart cap. Enumerate off the UI thread.</summary>
     public IEnumerable<MarketEvent> EnumerateEvents(string instrument,string source,DateTimeOffset from,DateTimeOffset to,CancellationToken token)
     {
+        if(marketData!=null){foreach(var row in ReadEvents(instrument,source,from,to)){token.ThrowIfCancellationRequested();yield return row;}yield break;}
         using var read=new SqliteConnection(new SqliteConnectionStringBuilder{DataSource=Path,Mode=SqliteOpenMode.ReadOnly,DefaultTimeout=10,Pooling=false}.ToString());read.Open();
         using var command=read.CreateCommand();command.CommandText="SELECT json FROM events WHERE market_key=$key AND source=$source AND at >= $from AND at <= $to ORDER BY at,id";
         command.Parameters.AddWithValue("$key",instrument);command.Parameters.AddWithValue("$source",source);command.Parameters.AddWithValue("$from",from.UtcTicks);command.Parameters.AddWithValue("$to",to.UtcTicks);
@@ -82,14 +88,22 @@ public sealed class TradingStore : IDisposable
     public IReadOnlyList<string> History()
     =>Access(db=>{using var c=db.CreateCommand();c.CommandText="SELECT at || ' / ' || name || char(10) || COALESCE(old_json,'초기값') || char(10) || '→ ' || new_json FROM settings_history ORDER BY id DESC LIMIT 50";using var r=c.ExecuteReader();var a=new List<string>();while(r.Read())a.Add(r.GetString(0));return a;});
     public IReadOnlyList<string> Datasets()
-    =>Access(db=>{using var c=db.CreateCommand();c.CommandText="SELECT market_key || ' / ' || source || ' / ' || COUNT(*) || ' events' FROM events GROUP BY market_key,source";using var r=c.ExecuteReader();var a=new List<string>();while(r.Read())a.Add(r.GetString(0));return a;});
+    {if(marketData!=null){lock(gate)return marketData.Datasets();}return Access(db=>{using var c=db.CreateCommand();c.CommandText="SELECT market_key || ' / ' || source || ' / ' || COUNT(*) || ' events' FROM events GROUP BY market_key,source";using var r=c.ExecuteReader();var a=new List<string>();while(r.Read())a.Add(r.GetString(0));return a;});}
     public static string Hash(string text) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(text)));
-    public T? State<T>(string key)=>Access(db=>{using var c=db.CreateCommand();c.CommandText="SELECT json FROM state WHERE key=$k";c.Parameters.AddWithValue("$k",key);var v=c.ExecuteScalar() as string;return v==null?default:Serialization.Unpack<T>(v);});
-    public void State<T>(string key,T value) {lock(gate)Exec("INSERT INTO state(key,json) VALUES($k,$j) ON CONFLICT(key) DO UPDATE SET json=excluded.json",("$k",key),("$j",Serialization.Pack(value)));}
+    public T? State<T>(string key){if(marketData!=null&&SessionMarketData.IsCache(key)){lock(gate){ObjectDisposedException.ThrowIf(disposed,this);var json=marketData.Get(key);return json==null?default:Serialization.Unpack<T>(json);}}return Access(db=>{using var c=db.CreateCommand();c.CommandText="SELECT json FROM state WHERE key=$k";c.Parameters.AddWithValue("$k",key);var v=c.ExecuteScalar() as string;return v==null?default:Serialization.Unpack<T>(v);});}
+    public void State<T>(string key,T value) {lock(gate){ObjectDisposedException.ThrowIf(disposed,this);if(marketData!=null&&SessionMarketData.IsCache(key)){marketData.Put(key,Serialization.Pack(value));return;}Exec("INSERT INTO state(key,json) VALUES($k,$j) ON CONFLICT(key) DO UPDATE SET json=excluded.json",("$k",key),("$j",Serialization.Pack(value)));}}
+    /// <summary>One durable frame for a ledger, its checkpoint, and confirmed fill markers. Cache keys are forbidden.</summary>
+    public void StatesAtomic(params (string Key,object Value)[] states)
+    {
+        if(states.Any(s=>SessionMarketData.IsCache(s.Key))||states.Select(s=>s.Key).Distinct().Count()!=states.Length)throw new InvalidOperationException("영속 상태 키를 중복 없이 지정하세요.");
+        var prepared=states.Select(s=>(s.Key,Json:Serialization.Pack(s.Value))).ToArray();
+        Access(db=>{using var transaction=db.BeginTransaction();foreach(var item in prepared){using var command=db.CreateCommand();command.Transaction=transaction;command.CommandText="INSERT INTO state(key,json) VALUES($k,$j) ON CONFLICT(key) DO UPDATE SET json=excluded.json";command.Parameters.AddWithValue("$k",item.Key);command.Parameters.AddWithValue("$j",item.Json);command.ExecuteNonQuery();}transaction.Commit();return 0;});
+    }
     public bool DeleteState(string key)
-    =>Access(db=>{using var c=db.CreateCommand();c.CommandText="DELETE FROM state WHERE key=$k";c.Parameters.AddWithValue("$k",key);return c.ExecuteNonQuery()>0;});
+    {if(marketData!=null&&SessionMarketData.IsCache(key)){lock(gate)return marketData.Remove(key);}return Access(db=>{using var c=db.CreateCommand();c.CommandText="DELETE FROM state WHERE key=$k";c.Parameters.AddWithValue("$k",key);return c.ExecuteNonQuery()>0;});}
     public IReadOnlyList<(string Key,string Json)> States(string prefix)
     {
+        if(marketData!=null&&SessionMarketData.IsCache(prefix)){lock(gate)return marketData.States(prefix);}
         return Access(db=>
         {
             using var c=db.CreateCommand();
@@ -110,7 +124,7 @@ public sealed class TradingStore : IDisposable
             return rows;
         });
     }
-    public void Dispose(){lock(gate)disposed=true;}
+    public void Dispose(){lock(gate){disposed=true;marketData?.Clear();}}
 }
 public static class MarketCsv
 {

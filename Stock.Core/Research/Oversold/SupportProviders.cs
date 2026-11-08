@@ -1,4 +1,4 @@
-using Stock.Core.Trading;
+﻿using Stock.Core.Trading;
 namespace Stock.Core.Research.Oversold;
 public enum SupportKind { MovingAverage,ConfirmedPivotHigh,ApproximateVolumeZone }
 public sealed record SupportCandidate(string Id,SupportKind Type,decimal Lower,decimal Center,decimal Upper,DateOnly Occurred,DateOnly Confirmed,string Description);
@@ -10,14 +10,30 @@ public sealed record SupportCluster(decimal Lower,decimal Center,decimal Upper,S
     public bool Approached(decimal price,decimal distance)=>price>=Lower*(1-distance/100)&&price<=Upper*(1+distance/100);
 }
 public interface ISupportProvider { IReadOnlyList<SupportCandidate> Get(IReadOnlyList<PriceBar> history,OversoldConfig config); }
-public static class DailyDates { public static DateOnly Of(PriceBar bar)=>DateOnly.FromDateTime(bar.Time.ToOffset(TimeSpan.FromHours(9)).DateTime); }
+public static class DailyDates { public static DateOnly Of(PriceBar bar)=>DateOnly.FromDateTime(bar.Time.DateTime); }
 public sealed class MovingAverageSupportProvider:ISupportProvider
 {
+    private IReadOnlyList<PriceBar>? source;private readonly List<decimal> prefix=[0];private bool exact=true;private string periodsText="";private int[] periods=[];
     public IReadOnlyList<SupportCandidate> Get(IReadOnlyList<PriceBar> history,OversoldConfig c)
     {
         if(history.Count==0||!c.UseMovingAverageSupport)return [];var date=DailyDates.Of(history[^1]);
-        return c.MaPeriods().Where(n=>history.Count>=n).Select(n=>{var price=history.Skip(history.Count-n).Average(b=>b.Close);return new SupportCandidate("MA:"+n,SupportKind.MovingAverage,price,price,price,date,date,"이동평균 "+n+"봉");}).ToArray();
+        if(!ReferenceEquals(source,history)||prefix.Count>history.Count+1){source=history;prefix.Clear();prefix.Add(0);exact=true;}
+        for(var i=prefix.Count-1;i<history.Count;i++)
+        {
+            var price=history[i].Close;var scale=(decimal.GetBits(price)[3]>>16)&255;
+            // Bound coefficient digits so prefix addition/subtraction is EXACT in decimal.
+            // Unusually precise prices fall back to the original summation order.
+            exact&=scale<=9&&price<=1_000_000_000_000m&&i<1_000_000;
+            if(exact)prefix.Add(prefix[^1]+price);else break;
+        }
+        if(periodsText!=c.MovingAveragePeriods){periodsText=c.MovingAveragePeriods;periods=c.MaPeriods();}
+        return periods.Where(n=>history.Count>=n).Select(n=>
+        {
+            var price=exact?(prefix[history.Count]-prefix[history.Count-n])/n:history.Skip(history.Count-n).Average(b=>b.Close);
+            return new SupportCandidate("MA:"+n,SupportKind.MovingAverage,price,price,price,date,date,"이동평균 "+n+"봉");
+        }).ToArray();
     }
+
 }
 public sealed class ConfirmedPivotHighProvider(bool intraday=false):ISupportProvider
 {
@@ -43,9 +59,20 @@ public sealed class ApproximateVolumeZoneProvider:ISupportProvider
         var bars=history.TakeLast(c.VolumeZoneLookbackDays).ToArray();if(bars.Length==0)return [];
         var low=bars.Min(b=>b.Low);var high=bars.Max(b=>b.High);var tick=new Instrument("005930",Exchange.KRX).Tick(bars[^1].Close);
         var size=Math.Max(c.VolumeZoneBinSize,(high-low)/Math.Max(1,c.VolumeZoneMaxBins-1));size=decimal.Ceiling(size/tick)*tick;EffectiveBinSize=size;
-        var bins=new SortedDictionary<decimal,decimal>();
-        foreach(var bar in bars){decimal first=decimal.Floor(bar.Low/size),last=decimal.Floor(bar.High/size);var count=last-first+1;var allocation=bar.Volume/count;decimal assigned=0;for(decimal i=first;i<=last;i++){var amount=i==last?bar.Volume-assigned:allocation;bins[i*size]=bins.GetValueOrDefault(i*size)+amount;assigned+=amount;}}
-        return bins.Select(p=>new ApproximateBin(p.Key,p.Key+size,p.Value)).ToArray();
+        // Dense price bins avoid a tree lookup for every bar/bin pair. Keep the original
+        // per-bar allocation and summation order, including the last-bin decimal remainder.
+        var firstIndex=decimal.Floor(low/size);var lastIndex=decimal.Floor(high/size);
+        var totals=new decimal[checked((int)(lastIndex-firstIndex)+1)];var touched=new bool[totals.Length];
+        foreach(var bar in bars)
+        {
+            var first=checked((int)(decimal.Floor(bar.Low/size)-firstIndex));var last=checked((int)(decimal.Floor(bar.High/size)-firstIndex));
+            var allocation=bar.Volume/(last-first+1);decimal assigned=0;
+            for(var i=first;i<=last;i++){var amount=i==last?bar.Volume-assigned:allocation;totals[i]+=amount;touched[i]=true;assigned+=amount;}
+        }
+        var result=new List<ApproximateBin>(totals.Length);
+        for(var i=0;i<totals.Length;i++)if(touched[i]){var lower=(firstIndex+i)*size;result.Add(new(lower,lower+size,totals[i]));}
+        return result;
+
     }
     public IReadOnlyList<SupportCandidate> Get(IReadOnlyList<PriceBar> history,OversoldConfig c)
     {

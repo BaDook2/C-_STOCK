@@ -1,0 +1,39 @@
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="clr-namespace:Stock.Desktop" x:Class="Stock.Desktop.ScreeningPanel">
+    <DockPanel Margin="0,12,0,0">
+        <StackPanel DockPanel.Dock="Top" Spacing="12">
+            <local:ScreeningSettings />
+            <WrapPanel>
+                <StackPanel Orientation="Horizontal" IsVisible="{Binding Editable}">
+                    <TextBlock Text="시작일" VerticalAlignment="Center" Margin="10,0,4,0" />
+                    <CalendarDatePicker SelectedDate="{Binding From,Mode=TwoWay}" Width="125" Height="40" SelectedDateFormat="Custom" CustomDateFormatString="yyyy-MM-dd" />
+                    <TextBlock Text="종료일" VerticalAlignment="Center" Margin="8,0,4,0" />
+                    <CalendarDatePicker SelectedDate="{Binding To,Mode=TwoWay}" Width="125" Height="40" SelectedDateFormat="Custom" CustomDateFormatString="yyyy-MM-dd" />
+                    <Button Content="스크리닝 시작" Command="{Binding Start}" Width="107" Height="40" Padding="12,8" Margin="5,0,0,0" />
+                </StackPanel>
+                <Button Content="중지" Command="{Binding Cancel}" IsVisible="{Binding Busy}" Classes="danger" Height="40" />
+                <Button Content="스크리닝 결과" Click="FunnelClick" Classes="secondary" Height="40" />
+                <Button Content="백테스트 보기" Command="{Binding OpenResult}" Classes="secondary" Height="40" />
+                <CheckBox Content="전체 대상·탈락 사유 보기" IsChecked="{Binding ShowAll,Mode=TwoWay}" Margin="12,0" />
+            </WrapPanel>
+            <TextBlock Text="{Binding Status}" Classes="muted" TextWrapping="Wrap" />
+            <TextBlock Text="{Binding SnapshotLabel}" IsVisible="{Binding ReadOnly}" Classes="muted" />
+            <ProgressBar IsIndeterminate="True" IsVisible="{Binding Busy}" Height="3" />
+        </StackPanel>
+        <DataGrid ItemsSource="{Binding Rows}" SelectedItem="{Binding Selected,Mode=TwoWay}" AutoGenerateColumns="False" DoubleTapped="ResultDoubleTapped" Margin="0,18,0,0">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="코드" Binding="{Binding Code,Mode=OneWay}" Width="85" />
+                <DataGridTemplateColumn Header="종목 이름" Width="2*"><DataGridTemplateColumn.CellTemplate><DataTemplate><Button Content="{Binding Name}" Classes="link" Click="StockNameClick" HorizontalAlignment="Center" /></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
+                <DataGridTextColumn Header="시장" Binding="{Binding Region,Mode=OneWay}" Width="80" />
+                <DataGridTextColumn Header="분야" Binding="{Binding Sector,Mode=OneWay}" Width="2*" />
+                <DataGridTextColumn Header="현재가 · 관측값" Binding="{Binding Price,Mode=OneWay}" Width="140" />
+                <DataGridTextColumn Header="접근도 · 점" Binding="{Binding Proximity,Mode=OneWay}" Width="95" />
+                <DataGridTextColumn Header="급락률 %" Binding="{Binding Drawdown,Mode=OneWay}" Width="100" />
+                <DataGridTextColumn Header="RSI" Binding="{Binding Rsi,Mode=OneWay}" Width="80" />
+                <DataGridTextColumn Header="거래량 배수" Binding="{Binding Volume,Mode=OneWay}" Width="100" />
+                <DataGridTextColumn Header="지지 개수" Binding="{Binding Supports,Mode=OneWay}" Width="90" />
+                <DataGridTextColumn Header="상태" Binding="{Binding State,Mode=OneWay}" Width="140" />
+                <DataGridTextColumn Header="기준일 · 한국시간" Binding="{Binding Date,Mode=OneWay}" Width="170" />
+            </DataGrid.Columns>
+        </DataGrid>
+    </DockPanel>
+</UserControl>

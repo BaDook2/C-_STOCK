@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Text;
@@ -71,6 +71,16 @@ internal static partial class Program
         {
             await c.ConnectAsync();var minutes=await ((IRangedMinuteHistoryBroker)c).MinuteHistory("005930",new(2026,10,1),new(2026,10,20),CancellationToken.None);
             Check(rangedPages==3&&minutes.Length==3&&DateOnly.FromDateTime(minutes[0].Time.DateTime)==new DateOnly(2026,10,1),"screening minute history follows continuation pages through the requested start date and stops there");
+        }
+        var boundaryPages=0;
+        using(var c=Client(Exchange.KRX,request=>
+        {
+            boundaryPages++;var stamp=boundaryPages switch{1=>"20261002153000",2=>"20261001140000",3=>"20261001090000",_=>"20260930153000"};
+            return Task.FromResult(Json($$"""{"return_code":0,"stk_min_pole_chart_qry":[{"cur_prc":"100","trde_qty":"1","cntr_tm":"{{stamp}}","open_pric":"100","high_pric":"100","low_pric":"100"}]}""","boundary-next-"+boundaryPages));
+        }))
+        {
+            await c.ConnectAsync();var rows=await ((IRangedMinuteHistoryBroker)c).MinuteHistory("005930",new(2026,10,1),new(2026,10,2),CancellationToken.None);
+            Check(boundaryPages==4&&rows.Count(b=>DateOnly.FromDateTime(b.Time.DateTime)==new DateOnly(2026,10,1))==2,"minute paging does not stop at the first partial page of the requested first day");
         }
         var hourlyPages=0;
         using(var c=Client(Exchange.KRX,async request=>

@@ -1,0 +1,208 @@
+<Styles xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- Own themes prevent Fluent's PART_ContentPresenter state setters from painting
+         gray rectangles/text inside the rounded WPF-style button and popup shells. -->
+    <Styles.Resources>
+        <ControlTheme x:Key="CompactCalendarDay" TargetType="CalendarDayButton">
+            <Setter Property="MinWidth" Value="0" /><Setter Property="MinHeight" Value="0" /><Setter Property="Width" Value="26" /><Setter Property="Height" Value="20" /><Setter Property="Margin" Value="0" /><Setter Property="Padding" Value="0" /><Setter Property="FontSize" Value="13" /><Setter Property="Background" Value="Transparent" /><Setter Property="Foreground" Value="#191F28" /><Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="Template"><ControlTemplate><Border Name="DayShell" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1" CornerRadius="3"><ContentPresenter Name="PART_ContentPresenter" Content="{TemplateBinding Content}" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" /></Border></ControlTemplate></Setter>
+            <Style Selector="^:pointerover"><Setter Property="Background" Value="#E8F3FF" /></Style>
+            <Style Selector="^:selected"><Setter Property="Background" Value="#DCEEFF" /><Setter Property="BorderBrush" Value="#3182F6" /></Style>
+            <Style Selector="^:inactive"><Setter Property="Foreground" Value="#8B95A1" /></Style>
+            <Style Selector="^:blackout"><Setter Property="Foreground" Value="#C9D0D7" /></Style>
+            <Style Selector="^:today"><Setter Property="BorderBrush" Value="#3182F6" /></Style>
+        </ControlTheme>
+        <ControlTheme x:Key="CompactCalendarMonth" TargetType="CalendarButton">
+            <Setter Property="MinWidth" Value="0" /><Setter Property="MinHeight" Value="0" /><Setter Property="Margin" Value="2" /><Setter Property="Padding" Value="0" /><Setter Property="FontSize" Value="13" /><Setter Property="Background" Value="Transparent" /><Setter Property="Foreground" Value="#191F28" /><Setter Property="BorderBrush" Value="Transparent" /><Setter Property="HorizontalAlignment" Value="Stretch" /><Setter Property="VerticalAlignment" Value="Stretch" />
+            <Setter Property="Template"><ControlTemplate><Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1" CornerRadius="3"><ContentPresenter Name="PART_ContentPresenter" Content="{TemplateBinding Content}" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" /></Border></ControlTemplate></Setter>
+            <Style Selector="^:pointerover"><Setter Property="Background" Value="#E8F3FF" /></Style>
+            <Style Selector="^:selected"><Setter Property="Background" Value="#DCEEFF" /><Setter Property="BorderBrush" Value="#3182F6" /></Style>
+            <Style Selector="^:inactive"><Setter Property="Foreground" Value="#8B95A1" /></Style>
+        </ControlTheme>
+        <!-- Keep the installed CalendarItem's required parts, but give them a compact
+             complete layout. Shrinking Fluent's294px/290px grids clips its header
+             and weekdays, and field names in the DLL are not template part names. -->
+        <ControlTheme x:Key="CompactCalendarItem" TargetType="CalendarItem">
+            <Setter Property="Width" Value="202" /><Setter Property="Height" Value="201" /><Setter Property="MinWidth" Value="0" /><Setter Property="MinHeight" Value="0" /><Setter Property="FontSize" Value="13" />
+            <Setter Property="DayTitleTemplate"><Template x:DataType="x:String"><TextBlock Text="{Binding}" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12" Foreground="#4E5968" /></Template></Setter>
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1" Padding="4">
+                        <Grid RowDefinitions="30,*">
+                            <Border Background="#EBEFF5" Margin="-3,-3,-3,0">
+                                <Grid ColumnDefinitions="26,*,26">
+                                    <Button Name="PART_PreviousButton" Width="26" Height="28" MinWidth="0" MinHeight="0" Padding="0" Margin="0" Background="Transparent" BorderThickness="0" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" AutomationProperties.Name="이전 달">
+                                        <Path Data="M 6 0 L 0 5 L 6 10 Z" Width="6" Height="10" Stretch="Uniform" Fill="#4E5968" />
+                                    </Button>
+                                    <Button Name="PART_HeaderButton" Grid.Column="1" Height="28" MinWidth="0" MinHeight="0" Padding="0" Margin="0" FontSize="13" Background="Transparent" BorderThickness="0" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" />
+                                    <Button Name="PART_NextButton" Grid.Column="2" Width="26" Height="28" MinWidth="0" MinHeight="0" Padding="0" Margin="0" Background="Transparent" BorderThickness="0" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" AutomationProperties.Name="다음 달">
+                                        <Path Data="M 0 0 L 6 5 L 0 10 Z" Width="6" Height="10" Stretch="Uniform" Fill="#4E5968" />
+                                    </Button>
+                                </Grid>
+                            </Border>
+                            <Grid Name="PART_MonthView" Grid.Row="1" IsVisible="False" RowDefinitions="24,*,*,*,*,*,*" ColumnDefinitions="*,*,*,*,*,*,*" />
+                            <Grid Name="PART_YearView" Grid.Row="1" IsVisible="False" RowDefinitions="*,*,*" ColumnDefinitions="*,*,*,*" />
+                        </Grid>
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+        </ControlTheme>
+        <ControlTheme x:Key="StockButtonTheme" TargetType="Button">
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="VerticalAlignment" Value="Stretch" />
+            <Setter Property="FocusAdorner" Value="{x:Null}" />
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Border Name="ButtonShell" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="{TemplateBinding CornerRadius}" Padding="{TemplateBinding Padding}">
+                        <ContentPresenter Name="PART_ContentPresenter" Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}" Foreground="{TemplateBinding Foreground}" RecognizesAccessKey="True" HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}" />
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+        </ControlTheme>
+        <ControlTheme x:Key="StockExpanderHeaderTheme" TargetType="ToggleButton">
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="MinHeight" Value="0" />
+            <Setter Property="FocusAdorner" Value="{x:Null}" />
+        </ControlTheme>
+        <ControlTheme x:Key="StockCheckTheme" TargetType="CheckBox"><Setter Property="FocusAdorner" Value="{x:Null}" /><Setter Property="MinHeight" Value="0" /></ControlTheme>
+        <ControlTheme x:Key="StockRadioTheme" TargetType="RadioButton"><Setter Property="FocusAdorner" Value="{x:Null}" /><Setter Property="MinHeight" Value="0" /></ControlTheme>
+        <ControlTheme x:Key="StockComboItemTheme" TargetType="ComboBoxItem">
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="MinHeight" Value="0" />
+            <Setter Property="FocusAdorner" Value="{x:Null}" />
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Border Name="StockComboItemRow" Background="Transparent" CornerRadius="8" Padding="{TemplateBinding Padding}" Margin="4,1">
+                        <Grid ColumnDefinitions="22,*" Background="Transparent">
+                            <Path Name="StockComboCheck" Width="11" Height="9" Data="M 1 5 L 4 8 L 10 1" Stretch="Uniform" Stroke="#3182F6" StrokeThickness="1.8" Opacity="0" VerticalAlignment="Center" HorizontalAlignment="Left" IsHitTestVisible="False" />
+                            <ContentPresenter Name="PART_ContentPresenter" Grid.Column="1" Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}" Foreground="{TemplateBinding Foreground}" HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalContentAlignment="Center" />
+                        </Grid>
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+            <Style Selector="^:pointerover /template/ Border#StockComboItemRow"><Setter Property="Background" Value="#F2F4F6" /></Style>
+            <Style Selector="^:selected /template/ Path#StockComboCheck"><Setter Property="Opacity" Value="1" /></Style>
+            <Style Selector="^:disabled"><Setter Property="Foreground" Value="#A1A9B2" /></Style>
+        </ControlTheme>
+        <ControlTheme x:Key="StockComboTheme" TargetType="ComboBox">
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="FocusAdorner" Value="{x:Null}" />
+            <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled" />
+            <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Auto" />
+            <Setter Property="ItemContainerTheme" Value="{StaticResource StockComboItemTheme}" />
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Grid Background="Transparent">
+                        <Border Name="StockComboShell" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="{TemplateBinding CornerRadius}" />
+                        <ContentPresenter Name="StockSelection" Content="{TemplateBinding SelectionBoxItem}" ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}" Foreground="{TemplateBinding Foreground}" Margin="12,8,34,8" VerticalAlignment="Center" IsHitTestVisible="False" IsVisible="{TemplateBinding IsEditable, Converter={x:Static BoolConverters.Not}}" />
+                        <TextBox Name="PART_EditableTextBox" Text="{TemplateBinding Text,Mode=TwoWay}" PlaceholderText="{TemplateBinding PlaceholderText}" IsVisible="{TemplateBinding IsEditable}" Margin="4,2,34,2" BorderThickness="0" Background="Transparent" Padding="7,4">
+                            <!-- Keep Fluent text editing/IME, but share the combo's one border. -->
+                            <TextBox.Resources>
+                                <Thickness x:Key="TextControlBorderThemeThicknessFocused">0</Thickness>
+                                <SolidColorBrush x:Key="TextControlBorderBrushFocused">Transparent</SolidColorBrush>
+                                <SolidColorBrush x:Key="TextControlBackgroundFocused">Transparent</SolidColorBrush>
+                                <SolidColorBrush x:Key="TextControlBackgroundPointerOver">Transparent</SolidColorBrush>
+                            </TextBox.Resources>
+                        </TextBox>
+                        <Path Name="StockDropArrow" Data="M 0 0 L 4 4 L 8 0" Width="8" Height="4" Stretch="Uniform" Stroke="#4E5968" StrokeThickness="1.5" Margin="0,0,13,0" HorizontalAlignment="Right" VerticalAlignment="Center" IsHitTestVisible="False" />
+                        <Popup Name="PART_Popup" IsOpen="{TemplateBinding IsDropDownOpen,Mode=TwoWay}" IsLightDismissEnabled="True" PlacementTarget="StockComboShell" MinWidth="{Binding Bounds.Width,RelativeSource={RelativeSource TemplatedParent}}" WindowManagerAddShadowHint="False" InheritsTransform="True">
+                            <Border Name="StockComboPopup" Background="White" BorderBrush="#E5E8EB" BorderThickness="1" CornerRadius="12" Padding="3,6" Margin="0,5,5,8" BoxShadow="0 4 18 0 #24364152">
+                                <ScrollViewer MaxHeight="{TemplateBinding MaxDropDownHeight}" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" IsScrollChainingEnabled="False">
+                                    <ItemsPresenter Name="PART_ItemsPresenter" ItemsPanel="{TemplateBinding ItemsPanel}" />
+                                </ScrollViewer>
+                            </Border>
+                        </Popup>
+                    </Grid>
+                </ControlTemplate>
+            </Setter>
+            <Style Selector="^:pointerover /template/ Border#StockComboShell"><Setter Property="Background" Value="#FAFBFC" /><Setter Property="BorderBrush" Value="#B0BAC5" /></Style>
+            <Style Selector="^:dropdownopen /template/ Border#StockComboShell"><Setter Property="BorderBrush" Value="#3182F6" /></Style>
+            <Style Selector="^:focus-visible /template/ Border#StockComboShell"><Setter Property="BorderBrush" Value="#3182F6" /></Style>
+            <Style Selector="^:disabled /template/ Border#StockComboShell"><Setter Property="Background" Value="#F2F4F6" /><Setter Property="BorderBrush" Value="#ECEFF2" /></Style>
+            <Style Selector="^:disabled"><Setter Property="Foreground" Value="#A1A9B2" /><Setter Property="Cursor" Value="Arrow" /></Style>
+        </ControlTheme>
+        <ControlTheme x:Key="StockListItemTheme" TargetType="ListBoxItem">
+            <Setter Property="FocusAdorner" Value="{x:Null}" />
+        </ControlTheme>
+        <ControlTheme x:Key="StockGridHeaderTheme" TargetType="DataGridColumnHeader">
+            <Setter Property="FocusAdorner" Value="{x:Null}" />
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}">
+                        <Grid Name="PART_ColumnHeaderRoot" Background="Transparent">
+                            <ContentPresenter Name="PART_ContentPresenter" Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}" Foreground="{TemplateBinding Foreground}" Padding="{TemplateBinding Padding}" HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}" />
+                            <Path Name="SortIcon" IsVisible="False" Width="8" Height="6" Stretch="Uniform" Fill="#8B95A1" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,4,0" IsHitTestVisible="False" />
+                        </Grid>
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+            <Style Selector="^:sortascending /template/ Path#SortIcon"><Setter Property="IsVisible" Value="True" /><Setter Property="Data" Value="M 0 6 L 4 0 L 8 6 Z" /></Style>
+            <Style Selector="^:sortdescending /template/ Path#SortIcon"><Setter Property="IsVisible" Value="True" /><Setter Property="Data" Value="M 0 0 L 4 6 L 8 0 Z" /></Style>
+        </ControlTheme>
+        <ControlTheme x:Key="StockGridCellTheme" TargetType="DataGridCell">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="FocusAdorner" Value="{x:Null}" />
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" Padding="{TemplateBinding Padding}">
+                        <ContentPresenter Name="PART_ContentPresenter" Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}" Foreground="{TemplateBinding Foreground}" HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+        </ControlTheme>
+        <ControlTheme x:Key="StockScrollPageTheme" TargetType="RepeatButton">
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="Template"><ControlTemplate><Border Background="Transparent" /></ControlTemplate></Setter>
+        </ControlTheme>
+        <ControlTheme x:Key="StockScrollThumbTheme" TargetType="Thumb">
+            <Setter Property="Background" Value="#CED4DA" />
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="Template"><ControlTemplate><Border Background="{TemplateBinding Background}" CornerRadius="4" Margin="3" /></ControlTemplate></Setter>
+            <Style Selector="^:pointerover"><Setter Property="Background" Value="#ADB5BD" /></Style>
+            <Style Selector="^:pressed"><Setter Property="Background" Value="#8B95A1" /></Style>
+        </ControlTheme>
+        <ControlTheme x:Key="StockScrollTheme" TargetType="ScrollBar">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="MinWidth" Value="0" />
+            <Setter Property="MinHeight" Value="0" />
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Border Background="{TemplateBinding Background}">
+                        <Track Name="PART_Track" Minimum="{TemplateBinding Minimum}" Maximum="{TemplateBinding Maximum}" Value="{TemplateBinding Value,Mode=TwoWay}" ViewportSize="{TemplateBinding ViewportSize}" Orientation="{TemplateBinding Orientation}" IsDirectionReversed="True" DeferThumbDrag="{TemplateBinding ScrollViewer.IsDeferredScrollingEnabled}">
+                            <Track.DecreaseButton><RepeatButton Name="PART_PageUpButton" Theme="{StaticResource StockScrollPageTheme}" AutomationProperties.Name="이전 페이지" /></Track.DecreaseButton>
+                            <Track.Thumb><Thumb Name="StockScrollThumb" Theme="{StaticResource StockScrollThumbTheme}" MinHeight="24" AutomationProperties.Name="스크롤 위치" /></Track.Thumb>
+                            <Track.IncreaseButton><RepeatButton Name="PART_PageDownButton" Theme="{StaticResource StockScrollPageTheme}" AutomationProperties.Name="다음 페이지" /></Track.IncreaseButton>
+                        </Track>
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+            <Style Selector="^[Orientation=Horizontal] /template/ Track#PART_Track"><Setter Property="IsDirectionReversed" Value="False" /></Style>
+            <Style Selector="^[Orientation=Horizontal] /template/ Thumb#StockScrollThumb"><Setter Property="MinHeight" Value="0" /><Setter Property="MinWidth" Value="24" /></Style>
+            <Style Selector="^:disabled"><Setter Property="Opacity" Value="0.35" /></Style>
+        </ControlTheme>
+        <!-- Match the actual WPF cell selection, not just its row's underlying brush:
+             native active #0078D7 / inactive #F0F0F0 / hover #F7F9FC. -->
+        <SolidColorBrush x:Key="DataGridRowHoveredBackgroundColor">#F7F9FC</SolidColorBrush>
+        <SolidColorBrush x:Key="DataGridRowSelectedBackgroundBrush">#0078D7</SolidColorBrush>
+        <SolidColorBrush x:Key="DataGridRowSelectedHoveredBackgroundBrush">#0078D7</SolidColorBrush>
+        <SolidColorBrush x:Key="DataGridRowSelectedUnfocusedBackgroundBrush">#F0F0F0</SolidColorBrush>
+        <SolidColorBrush x:Key="DataGridRowSelectedHoveredUnfocusedBackgroundBrush">#F0F0F0</SolidColorBrush>
+        <x:Double x:Key="DataGridRowSelectedBackgroundOpacity">1</x:Double>
+        <x:Double x:Key="DataGridRowSelectedHoveredBackgroundOpacity">1</x:Double>
+        <x:Double x:Key="DataGridRowSelectedUnfocusedBackgroundOpacity">1</x:Double>
+        <x:Double x:Key="DataGridRowSelectedHoveredUnfocusedBackgroundOpacity">1</x:Double>
+    </Styles.Resources>
+    <Style Selector="Button"><Setter Property="Theme" Value="{StaticResource StockButtonTheme}" /></Style>
+    <Style Selector="CheckBox"><Setter Property="Theme" Value="{StaticResource StockCheckTheme}" /></Style>
+    <Style Selector="RadioButton"><Setter Property="Theme" Value="{StaticResource StockRadioTheme}" /></Style>
+    <Style Selector="ComboBox"><Setter Property="Theme" Value="{StaticResource StockComboTheme}" /></Style>
+    <Style Selector="ComboBoxItem"><Setter Property="Theme" Value="{StaticResource StockComboItemTheme}" /></Style>
+    <Style Selector="ListBoxItem"><Setter Property="Theme" Value="{StaticResource StockListItemTheme}" /></Style>
+    <Style Selector="ScrollBar"><Setter Property="Theme" Value="{StaticResource StockScrollTheme}" /></Style>
+    <Style Selector="DataGridColumnHeader"><Setter Property="Theme" Value="{StaticResource StockGridHeaderTheme}" /></Style>
+    <Style Selector="DataGridCell"><Setter Property="Theme" Value="{StaticResource StockGridCellTheme}" /></Style>
+</Styles>

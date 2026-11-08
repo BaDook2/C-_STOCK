@@ -49,7 +49,7 @@ public sealed partial class WorkspaceViewModel
         var rows=new List<TradeMarker>();
         if(key!=null&&(ShowTradeMarkers||ShowLiveTradeMarkers))foreach(var row in store.States("trade-marker:"))try
         {
-            var m=Serialization.Unpack<TradeMarker>(row.Json);var paper=m.Source is "모의매매"||m.Source==RealtimePaperStrategyBatch.MarkerSource||m.Source==RealtimePaperStrategyBatch.PublicMarkerSource;var live=m.Source=="실제매매"&&IsOnline&&m.AccountScope==AccountScope;
+            var m=Serialization.Unpack<TradeMarker>(row.Json);var paper=m.Source is "모의매매" or "전략 D 모의매매"||m.Source==RealtimePaperStrategyBatch.MarkerSource||m.Source==RealtimePaperStrategyBatch.PublicMarkerSource;var live=m.Source=="실제매매"&&IsOnline&&m.AccountScope==AccountScope;
             if(m.StockKey==key&&(ShowTradeMarkers&&paper||ShowLiveTradeMarkers&&live))rows.Add(m);
         }catch{ /* Preserve other records if one legacy row is damaged. */ }
         TradeMarkers=rows.OrderBy(m=>m.Time).ToArray();Changed(nameof(TradeMarkers));Changed(nameof(DisplayTradeMarkers));Changed(nameof(TradeMarkerInfo));

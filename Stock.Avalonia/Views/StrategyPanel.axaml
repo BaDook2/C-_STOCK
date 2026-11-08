@@ -1,0 +1,81 @@
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="clr-namespace:Stock.Desktop" x:Class="Stock.Desktop.StrategyPanel">
+    <DockPanel>
+        <StackPanel DockPanel.Dock="Top">
+            <TextBlock Text="전략 설정" FontSize="28" FontWeight="Bold" />
+            <Button Content="전략 D · 간편/고급 설정" Command="{Binding $parent[Window].DataContext.OpenDayTradingSettings}" HorizontalAlignment="Left" Margin="0,10,0,0" />
+            <TextBlock Text="저장한 전략을 선택해 백테스트·스크리닝·검증된 실시간 실행에 사용할 조건을 관리합니다." Foreground="#6B7684" Margin="0,12" />
+            <WrapPanel>
+                <ComboBox ItemsSource="{Binding Names}" SelectedItem="{Binding Selected,Mode=TwoWay}" IsEditable="True" Text="{Binding Name,Mode=TwoWay}" Width="250" />
+                <Button Content="추가" Command="{Binding Add}" />
+                <Button Content="이름 변경" Command="{Binding Rename}" Classes="secondary" />
+                <Button Content="설정 저장" Command="{Binding Save}" />
+                <Button Content="복구" Command="{Binding Restore}" Classes="secondary" />
+                <Button Content="불러오기" Command="{Binding Import}" Classes="secondary" />
+                <Button Content="다운로드" Command="{Binding Export}" Classes="secondary" />
+                <Button Content="기본값" Command="{Binding Defaults}" Classes="secondary" />
+            </WrapPanel>
+        </StackPanel>
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="0,14,0,20">
+                <TextBlock Text="{Binding Message}" Foreground="#6B7684" FontSize="12" TextWrapping="Wrap" Margin="0,8" />
+                <Expander Header="시점별 검증 자료 (고급)" Margin="0,8,0,12">
+                    <TextBox Text="{Binding $parent[Window].DataContext.Research.FactsJson,Mode=TwoWay}" AcceptsReturn="True" Height="160" TextWrapping="Wrap" />
+                </Expander>
+                <ItemsControl ItemsSource="{Binding UsageGroups}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border BorderBrush="#E5E8EB" BorderThickness="1" CornerRadius="12" Padding="12" Margin="0,0,0,12">
+                                <Expander FontSize="17" FontWeight="SemiBold" IsExpanded="True" HorizontalAlignment="Stretch">
+                                    <Expander.Header><WrapPanel><TextBlock Text="{Binding Name}" FontSize="17" FontWeight="SemiBold" /><TextBlock Text="{Binding Count,StringFormat=' · {0:N0}개'}" Foreground="#8B95A1" FontSize="14" VerticalAlignment="Center" /></WrapPanel></Expander.Header>
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding Description}" FontSize="13" FontWeight="Normal" Foreground="#333D4B" TextWrapping="Wrap" Margin="0,0,0,8" />
+                                        <Border Background="#F2F7FF" CornerRadius="8" Padding="12" Margin="0,0,0,8">
+                                            <TextBlock Text="{Binding Status}" FontSize="13" FontWeight="Normal" Foreground="#46658B" TextWrapping="Wrap" />
+                                        </Border>
+                                        <ItemsControl ItemsSource="{Binding Groups}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Expander FontSize="13" FontWeight="Normal" Header="{Binding Name}" IsExpanded="False" HorizontalAlignment="Stretch" Margin="0,8">
+                                                        <ItemsControl ItemsSource="{Binding Rows}">
+                                                            <ItemsControl.ItemTemplate>
+                                                                <DataTemplate>
+                                                                    <ItemsControl ItemsSource="{Binding Cells}">
+                                                                        <ItemsControl.ItemsPanel>
+                                                                            <ItemsPanelTemplate>
+                                                                                <UniformGrid Columns="3" />
+                                                                            </ItemsPanelTemplate>
+                                                                        </ItemsControl.ItemsPanel>
+                                                                        <ItemsControl.ItemTemplate>
+                                                                            <DataTemplate>
+                                                                                <Border Background="#F7F9FC" CornerRadius="10" Padding="10,8" Margin="0,0,8,8" IsVisible="{Binding Present}">
+                                                                                    <StackPanel DataContext="{Binding Field}" Spacing="6">
+                                                                                        <DockPanel>
+                                                                                            <Button DockPanel.Dock="Right" Content="?" Classes="secondary" Width="25" Height="25" Padding="0" ToolTip.Tip="{Binding Help}" Click="HelpClick" />
+                                                                                            <TextBlock Text="{Binding Metadata.DisplayName}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                                                                        </DockPanel>
+                                                                                        <Grid ColumnDefinitions="150,*">
+                                                                                            <local:SettingInput />
+                                                                                            <TextBlock Grid.Column="1" Text="{Binding Hint}" Classes="muted" FontSize="11" VerticalAlignment="Center" Margin="10,0,0,0" TextWrapping="Wrap" />
+                                                                                        </Grid>
+                                                                                    </StackPanel>
+                                                                                </Border>
+                                                                            </DataTemplate>
+                                                                        </ItemsControl.ItemTemplate>
+                                                                    </ItemsControl>
+                                                                </DataTemplate>
+                                                            </ItemsControl.ItemTemplate>
+                                                        </ItemsControl>
+                                                    </Expander>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                </Expander>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+        </ScrollViewer>
+    </DockPanel>
+</UserControl>

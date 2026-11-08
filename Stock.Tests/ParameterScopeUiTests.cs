@@ -18,8 +18,8 @@ internal static partial class Program
         ParameterField Field(string key)=>vm.OversoldUsageGroups.SelectMany(s=>s.Groups).SelectMany(g=>g.Fields).Single(f=>f.Metadata.Key==key);
         void Expand(){for(int pass=0;pass<4;pass++){foreach(var e in Descendants(window).OfType<Expander>().ToArray())e.IsExpanded=true;window.UpdateLayout();Dispatcher.CurrentDispatcher.Invoke(()=>{},DispatcherPriority.ApplicationIdle);}}
         var properties=ParameterCatalog.Properties(config).ToArray();var fields=vm.OversoldUsageGroups.SelectMany(s=>s.Groups).SelectMany(g=>g.Fields).ToArray();
-        Check(properties.Length==59&&fields.Length==59&&fields.Select(f=>f.Metadata.Key).Distinct().Count()==59&&properties.Select(p=>p.Name).Order().SequenceEqual(fields.Select(f=>f.Metadata.Key).Order())&&OversoldParameterMetadata.Keys.Order().SequenceEqual(properties.Select(p=>p.Name).Order()),"all 59 config parameters occur in exactly one explicit metadata scope");
-        Check(vm.OversoldUsageGroups.Select(s=>s.Count).SequenceEqual(new[]{8,51,0})&&vm.OversoldUsageGroups.Select(s=>s.Metadata.Scope).SequenceEqual(new[]{ParameterUsageScope.Backtest,ParameterUsageScope.CommonStrategy,ParameterUsageScope.Online}),"scope counts are backtest8 common51 online0 without invented settings");
+        Check(properties.Length==61&&fields.Length==61&&fields.Select(f=>f.Metadata.Key).Distinct().Count()==61&&properties.Select(p=>p.Name).Order().SequenceEqual(fields.Select(f=>f.Metadata.Key).Order())&&OversoldParameterMetadata.Keys.Order().SequenceEqual(properties.Select(p=>p.Name).Order()),"all 61 config parameters occur in exactly one explicit metadata scope");
+        Check(vm.OversoldUsageGroups.Select(s=>s.Count).SequenceEqual(new[]{8,53,0})&&vm.OversoldUsageGroups.Select(s=>s.Metadata.Scope).SequenceEqual(new[]{ParameterUsageScope.Backtest,ParameterUsageScope.CommonStrategy,ParameterUsageScope.Online}),"scope counts are backtest8 common53 online0 without invented settings");
         var assumptions=new[]{"InitialCapital","CommissionPercent","TaxPercent","SlippagePercent","AnnualRiskFreePercent","AnnualTradingDays","TouchPolicy","UsePriceOnlyBacktest"};Check(fields.Where(f=>f.Metadata.UsageScope==ParameterUsageScope.Backtest).Select(f=>f.Metadata.Key).Order().SequenceEqual(assumptions.Order()),"only model cash costs touch data assumption and statistics are backtest-specific");
         Check(Field("EmergencyStopLossPercent").Metadata.UsageScope==ParameterUsageScope.CommonStrategy&&Field("TouchPolicy").Metadata.UsageDescription.Contains("언제나 종가")&&Field("AnnualTradingDays").Metadata.UsageDescription.Contains("Sharpe"),"exit thresholds are distinct from daily detection and performance assumptions");
         Check(vm.OversoldUsageGroups[2].Metadata.EmptyMessage.Contains("미지원")&&vm.OversoldUsageGroups[1].Metadata.Status.Contains("적용되지")&&vm.IsOffline&&vm.MultiTrading.RunCaption=="종목별 모의 백테스트","common category does not imply live support; offline batch stays model-only");
@@ -46,13 +46,13 @@ internal static partial class Program
         foreach(var size in new[]{(1540d,1040d),(1160d,760d)})
         {
             window.Width=size.Item1;window.Height=size.Item2;Expand();var panel=Descendants(window).OfType<OversoldParameterPanel>().Single();
-            var cards=Descendants(panel).OfType<Border>().Where(b=>b.DataContext is ParameterField&&b.MinHeight==145).ToArray();var panelWidth=panel.ActualWidth;
-            Check(cards.Length==59&&cards.All(c=>{var p=c.TransformToAncestor(panel).Transform(new Point());return p.X>=0&&p.X+c.ActualWidth<=panelWidth+1;}),"all scoped cards fit horizontally at "+size.Item1);
+            var cards=Descendants(panel).OfType<Border>().Where(b=>b.DataContext is ParameterField&&Equals(b.Tag,"ParameterCard")).ToArray();var panelWidth=panel.ActualWidth;
+            Check(cards.Length==61&&cards.All(c=>{var p=c.TransformToAncestor(panel).Transform(new Point());return p.X>=0&&p.X+c.ActualWidth<=panelWidth+1;}),"all scoped cards fit horizontally at "+size.Item1);
             Check(Descendants(window).OfType<ScrollViewer>().Any(s=>s.IsVisible&&s.ScrollableHeight>0),"long scope settings remain vertically scrollable at "+size.Item1);
             foreach(var e in Descendants(panel).OfType<Expander>().Where(e=>e.DataContext is ParameterGroup).ToArray())e.IsExpanded=false;
             Descendants(panel).OfType<Expander>().Single(e=>e.Header is string s&&s.StartsWith("시점별 검증 자료")).IsExpanded=false;
             Descendants(window).OfType<ScrollViewer>().Single(s=>ReferenceEquals(s.Content,panel)).ScrollToTop();Render((FrameworkElement)window.Content,Path.Combine(output,$"parameter-scopes-{size.Item1}.png"));
-            var empty=Descendants(panel).OfType<TextBlock>().Single(t=>t.Text==vm.OversoldUsageGroups[2].Metadata.EmptyMessage);empty.BringIntoView();Render((FrameworkElement)window.Content,Path.Combine(output,$"parameter-scopes-online-{size.Item1}.png"));
+            var empty=Descendants(panel).OfType<Border>().First(t=>ReferenceEquals(t.DataContext,vm.OversoldUsageGroups[2]));Check(!empty.IsVisible,"empty online-only scope is hidden while preserving metadata at "+size.Item1);
         }
         window.DataContext=old;window.Width=width;window.Height=height;
     }

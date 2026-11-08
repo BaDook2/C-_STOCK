@@ -4,13 +4,13 @@ namespace Stock.Core.Research.Oversold;
 public sealed record OversoldLiveConfiguration(OversoldConfig Configuration,BarSpecification BarSpecification,StrategyBar[] Warmup,HistoricalFacts Facts,bool ResearchOnly=false,bool PublicPaper=false);
 public sealed record OversoldPositionSnapshot(int Quantity,int Entries,decimal Average,decimal LastEntry,decimal Peak,bool TakeProfit1,bool TakeProfit2);
 /// <summary>Common detector/position rules driven by completed bars; holdings change only on broker executions.</summary>
-public sealed class OversoldLiveStrategy:ITradingStrategy
+public sealed partial class OversoldLiveStrategy:ITradingStrategy
 {
     private readonly OversoldConfig config;private readonly BarSpecification spec;private readonly HistoricalFacts facts;private readonly Instrument instrument;private readonly bool requestedResearchOnly;
     private readonly OversoldIndicatorCache cache;private readonly OversoldEntryDetector detector=new();private readonly TickCoverageTracker coverage=new();
     private readonly ISupportProvider[] providers=[new MovingAverageSupportProvider(),new ConfirmedPivotHighProvider(true),new ApproximateVolumeZoneProvider()];
     private readonly List<decimal?> values=[];private readonly List<MarketEvent> bucket=[];private readonly List<MarketEvent> unverified=[];private readonly HashSet<string> filledEntryOrders=[],executionIds=[];
-    private readonly DailyMarketSession[] sessions;private SupportCluster? initialCluster;private SupportCandidate[] candidates=[];
+    private DailyMarketSession[] sessions;private SupportCluster? initialCluster;private SupportCandidate[] candidates=[];
     private int quantity,entries,peakQuantity,harvestBasis,firstDay,lastExit=-1;private decimal average,lastEntry,peak;private decimal? priorCenter;private bool tp1,tp2,harvest;
     private DateTimeOffset lastBarTime,bucketStart,bucketEnd,segmentStart,observedAt;private long lastBarSequence,liveSequence;private OversoldSignal? pendingSignal,readySignal;private MarketEvent? latest;private EntryEvaluation? latestEntryEvaluation;private string error="";
     private readonly bool publicPaper;
@@ -21,6 +21,7 @@ public sealed class OversoldLiveStrategy:ITradingStrategy
     public EntryEvaluation? LatestEntryEvaluation=>latestEntryEvaluation;
     public DateTimeOffset LastAnalyzedAt=>lastBarTime;
     public DateTimeOffset? ReadySignalTime=>readySignal?.SignalTime;
+    public DateTimeOffset? PendingSignalTime=>pendingSignal?.SignalTime;
     public int EntryStage=>entries+1;
     public OversoldPositionSnapshot Position=>new(quantity,entries,average,lastEntry,peak,tp1,tp2);
     public string Stage=>pendingSignal?.Reason??"감시";
@@ -76,7 +77,7 @@ public sealed class OversoldLiveStrategy:ITradingStrategy
             if(bucket.Count==spec.Value){Emit(bucket[0].ExchangeTime,e.ExchangeTime,segment);bucket.Clear();}
             return;
         }
-        long span=checked((long)spec.Value*(spec.Unit==BarUnit.Hour?TimeSpan.TicksPerHour:TimeSpan.TicksPerMinute));
+        long span=spec.Unit==BarUnit.Day?(session.Close-session.Open).Ticks:checked((long)spec.Value*(spec.Unit==BarUnit.Hour?TimeSpan.TicksPerHour:TimeSpan.TicksPerMinute));
         if(span>(session.Close-session.Open).Ticks){error="시장 세션보다 긴 지정 봉은 사용할 수 없습니다.";return;}
         var start=session.Open.AddTicks((e.ExchangeTime-session.Open).Ticks/span*span);var end=start.AddTicks(span);
         if(bucket.Count>0&&start!=bucketStart)

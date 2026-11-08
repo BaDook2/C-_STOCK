@@ -1,0 +1,9 @@
+<Application xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="clr-namespace:Stock.Desktop" x:Class="Stock.Desktop.App" RequestedThemeVariant="Light">
+ <Application.Resources><local:IntegerPriceConverter x:Key="IntegerPrice"/></Application.Resources>
+ <Application.Styles>
+  <FluentTheme/>
+  <StyleInclude Source="avares://Avalonia.Controls.DataGrid/Themes/Fluent.xaml"/>
+  <StyleInclude Source="avares://Stock.Avalonia/Styles/ControlStates.axaml"/>
+  <StyleInclude Source="avares://Stock.Avalonia/Styles/StockTheme.axaml"/>
+ </Application.Styles>
+</Application>

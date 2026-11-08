@@ -106,6 +106,7 @@ public sealed partial class WorkspaceViewModel
     }
     private void ShowOversoldBacktestChart(BarSpecification? specification,IReadOnlyList<PriceBar> bars)
     {
+        SetChartRangeSelection(0); // A result shows its tested interval, rather than a quick-range preset.
         if(specification==null)ChartBars=bars.ToArray();
         else
         {

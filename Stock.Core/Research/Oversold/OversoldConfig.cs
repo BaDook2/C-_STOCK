@@ -1,4 +1,4 @@
-﻿using System.Globalization;
+using System.Globalization;
 using Stock.Core.Trading;
 namespace Stock.Core.Research.Oversold;
 public enum DailyTouchPolicy { ConservativeHighLow, CloseOnly }
@@ -6,6 +6,8 @@ public enum TrailingActivation { AfterEntry, AfterTakeProfit1 }
 /// <summary>Single source of parameters and UI help for historical and guarded live evaluation.</summary>
 public sealed class OversoldConfig
 {
+    [Parameter("근접 후보 표시","매수 조건을 모두 충족하기 전에도 최소 접근도 이상인 연구 후보를 표시합니다. 주문 조건은 변경하지 않습니다.","근접 후보도 목록에 표시합니다.","기존 조건 일치 종목만 표시합니다.","ON / OFF")] public bool ShowNearCandidates {get;set;}=true;
+    [Parameter("후보 표시 최소 접근도","활성 조건의 접근도가 이 점수 이상이면 근접 후보로 표시합니다. 확률이나 매수 승인 점수가 아닙니다.","더 가까운 후보만 표시합니다.","더 넓은 후보를 표시합니다.","점",0,100)] public decimal MinimumCandidateProximity {get;set;}=60m;
     [Parameter("평균 거래대금 기간","현재 봉 이전의 선택한 봉 수만큼 실제 거래대금을 평균합니다. 일봉 백테스트는 일봉을 사용합니다.","더 긴 과거 기간의 유동성을 비교합니다.","최근 거래대금 변화가 평균에 더 크게 반영됩니다.","봉",1,1000)] public int AverageTradingValueLookbackDays {get;set;}=20;
     [Parameter("최소 거래대금","실제 거래대금 자료가 모두 있는 경우에만 비교합니다. 종가×거래량으로 대체하지 않습니다.","거래대금이 더 큰 종목만 통과합니다.","거래대금이 작은 종목도 포함될 수 있습니다.","원",0,1000000000000000)] public decimal MinimumAverageTradingValue {get;set;}=3000000000m;
     [Parameter("중기 낙폭 기간","현재 확정봉을 포함한 기간의 최고 HIGH와 현재 CLOSE를 비교합니다.","더 오래된 고점을 급락 기준에 포함합니다.","가까운 과거 고점에 집중합니다.","봉",1,1000)] public int CrashLookbackDays {get;set;}=20;

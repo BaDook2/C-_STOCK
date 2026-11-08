@@ -57,12 +57,13 @@ public static class ChartPeriods
 }
 public static class DisplayNumber
 {
-    public static string Price(decimal n)=>n!=0&&Math.Abs(n)<1?(n<0?"-1 미만":"1 미만"):n.ToString("N0",CultureInfo.GetCultureInfo("ko-KR"));
+    public static string Price(decimal n)=>decimal.Floor(n).ToString("N0",CultureInfo.GetCultureInfo("ko-KR"));
+    public static string SignedPrice(decimal n)=>decimal.Floor(n).ToString("+#,##0;-#,##0;0",CultureInfo.GetCultureInfo("ko-KR"));
 }
 public sealed record MarketQuote(string Name,decimal Price,decimal Change,decimal Percent,DateTimeOffset TradeTime,string State)
 {
     public string PriceText=>DisplayNumber.Price(Price);
-    public string ChangeText=>$"{Change:+#,##0;-#,##0;0} ({Percent:+0.00;-0.00;0.00}%)";
+    public string ChangeText=>$"{DisplayNumber.SignedPrice(Change)} ({Percent:+0.00;-0.00;0.00}%)";
     public string KoreaTime=>$"{TradeTime.ToOffset(TimeSpan.FromHours(9)):MM.dd HH:mm:ss} · {(State=="OPEN"?"장중":State=="DELAYED"?"제공처 시세 · 지연 가능":"장마감 / 지연 가능")}";
 }
 public interface IMarketOverviewData

@@ -15,6 +15,9 @@ public sealed class OrderGuard
     private List<LocalOrder> entries;
     public IReadOnlyList<LocalOrder> Entries => entries.AsReadOnly();
     public bool HasUnresolved => entries.Any(e => e.Status is "전송 중" or "응답 불명");
+    /// <summary>The sole exception is the exact write-ahead intent currently held by this gate,
+    /// before its first broker call. Unknown responses (including that ID) are never exempted.</summary>
+    public bool HasUnresolvedOtherThanSending(string? sendingId) => entries.Any(e => e.Status=="응답 불명" || e.Status=="전송 중" && e.Id!=sendingId);
     public OrderGuard(string path)
     {
         this.path = path;
@@ -38,7 +41,7 @@ public sealed class OrderGuard
         entries[entries.FindIndex(e => e.Id == value.Id)] = value;
         Save();
     }
-    public async Task<OrderReceipt> SubmitAsync(IBroker broker, OrderRequest order,string? clientOrderId=null,Func<bool>? canTransmit=null)
+    public async Task<OrderReceipt> SubmitAsync(IBroker broker, OrderRequest order,string? clientOrderId=null,Func<bool>? canTransmit=null,Action<string>? intentWritten=null)
     {
         order.Validate();
         if (!await gate.WaitAsync(0)) throw new InvalidOperationException("주문 처리 중입니다. 중복 전송을 차단했습니다.");
@@ -54,6 +57,7 @@ public sealed class OrderGuard
                 order.Buy ? "매수" : "매도", order.Quantity, order.Price, "전송 중", "",order.Market.ToString(),new Trading.Instrument(order.Symbol,order.Market).Currency);
             entries.Add(entry);
             Save(); // Failure here must prevent transmission.
+            intentWritten?.Invoke(entry.Id); // Identity is issued only after this guard's own successful write.
             if(canTransmit?.Invoke()==false){Replace(entry with{Status="전송 전 중지"});throw new InvalidOperationException("전송 전 중지/시세 만료로 차단했습니다.");}
             try
             {

@@ -21,6 +21,11 @@ Stock.exe
 *.db-shm
 **/broker-keys/
 **/*.protected
+**/credentials/
+**/order-guards/
+*.db-journal
+Stock.Avalonia.exe
+*.app/
 **/*-live-*.json
 appsettings.Local.json
 secrets.json

@@ -1,0 +1,29 @@
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Class="Stock.Desktop.HistoryPanel">
+    <Border Classes="card" Margin="0,16,0,0">
+        <Grid RowDefinitions="Auto,*,185">
+            <StackPanel Spacing="10">
+                <WrapPanel>
+                    <TextBlock Text="실행일" VerticalAlignment="Center" Margin="0,0,8,0" />
+                    <CalendarDatePicker SelectedDate="{Binding HistoryFrom,Mode=TwoWay}" Width="150" SelectedDateFormat="Custom" CustomDateFormatString="yyyy-MM-dd" />
+                    <TextBlock Text="~" Margin="8,0" VerticalAlignment="Center" />
+                    <CalendarDatePicker SelectedDate="{Binding HistoryTo,Mode=TwoWay}" Width="150" SelectedDateFormat="Custom" CustomDateFormatString="yyyy-MM-dd" />
+                    <Button Content="조회" Command="{Binding LoadHistoryCommand}" Margin="8,0,0,0" />
+                    <Button Content="상세 · 차트 보기" Command="{Binding OpenHistoryCommand}" Classes="secondary" />
+                </WrapPanel>
+                <TextBlock Text="실행일 기준 기록 · 더블클릭하면 상세 설정·결과·차트를 확인합니다." />
+                <Button Content="저장소 점검" Command="{Binding InspectStorage}" Classes="secondary" HorizontalAlignment="Left" Margin="0,30,0,0" />
+            </StackPanel>
+            <DataGrid Grid.Row="1" ItemsSource="{Binding History}" SelectedItem="{Binding SelectedHistory,Mode=TwoWay}" DoubleTapped="OpenRecord" AutoGenerateColumns="False" Margin="0,8,0,20">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="실행일 · 한국시간" Binding="{Binding At,Mode=OneWay}" Width="180" />
+                    <DataGridTextColumn Header="종류" Binding="{Binding Kind,Mode=OneWay}" Width="140" />
+                    <DataGridTextColumn Header="종목" Binding="{Binding Stock,Mode=OneWay}" Width="180" />
+                    <DataGridTextColumn Header="전략" Binding="{Binding Strategy,Mode=OneWay}" Width="200" />
+                    <DataGridTextColumn Header="테스트 기간 / 봉" Binding="{Binding Period,Mode=OneWay}" Width="260" />
+                    <DataGridTextColumn Header="결과" Binding="{Binding Trades,Mode=OneWay}" Width="*" />
+                </DataGrid.Columns>
+            </DataGrid>
+            <ListBox Grid.Row="2" ItemsSource="{Binding UiLogs}" Background="#F9FAFB" Padding="10" />
+        </Grid>
+    </Border>
+</UserControl>

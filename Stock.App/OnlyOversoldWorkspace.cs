@@ -1,4 +1,4 @@
-using Stock.Core;
+﻿using Stock.Core;
 using Stock.Core.Research;
 using Stock.Core.Research.Oversold;
 using Stock.Core.Trading;
@@ -46,10 +46,10 @@ public sealed partial class WorkspaceViewModel
         activeOversoldPreset=store.State<string>(ActiveOversoldPresetKey);if(activeOversoldPreset==null||!Presets.Contains(activeOversoldPreset))activeOversoldPreset=Presets[0];
         if(store.State<OversoldConfig>(OversoldPresetPrefix+activeOversoldPreset)==null)store.State(OversoldPresetPrefix+activeOversoldPreset,oversoldConfig.Clone());
         selectedOversoldPreset=activeOversoldPreset;Preset=activeOversoldPreset;
-        Add("백테스트",RunOversold,()=>CanConfigure&&dataset?.Stock.Exchange==Exchange.KRX&&(BacktestDaily||CanUseMinutes));
+        Add("백테스트",RunOversold,()=>CanConfigure&&dataset!=null&&(BacktestDaily||dataset.Stock.Exchange==Exchange.KRX&&CanUseMinutes));
         Add("연습시작",StartPractice,()=>CanConfigure&&IsOffline&&dataset!=null&&!IsTick);
         Add("스크리닝",ScreenOversold,()=>CanConfigure);
-        Add("결과열기",()=>SelectedMatch==null?Task.CompletedTask:OpenScreeningStock(SelectedMatch.Stock),()=>CanConfigure&&SelectedMatch!=null);
+        Actions["결과열기"]=new(()=>SelectedMatch==null?Task.CompletedTask:OpenScreeningStock(SelectedMatch.Stock),()=>CanReviewScreeningResults&&SelectedMatch!=null);
         Add("저장",()=>{var name=RequireActiveOversoldName();if(!string.Equals(Preset.Trim(),name,StringComparison.Ordinal))throw new InvalidOperationException("전략 이름을 바꾸려면 이름 변경 버튼을 사용하세요.");SaveOversold();store.State(OversoldPresetPrefix+name,oversoldConfig.Clone());PersistOversoldPresetSelection(name);Log("전략 설정 저장: "+name);return Task.CompletedTask;},()=>CanConfigure);
         Add("추가",()=>{ApplyOversoldFields();var requested=Preset.Trim();if(requested.Length==0||string.Equals(requested,activeOversoldPreset,StringComparison.Ordinal))requested=UniqueOversoldName("새 전략");ValidateOversoldName(requested);if(Presets.Contains(requested))throw new InvalidOperationException("같은 이름의 전략이 이미 있습니다.");SaveOversold();store.State(OversoldPresetPrefix+requested,oversoldConfig.Clone());Presets.Add(requested);PersistOversoldPresetSelection(requested);Log("전략 추가: "+requested);return Task.CompletedTask;},()=>CanConfigure);
         Add("이름변경",()=>{var previous=RequireActiveOversoldName();var renamed=Preset.Trim();ValidateOversoldName(renamed);if(string.Equals(previous,renamed,StringComparison.Ordinal)){Preset=previous;Changed(nameof(Preset));Log("전략 이름이 이미 "+previous+"입니다.");return Task.CompletedTask;}if(Presets.Contains(renamed))throw new InvalidOperationException("같은 이름의 전략이 이미 있습니다.");SaveOversold();store.State(OversoldPresetPrefix+renamed,oversoldConfig.Clone());store.DeleteState(OversoldPresetPrefix+previous);var index=Presets.IndexOf(previous);if(index>=0)Presets[index]=renamed;else Presets.Add(renamed);PersistOversoldPresetSelection(renamed);Log($"전략 이름 변경: {previous} → {renamed}");return Task.CompletedTask;},()=>CanConfigure);
@@ -82,40 +82,44 @@ public sealed partial class WorkspaceViewModel
         var (first,last)=ScreenPeriod();var spec=ScreenDaily?null:TimeBarSelection.Parse(ScreenBarValue,ScreenBarUnit);SaveOversold(!ScreenDaily);var cfg=oversoldConfig.Clone();var facts=oversoldFacts.Snapshot();StockItem[] items;string source;
         if(ScreenWatchlist)
         {
+            if(IsForeignScreening&&(Catalog.Count==0||catalogRegion!=ScreeningMarketSelection))await LoadCatalog();
             var groups=WatchGroups.Where(g=>g.IncludeInScreening).ToArray();if(groups.Length==0)throw new InvalidOperationException("스크리닝할 관심그룹을 하나 이상 선택하세요.");store.State("screen-watch-groups",groups.Select(g=>g.Id).ToArray());
             var sectorEntries=groups.SelectMany(g=>g.Items).Select(e=>e.Stock).Where(s=>Sector=="전체"||s.Sector==Sector).ToArray();
             var marketEntries=sectorEntries.Where(MatchesScreeningMarket).ToArray();items=marketEntries.DistinctBy(s=>s.Key).ToArray();
             var duplicateCount=marketEntries.Length-items.Length;var outsideMarketCount=sectorEntries.Length-marketEntries.Length;
             source=$"관심그룹 {groups.Length:N0}개 · 중복 {duplicateCount:N0}개 제외 · 선택시장 밖 {outsideMarketCount:N0}개 제외";
         }
-        else{if(Catalog.Count==0||catalogRegion!=ScreeningMarketSelection||catalogSize!=ScreeningSize)await LoadCatalog();items=Catalog.Where(s=>MatchesScreeningMarket(s)&&(Sector=="전체"||s.Sector==Sector)).DistinctBy(s=>s.Key).ToArray();source=ScreeningMarketSelection+" 현재 상위 목록 · 과거 전체시장 아님";}
-        store.State("oversold-screen-bars",new ScreeningBarPreference(ScreenDaily,ScreenBarValue,ScreenBarUnit));store.State("oversold-screen-period",new ScreeningPeriodPreference(ScreenFrom!.Value,ScreenTo!.Value));Matches.Clear();var token=Token;int done=0,missing=0,unsupported=0;long dataMilliseconds=0,calculationMilliseconds=0;var generation=++screeningGeneration;var elapsed=System.Diagnostics.Stopwatch.StartNew();
-        var run=OversoldScreeningRun.Start(items,cfg,spec,DateTimeOffset.UtcNow,first,last,SelectedOversoldPreset) with{FactsJson=Serialization.Pack(facts)};PublishScreening(run);
+        else{if(Catalog.Count==0||catalogRegion!=ScreeningMarketSelection||catalogSize!=ScreeningSize)await LoadCatalog();items=Catalog.Where(s=>MatchesScreeningMarket(s)&&(Sector=="전체"||s.Sector==Sector)).DistinctBy(s=>s.Key).ToArray();source=ScreeningMarketSelection+(IsForeignScreening?" 현재 지수 구성 종목 · 금액 USD · 과거 편입/편출 미반영":" 현재 상위 목록 · 과거 전체시장 아님");}
+        store.State("oversold-screen-bars",new ScreeningBarPreference(ScreenDaily,ScreenBarValue,ScreenBarUnit));store.State("oversold-screen-period",new ScreeningPeriodPreference(ScreenFrom!.Value,ScreenTo!.Value));Matches.Clear();using var screeningStop=CancellationTokenSource.CreateLinkedTokenSource(Token);var token=screeningStop.Token;bool storageFailure=false;int done=0,missing=0,unsupported=0;long dataMilliseconds=0,calculationMilliseconds=0;var generation=++screeningGeneration;var elapsed=System.Diagnostics.Stopwatch.StartNew();
+        var run=OversoldScreeningRun.Start(items,cfg,spec,DateTimeOffset.UtcNow,first,last,SelectedOversoldPreset) with{FactsJson=Serialization.Pack(facts)};PublishScreening(run);SetRegularScreeningRunning(true);
         try
         {
             const int concurrency=4;
-            foreach(var batch in items.Chunk(concurrency))
+            var slots=new SemaphoreSlim(concurrency);
+            async Task<(StockItem Item,ScreeningObservation Row,bool Missing,bool Unsupported,long DataMilliseconds,long CalculationMilliseconds)> EvaluateBounded(StockItem item)
             {
-                token.ThrowIfCancellationRequested();var begin=done+1;var finish=Math.Min(items.Length,done+batch.Length);ScreenInfo=$"전체 {items.Length:N0}개 중 {begin:N0}~{finish:N0}번째 조회 중 · 조건 일치 {Matches.Count:N0}개";Status=ScreenInfo;
-                var rows=await Task.WhenAll(batch.Select(EvaluateItem));
-                foreach(var result in rows)
-                {
-                    token.ThrowIfCancellationRequested();if(generation!=screeningGeneration)return;var item=result.Item;var row=result.Row;if(result.Unsupported)unsupported++;if(result.Missing)missing++;dataMilliseconds+=result.DataMilliseconds;calculationMilliseconds+=result.CalculationMilliseconds;
-                    run=run.Append(row);done++;PublishScreening(run,done%8==0);
-                    if(row.Candidate)Matches.Add(new(item,row.Price!.Value,0,(SelectedOversoldPreset??run.StrategyName)+" · "+row.Status,row.ObservedAt!.Value.ToOffset(TimeSpan.FromHours(9)).ToString("yyyy.MM.dd HH:mm:ss")){Drawdown=row.Drawdown,Rsi=row.Rsi,VolumeRatio=row.VolumeRatio,SupportCount=row.SupportCount,Status=row.Status});
-                    ScreenInfo=$"전체 {items.Length:N0}개 중 {done:N0}번째 · {item.Name} · 조건 일치 {Matches.Count:N0}개 · {elapsed.Elapsed:mm\\:ss}";Status=ScreenInfo;
-                }
+                await slots.WaitAsync(token);try{return await EvaluateItem(item);}finally{slots.Release();}
             }
+            ScreenInfo=$"전체 {items.Length:N0}개 · 최대 {concurrency}개 동시 조회 중";Status=ScreenInfo;
+            var evaluations=items.Select(EvaluateBounded).ToArray();
+            try{await foreach(var completed in Task.WhenEach(evaluations).WithCancellation(token))
+            {
+                    var result=await completed;token.ThrowIfCancellationRequested();if(generation!=screeningGeneration)return;var item=result.Item;var row=result.Row;if(result.Unsupported)unsupported++;if(result.Missing)missing++;dataMilliseconds+=result.DataMilliseconds;calculationMilliseconds+=result.CalculationMilliseconds;
+                    run=run.Append(row);done++;PublishScreening(run,done%8==0);
+                    if(row.Candidate)Matches.Add(new(item,row.Price!.Value,0,(SelectedOversoldPreset??run.StrategyName)+" · "+row.Status,row.ObservedAt!.Value.ToOffset(TimeSpan.FromHours(9)).ToString("yyyy.MM.dd HH:mm:ss")){Proximity=row.Proximity,Drawdown=row.Drawdown,Rsi=row.Rsi,VolumeRatio=row.VolumeRatio,SupportCount=row.SupportCount,Status=row.Status});
+                    ScreenInfo=$"전체 {items.Length:N0}개 중 {done:N0}번째 · {item.Name} · 후보 {Matches.Count:N0}개 · {elapsed.Elapsed:mm\\:ss}";Status=ScreenInfo;
+                }
+            }catch{screeningStop.Cancel();throw;}finally{try{await Task.WhenAll(evaluations);}catch{ /* The original completion/cancellation failure above remains authoritative. */ }finally{slots.Dispose();}}
             run=run with{Status="완료"};
         }
+        catch(StorageException){storageFailure=true;screeningStop.Cancel();run=run with{Status="저장소 오류 · 검사 중지"};throw;}
         catch(OperationCanceledException){run=run with{Status="취소 · 완료한 종목만 기록"};throw;}
         catch{run=run with{Status="실패 · 완료한 종목만 기록"};throw;}
-        finally{elapsed.Stop();if(generation==screeningGeneration){PublishScreening(run);var average=done==0?0:elapsed.Elapsed.TotalSeconds/done;var dataAverage=done==0?0:dataMilliseconds/1000d/done;var calculationAverage=done==0?0:calculationMilliseconds/(double)done;ScreenInfo=$"전체 {items.Length:N0}개 중 {done:N0}개 완료 · 조건 일치 {Matches.Count:N0}개 · 조회 실패/봉 없음 {missing:N0}개 · 선택시장 밖 {unsupported:N0}개 · {source} · {run.Status} · {elapsed.Elapsed:mm\\:ss} ({average:N2}초/종목 · 자료조회 {dataAverage:N2}초 · 전략계산 {calculationAverage:N0}ms)";Status=ScreenInfo;}}
+        finally{SetRegularScreeningRunning(false);if(!storageFailure)AddScreeningHistory(run);elapsed.Stop();if(generation==screeningGeneration){PublishScreening(run,!storageFailure);var average=done==0?0:elapsed.Elapsed.TotalSeconds/done;var dataAverage=done==0?0:dataMilliseconds/1000d/done;var calculationAverage=done==0?0:calculationMilliseconds/(double)done;ScreenInfo=$"전체 {items.Length:N0}개 중 {done:N0}개 완료 · 후보 {Matches.Count:N0}개 · 조회 실패/봉 없음 {missing:N0}개 · 선택시장 밖 {unsupported:N0}개 · {source} · {run.Status} · {elapsed.Elapsed:mm\\:ss} ({average:N2}초/종목 · 자료조회 {dataAverage:N2}초 · 전략계산 {calculationAverage:N0}ms)";Status=ScreenInfo;}}
         Logs.Insert(0,$"{DateTimeOffset.UtcNow.ToOffset(TimeSpan.FromHours(9)):yyyy.MM.dd HH:mm:ss}  {ScreenInfo}");
 
         async Task<(StockItem Item,ScreeningObservation Row,bool Missing,bool Unsupported,long DataMilliseconds,long CalculationMilliseconds)> EvaluateItem(StockItem item)
         {
-            if(item.Exchange!=Exchange.KRX)return(item,ScreeningObservation.Missing(item,"선택시장 밖 · 국내 일반주식 전략"),false,true,0,0);
             var dataWatch=System.Diagnostics.Stopwatch.StartNew();
             try
             {
@@ -141,6 +145,7 @@ public sealed partial class WorkspaceViewModel
                     bars=merged.Select((b,i)=>new StrategyBar(b,b.Time,b.Time,i,facts.TradingValue(item.Symbol,DailyDates.Of(b),b.Time),currentQuote.Source)).ToArray();
                 }
                 bool? risk=store.State<bool>("exclude:"+item.Key)?true:store.State<string>("review:"+item.Key)==KoreaClock.Today.ToString()?false:null;
+                var archiveHash=TradingStore.Hash(Serialization.Pack(bars));store.State("screen-data:"+archiveHash,bars);store.State("screen-bars:"+run.Id+":"+item.Key+":"+(spec?.ToString()??"일봉"),archiveHash);
                 dataWatch.Stop();var calculationWatch=System.Diagnostics.Stopwatch.StartNew();
                 var engine=new OversoldScreeningEngine();
                 var row=await Task.Run(()=>spec==null?engine.EvaluateCurrent(item,bars,cfg,itemFacts,observed,currentStatus,risk,token,first,last):engine.EvaluateObserved(item,bars,cfg,itemFacts,run.ScreeningTime,currentStatus,risk,token,first,last),token);
@@ -159,6 +164,7 @@ public sealed partial class WorkspaceViewModel
                 return(item,row,row.Evaluation==null,false,dataWatch.ElapsedMilliseconds,calculationWatch.ElapsedMilliseconds);
             }
             catch(OperationCanceledException){throw;}
+            catch(StorageException){throw;}
             catch(InvalidOperationException ex){dataWatch.Stop();return(item,ScreeningObservation.Missing(item,ex.Message),true,false,dataWatch.ElapsedMilliseconds,0);}
             catch{dataWatch.Stop();return(item,ScreeningObservation.Missing(item,"자료 부족 · 시세 조회 실패"),true,false,dataWatch.ElapsedMilliseconds,0);}
         }

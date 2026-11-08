@@ -10,9 +10,7 @@ public sealed partial class WorkspaceViewModel
     private ScreeningChartViewModel CreateScreeningChartViewModel(ScreeningChartSnapshot snapshot)=>new(snapshot,LoadScreeningChartBase,
         ()=>CanReadScreeningMinutes(snapshot.Stock),ReadScreeningChartQuote,alert,multiClock);
 
-    private bool CanReadScreeningMinutes(StockItem stock)=>!disposed&&!apiPaused&&(IsOffline
-        ?stock.Exchange==Exchange.KRX&&provider is IPublicMinuteMarketData
-        :broker is IMinuteHistoryBroker&&broker.Exchange==stock.Exchange);
+    private bool CanReadScreeningMinutes(StockItem stock)=>!disposed&&!apiPaused&&IsOnline&&broker is IMinuteHistoryBroker&&broker.Exchange==stock.Exchange;
 
     /// <summary>Display-only daily/minute sources share the existing providers and preserve the screening interval.</summary>
     private async Task<ScreeningChartSeries> LoadScreeningChartBase(ScreeningChartSnapshot snapshot,bool minute,CancellationToken cancellation)
@@ -23,8 +21,6 @@ public sealed partial class WorkspaceViewModel
         var last=snapshot.Run.To??throw new InvalidOperationException("스크리닝 종료일이 없습니다.");
         PriceBar[] rows;string origin;
         if(!minute){var daily=await provider.History(stock,token);rows=daily.Bars;origin=daily.Source;}
-        else if(IsOffline&&stock.Exchange==Exchange.KRX&&provider is IPublicMinuteMarketData publicMinutes)
-        {rows=await publicMinutes.MinuteHistory(stock,first,last,token);origin="네이버 KRX 공개 1분봉";}
         else if(IsOnline&&broker is IMinuteHistoryBroker minutes&&broker.Exchange==stock.Exchange)
         {
             origin=broker.Name+" 공식 1분봉";

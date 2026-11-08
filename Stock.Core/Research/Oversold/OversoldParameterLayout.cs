@@ -13,6 +13,7 @@ public static partial class OversoldParameterMetadata
         new(ParameterUsageScope.Backtest,"일봉 감지 가정",[nameof(Config.TouchPolicy),null,null]),
         new(ParameterUsageScope.Backtest,"일봉 감지 가정",[nameof(Config.UsePriceOnlyBacktest),null,null]),
         new(ParameterUsageScope.Backtest,"성과 통계",[nameof(Config.AnnualRiskFreePercent),nameof(Config.AnnualTradingDays),null]),
+        new(ParameterUsageScope.CommonStrategy,"스크리닝 후보",[nameof(Config.ShowNearCandidates),nameof(Config.MinimumCandidateProximity),null]),
         new(ParameterUsageScope.CommonStrategy,"종목 선별 · 급락",[nameof(Config.AverageTradingValueLookbackDays),nameof(Config.MinimumAverageTradingValue),null]),
         new(ParameterUsageScope.CommonStrategy,"종목 선별 · 급락",[nameof(Config.CrashLookbackDays),nameof(Config.MinimumDrawdownPercent),null]),
         new(ParameterUsageScope.CommonStrategy,"종목 선별 · 급락",[nameof(Config.ShortCrashLookbackDays),nameof(Config.ShortCrashPercent),null]),

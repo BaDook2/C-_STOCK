@@ -12,6 +12,7 @@ internal static partial class Program
         using(var store=new TradingStore(path))store.State("probe",new{Value=7});
         var healthy=StorageDiagnostics.Inspect(path);
         Check(healthy.Healthy&&healthy.Rows["state"]==1&&healthy.Engine.Length>0&&healthy.DatabasePath==Path.GetFullPath(path),"storage inspection uses the explicit absolute path and checks full integrity plus JSON");
+        Check(File.Exists(healthy.PhysicalDatabasePath)&&StoragePaths.PhysicalPath(path)==healthy.PhysicalDatabasePath,"storage inspection records the actual opened file path instead of hiding AppData redirection");
         Throws<ArgumentException>(()=>StorageDiagnostics.Inspect("relative.db"),"diagnostics refuses an ambiguous relative database path");
         using(var store=new TradingStore(path))
         {

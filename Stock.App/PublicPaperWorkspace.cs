@@ -8,9 +8,9 @@ public sealed partial class WorkspaceViewModel
     private async Task StartPublicPaperMulti()
     {
         if(MultiSessionExists)throw new InvalidOperationException("이전 실행을 전체 중지한 뒤 시작하세요.");
-        if(provider is not ICurrentMarketData quotes||provider is not IPublicMinuteMarketData minutes)throw new InvalidOperationException("공개 현재가·분봉 공급자가 없습니다.");
+        if(provider is not ICurrentMarketData quotes)throw new InvalidOperationException("공개 현재가·일봉 공급자가 없습니다.");
         var now=multiClock();if(!LiveBatchSupport.RegularSession(now))throw new InvalidOperationException("공개시세 모의매매는 국내 정규장 09:00~15:20에 시작할 수 있습니다.");
-        var today=DailyQuoteMerger.Date(now,Exchange.KRX);var spec=TimeBarSelection.Parse(MultiTrading.PublicBarValue,MultiTrading.PublicBarUnit);
+        var today=DailyQuoteMerger.Date(now,Exchange.KRX);var spec=new BarSpecification(1,BarUnit.Day);
         var plan=MultiTrading.CreatePlan(decimal.Parse(MultiTrading.TotalBudget.Replace(",",""),System.Globalization.CultureInfo.InvariantCulture));
         if(plan.Items.Length is <1 or >20)throw new InvalidOperationException("실행할 국내 종목을 1~20개 선택하세요.");
         var prepared=new List<LiveBatchItem>();
@@ -18,7 +18,7 @@ public sealed partial class WorkspaceViewModel
         {
             var security=await quotes.CurrentSecurity(item.Stock,ApiToken);
             if(security is {Suspended:true} or {Administrative:true}||security?.Kind is HistoricalSecurityKind.Etf or HistoricalSecurityKind.Etn or HistoricalSecurityKind.Spac or HistoricalSecurityKind.Other)throw new InvalidOperationException(item.Stock.Name+": 제외 종목 또는 거래정지 상태입니다.");
-            var source=await minutes.MinuteHistory(item.Stock,today.AddDays(-14),today,ApiToken);
+            var source=await PublicStrategyHistory(item.Stock,spec,today.AddDays(-14),today,ApiToken);
             var facts=PublicPaperFacts(item.Stock,source,today);var warmup=PublicPaperBars(source,spec,facts,now);
             if(warmup.Length==0)throw new InvalidOperationException(item.Stock.Name+": 공개 완성 분봉이 없습니다.");
             // The paper profile explicitly records its data assumptions. These records never enter
@@ -50,7 +50,7 @@ public sealed partial class WorkspaceViewModel
                     {
                         foreach(var item in prepared)
                         {
-                            var raw=await minutes.MinuteHistory(item.Stock,today,today,token);
+                            var raw=await PublicStrategyHistory(item.Stock,spec,today,today,token);
                             foreach(var bar in PublicPaperBars(raw,spec,item.Oversold!.Facts,time))active.OnPublicBar(item.Stock.Key,bar);
                         }
                         nextBars=time.AddMinutes(1);
@@ -77,7 +77,17 @@ public sealed partial class WorkspaceViewModel
     }
     private static StrategyBar[] PublicPaperBars(PriceBar[] raw,BarSpecification spec,HistoricalFacts facts,DateTimeOffset asOf)
     {
+        if(spec.Unit==BarUnit.Day)return raw.Where(b=>b.IsComplete&&b.Time<=asOf).Select((b,i)=>new StrategyBar(b,new DateTimeOffset(DailyDates.Of(b).ToDateTime(new TimeOnly(9,0)),TimeSpan.FromHours(9)),b.Time,i+1,(b.Open+b.High+b.Low+b.Close)/4*b.Volume,"네이버 KRX 공개 일봉 · 거래대금 추정 · 모의 전용")).ToArray();
         var minutes=raw.Select((b,i)=>new StrategyBar(new(b.Time.AddMinutes(1),b.Open,b.High,b.Low,b.Close,b.Volume,b.IsComplete&&b.Time.AddMinutes(1)<=asOf),b.Time,b.Time.AddMinutes(1),i+1,(b.Open+b.High+b.Low+b.Close)/4*b.Volume,"네이버 KRX 공개 분봉 · 거래대금 추정 · 모의 전용")).ToArray();
         return StrategyBarAggregator.FromMinutes(minutes,spec,facts.Sessions,asOf).Bars;
+    }
+    /// <summary>Offline analysis always uses completed daily candles; unfinished quotes stay display-only.</summary>
+    private async Task<PriceBar[]> PublicStrategyHistory(StockItem stock,BarSpecification spec,DateOnly from,DateOnly to,CancellationToken token)
+    {
+        if(spec.Unit!=BarUnit.Day&&IsOnline&&provider is IPublicMinuteMarketData minutes)return await minutes.MinuteHistory(stock,from,to,token);
+        var cached=store.State<BarDataset>("bars:"+stock.Key);
+        if(cached==null||multiClock()-cached.RetrievedAt>TimeSpan.FromMinutes(1))
+        {cached=await provider.History(stock,token);store.State("bars:"+stock.Key,cached);}
+        return cached.Bars;
     }
 }

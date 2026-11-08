@@ -1,4 +1,4 @@
-﻿using System.Collections.ObjectModel;
+using System.Collections.ObjectModel;
 using System.Globalization;
 using Stock.Core.Research;
 using Stock.Core.Trading;
@@ -7,7 +7,9 @@ public sealed record RecurringResultCard(string Label,string Value,string Color=
 public sealed partial class WorkspaceViewModel
 {
     private int backtestTab,selectedChartRangeMonths;private RecurringPurchaseResult? recurringResult;private bool recurringMarkers=true;
+    private const int OneDayChartRange=-1;
     public int ChartWindowCount {get;private set;}=100;
+    public bool ChartRangeDaySelected=>selectedChartRangeMonths==OneDayChartRange;
     public bool ChartRange1Selected=>selectedChartRangeMonths==1;
     public bool ChartRange3Selected=>selectedChartRangeMonths==3;
     public bool ChartRange6Selected=>selectedChartRangeMonths==6;
@@ -54,12 +56,35 @@ public sealed partial class WorkspaceViewModel
         var saved=store.State<RecurringPurchaseConfig>("recurring-config-v1");if(saved!=null){RecurringAmount=NumericDisplay.Format(saved.Amount);RecurringInitial=NumericDisplay.Format(saved.InitialAmount);RecurringFee=NumericDisplay.Format(saved.CommissionPercent);recurringFrequency=saved.Frequency;recurringTiming=saved.Timing;}
         Add("정기매수실행",RunRecurring,()=>CanConfigure&&dataset!=null);
         Add("정기매수초기화",()=>{RecurringAmount=selected?.Currency=="USD"?"100":"100,000";RecurringInitial=selected?.Currency=="USD"?"3,000":"3,000,000";RecurringFee="0.015";SetFrequency(PurchaseFrequency.Daily);SetTiming(PurchaseTiming.Open);foreach(var n in new[]{nameof(RecurringAmount),nameof(RecurringInitial),nameof(RecurringFee)})Changed(n);return Task.CompletedTask;},()=>CanConfigure);
-        foreach(var months in new[]{1,3,6,12,36,60,120}){int captured=months;Add("기간"+months,()=>{if(dataset!=null){var chartFrom=dataset.Bars[^1].Time.ToOffset(TimeSpan.FromHours(9)).Date.AddMonths(-captured);ChartBars=dataset.Bars.Where(b=>b.Time.ToOffset(TimeSpan.FromHours(9)).Date>=chartFrom).ToArray();ChartWindowCount=ChartBars.Count;SetChartRangeSelection(captured);Changed(nameof(ChartWindowCount));}return Task.CompletedTask;},()=>CanConfigure&&dataset!=null&&!IsTick);}
+        Add("기간1일",()=>
+        {
+            if(!IsMinuteChart)
+            {
+                alert("1일 기간은 분봉에서만 선택할 수 있습니다. 지정봉 단위를 분봉으로 변경한 뒤 선택해 주세요.");
+                SetChartRangeSelection(selectedChartRangeMonths); // Restore the actual radio selection after an invalid click.
+            }
+            else{SetChartRangeSelection(OneDayChartRange);ChartBars=visibleDaily;}
+            return Task.CompletedTask;
+        },()=>CanConfigure&&dataset!=null);
+        foreach(var months in new[]{1,3,6,12,36,60,120}){int captured=months;Add("기간"+months,()=>{if(dataset!=null){SetChartRangeSelection(captured);ChartBars=DailyChartRange(captured);ChartWindowCount=ChartBars.Count;Changed(nameof(ChartWindowCount));}return Task.CompletedTask;},()=>CanConfigure&&dataset!=null&&!IsTick);}
+    }
+    private IReadOnlyList<PriceBar> DailyChartRange(int months)
+    {
+        if(dataset==null||dataset.Bars.Length==0)return [];
+        var chartFrom=dataset.Bars[^1].Time.ToOffset(TimeSpan.FromHours(9)).Date.AddMonths(-months);
+        return dataset.Bars.Where(b=>b.Time.ToOffset(TimeSpan.FromHours(9)).Date>=chartFrom).ToArray();
+    }
+    /// <summary>Minute bars open on one trading day; leaving minutes restores a valid monthly range.</summary>
+    private void SelectRangeForChartPeriod()
+    {
+        if(IsMinuteChart)SetChartRangeSelection(OneDayChartRange);
+        else if(ChartRangeDaySelected){SetChartRangeSelection(1);visibleDaily=DailyChartRange(1);ChartWindowCount=visibleDaily.Count;Changed(nameof(ChartWindowCount));}
     }
     private void SetChartRangeSelection(int months)
     {
         selectedChartRangeMonths=months;
-        foreach(var name in new[]{nameof(ChartRange1Selected),nameof(ChartRange3Selected),nameof(ChartRange6Selected),nameof(ChartRange12Selected),nameof(ChartRange36Selected),nameof(ChartRange60Selected),nameof(ChartRange120Selected)})Changed(name);
+        fitOneDayChartRange=months==OneDayChartRange;
+        foreach(var name in new[]{nameof(ChartRangeDaySelected),nameof(ChartRange1Selected),nameof(ChartRange3Selected),nameof(ChartRange6Selected),nameof(ChartRange12Selected),nameof(ChartRange36Selected),nameof(ChartRange60Selected),nameof(ChartRange120Selected)})Changed(name);
     }
     private async Task RunRecurring()
     {
@@ -69,7 +94,7 @@ public sealed partial class WorkspaceViewModel
         var result=await Task.Run(()=>RecurringPurchaseBacktest.Run(data,config,token),token);recurringResult=result;store.State("recurring-config-v1",config);store.State(result.Id,result);
         var history=new SavedBacktest{Id="chart-run:"+result.Id,At=result.At,Stock=result.Stock,Period="정기매수 · "+recurringFrequency,DataHash=result.DataHash,Initial=result.Contributions,Cash=result.Cash,Quantity=(int)Math.Min(int.MaxValue,result.Quantity),Profit=result.Value-result.Contributions,MaxDrawdown=result.MaxDrawdown,Fills=result.Purchases,Equity=result.Equity.Select(p=>new BarEquity(p.Time,p.Equity)).ToArray()};
         store.State(history.Id,history);LatestResult=history;SelectedRun=history;History.Insert(0,history);Changed(nameof(LatestResult));BacktestTab=1;
-        var unit=result.Stock.Currency;Replace(RecurringCards,new[]{new RecurringResultCard("총 투자금",$"{result.Contributions:N0} {unit}","#3182F6"),new RecurringResultCard("평가금액",$"{result.Value:N0} {unit}","#20A080"),new RecurringResultCard("수익률",$"{result.ReturnPercent:+#,##0.00;-#,##0.00;0.00}%",result.ReturnPercent>=0?"#F04452":"#3182F6"),new RecurringResultCard("매수 횟수",$"{result.Purchases.Length:N0}회"),new RecurringResultCard("평균 매입단가",$"{result.AveragePrice:N0} {unit}"),new RecurringResultCard("최대 낙폭 (MDD)",$"-{result.MaxDrawdown:N2}%","#3182F6")});
+        var unit=result.Stock.Currency;Replace(RecurringCards,new[]{new RecurringResultCard("총 투자금",$"{result.Contributions:N0} {unit}","#3182F6"),new RecurringResultCard("평가금액",$"{result.Value:N0} {unit}","#20A080"),new RecurringResultCard("수익률",$"{result.ReturnPercent:+#,##0.00;-#,##0.00;0.00}%",result.ReturnPercent>=0?"#F04452":"#3182F6"),new RecurringResultCard("매수 횟수",$"{result.Purchases.Length:N0}회"),new RecurringResultCard("평균 매입단가",$"{DisplayNumber.Price(result.AveragePrice)} {unit}"),new RecurringResultCard("최대 낙폭 (MDD)",$"-{result.MaxDrawdown:N2}%","#3182F6")});
         ChartBars=data.CompletedBars.Where(b=>b.Time>=result.Equity[0].Time&&b.Time<=result.Equity[^1].Time).ToArray();
         RecurringNotice="정기매수 테스트 완료 · 실제 주문 없음. "+(data.Bars[0].Time.ToOffset(TimeSpan.FromHours(9)).Date>config.From.Date?"요청 시작일 이전 자료가 없어 제공된 구간만 계산했습니다. ":"")+"배당 미포함 · 초기금은 첫 정기 납입에 합산 · 정수 주식/잔액 이월";
         foreach(var n in new[]{nameof(RecurringResultPeriod),nameof(RecurringDetails),nameof(RecurringNotice)})Changed(n);ChartWindowCount=ChartBars.Count;Changed(nameof(ChartWindowCount));RefreshRecurringChart();Log("정기매수 백테스트 완료 · 기록 저장");

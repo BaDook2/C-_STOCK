@@ -1,6 +1,6 @@
-﻿using Stock.Core.Trading;
+using Stock.Core.Trading;
 namespace Stock.Core.Research.Oversold;
-public enum HistoricalBoard { Unknown,Kospi,Kosdaq,Other }
+public enum HistoricalBoard { Unknown,Kospi,Kosdaq,Other,Nasdaq,Nyse,Amex }
 public enum HistoricalSecurityKind { Unknown,Common,Etf,Etn,Spac,Other }
 public sealed record DailySecurityStatus(string Symbol,DateOnly Date,DateTimeOffset KnownAt,HistoricalBoard Board,HistoricalSecurityKind Kind,bool? Suspended,bool? Administrative);
 public sealed record DailyTradingValue(string Symbol,DateOnly Date,DateTimeOffset KnownAt,decimal Value);
@@ -30,7 +30,7 @@ public sealed class HistoricalFacts:IHistoricalUniverseProvider,IFundamentalRisk
     {
         if(StatusRecords==null||TradingValues==null||RiskRecords==null||MarketSessions==null||StatusRecords.Any(r=>r==null)||TradingValues.Any(r=>r==null)||RiskRecords.Any(r=>r==null)||MarketSessions.Any(r=>r==null))throw new InvalidOperationException("시점별 입력 목록은 null일 수 없습니다.");
         if(MarketSessions.Length>0&&string.IsNullOrWhiteSpace(Source))throw new InvalidOperationException("시장 거래일·시점별 입력의 출처를 입력하세요.");
-        if(MarketSessions.Select(s=>s.Date).Distinct().Count()!=MarketSessions.Length||MarketSessions.Any(s=>s.Open>=s.Close||DateOnly.FromDateTime(s.Open.ToOffset(TimeSpan.FromHours(9)).DateTime)!=s.Date||DateOnly.FromDateTime(s.Close.ToOffset(TimeSpan.FromHours(9)).DateTime)!=s.Date))throw new InvalidOperationException("시장 거래일은 중복 없이 같은 한국 날짜의 시가·종가 시각 순서여야 합니다.");
+        if(MarketSessions.Select(s=>s.Date).Distinct().Count()!=MarketSessions.Length||MarketSessions.Any(s=>s.Open>=s.Close||DateOnly.FromDateTime(s.Open.DateTime)!=s.Date||DateOnly.FromDateTime(s.Close.DateTime)!=s.Date))throw new InvalidOperationException("시장 거래일은 중복 없이 같은 거래소 현지 날짜의 시가·종가 시각 순서여야 합니다.");
         void Identity(string? symbol,DateTimeOffset known){if(string.IsNullOrWhiteSpace(symbol)||known==default)throw new InvalidOperationException("시점별 자료에는 Symbol과 KnownAt이 필요합니다.");new Instrument(symbol,Exchange.KRX).Validate();}
         foreach(var r in StatusRecords){Identity(r.Symbol,r.KnownAt);if(!Enum.IsDefined(r.Board)||!Enum.IsDefined(r.Kind))throw new InvalidOperationException("과거 시장/종목 분류 값을 확인하세요.");}
         foreach(var r in TradingValues){Identity(r.Symbol,r.KnownAt);if(r.Value<0)throw new InvalidOperationException("실제 거래대금은 0 이상이어야 합니다.");}
@@ -43,5 +43,5 @@ public sealed class HistoricalFacts:IHistoricalUniverseProvider,IFundamentalRisk
     public DailySecurityStatus? Status(string symbol,DateOnly date,DateTimeOffset asOf){if(statuses==null)Validate();return statuses!.GetValueOrDefault((symbol,date))?.LastOrDefault(r=>r.KnownAt<=asOf);}
     public decimal? TradingValue(string symbol,DateOnly date,DateTimeOffset asOf){if(values==null)Validate();return values!.GetValueOrDefault((symbol,date))?.LastOrDefault(r=>r.KnownAt<=asOf)?.Value;}
     public bool? Risk(string symbol,DateOnly date,DateTimeOffset asOf){if(risks==null)Validate();return risks!.GetValueOrDefault((symbol,date))?.LastOrDefault(r=>r.KnownAt<=asOf)?.IsRisk;}
-    public static bool Tradable(DailySecurityStatus? s)=>s is {Board:HistoricalBoard.Kospi or HistoricalBoard.Kosdaq,Kind:HistoricalSecurityKind.Common,Suspended:false,Administrative:false};
+    public static bool Tradable(DailySecurityStatus? s)=>s is {Board:HistoricalBoard.Kospi or HistoricalBoard.Kosdaq or HistoricalBoard.Nasdaq or HistoricalBoard.Nyse or HistoricalBoard.Amex,Kind:HistoricalSecurityKind.Common,Suspended:false,Administrative:false};
 }

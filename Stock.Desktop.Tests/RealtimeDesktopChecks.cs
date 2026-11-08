@@ -1,0 +1,20 @@
+using Avalonia.Controls;
+using Stock.Desktop;
+internal static partial class Program
+{
+    private static void RealtimeDesktopChecks()
+    {
+        var now=new DateTimeOffset(2026,11,6,10,0,0,TimeSpan.FromHours(9));var market=new MarketFixture{Clock=()=>now};using var services=new AppServices(Path.Combine(output,"realtime-isolated",Guid.NewGuid().ToString("N")),market,brokerFactory:(_,_)=>new ReadOnlyBroker(now),clock:()=>now,credentials:MemoryCredentials());using var model=new MainViewModel(services);var window=new MainWindow{DataContext=model};window.Show();
+        model.Strategies.Selected=StrategyDiagnosticPreset.HoldOneDayName;model.Realtime.ShowAll=true;model.Realtime.Start.Execute(null);Pump(()=>!model.Realtime.Busy&&model.Realtime.Rows.Count>0,20);
+        Check(model.Realtime.Running&&!model.Realtime.Automatic&&model.Realtime.Rows[0].Data.Contains("시세"),"Avalonia realtime screening runs the existing core on fresh public observations with automatic orders off");
+        model.Realtime.Selected=model.Realtime.Rows[0];var row=model.Realtime.Selected;now=now.AddSeconds(2);Pump(()=>market.CurrentCalls>=3,5);model.Realtime.Refresh();Check(ReferenceEquals(row,model.Realtime.Selected)&&ReferenceEquals(row,model.Realtime.Rows[0]),"realtime quote refresh preserves the selected Avalonia row identity");
+        model.Realtime.OpenChart.Execute(null);Pump(()=>window.OwnedWindows.Any(w=>w.Content is LiveChartPanel));Check(window.OwnedWindows.Single(w=>w.Content is LiveChartPanel).Title?.Contains("삼성전자")==true,"realtime stock opens a separate shared ScottPlot chart without crashing");foreach(var owned in window.OwnedWindows.ToArray())owned.Close();
+        model.ActiveTab=0;now=now.AddSeconds(2);var before=market.CurrentCalls;Pump(()=>market.CurrentCalls>before,5);Check(model.Realtime.Running,"leaving or closing the realtime chart does not own or stop the feed");
+        model.Strategies.Selected="기본";model.Realtime.Refresh();Check(!model.Realtime.Running&&model.Realtime.Rows.Count==0&&!model.Realtime.Automatic,"strategy change clears old rows and blocks entry without mixing definitions");
+        model.Realtime.Automatic=true;Check(model.Realtime.Automatic&&model.Realtime.CanAutomatic,"daily paper automatic entries can be armed for a future start with the implemented next-session adapter");model.Realtime.Automatic=false;foreach(var popup in window.OwnedWindows.ToArray())popup.Close();
+        model.Accounts.AppKey="DUMMY-KEY";model.Accounts.Secret="DUMMY-SECRET";model.Accounts.Connect.Execute(null);Pump(()=>!model.Accounts.Busy&&model.Online);model.Screening.Custom=true;model.Screening.Value="5";model.Realtime.PaperAssumptions=true;model.Realtime.Automatic=true;model.Realtime.Start.Execute(null);Pump(()=>!model.Realtime.Busy&&model.Realtime.Running,20);Check(model.Realtime.Automatic,"explicit online paper assumptions can start the existing intraday virtual matcher from the auto checkbox");
+        Check(services.Store.States("trade-marker:").Count==0,"warmup signals are never retrospectively turned into paper fills");model.Realtime.Automatic=false;Check(model.Realtime.Running&&!model.Realtime.Automatic,"unchecking automatic entries keeps realtime monitoring active");
+        model.StopAllStrategies.Execute(null);Pump(()=>!model.Realtime.Running);Check(!model.Realtime.Automatic,"account-panel full stop terminates the same central virtual execution");model.EmergencyCommand.Execute(null);Check(!model.Realtime.Running&&!model.Realtime.Automatic,"global emergency synchronously stops realtime screening and virtual entries");foreach(var owned in window.OwnedWindows.ToArray())owned.Close();
+        now=new(2026,11,8,10,0,0,TimeSpan.FromHours(9));string? notice=null;model.NotificationRequested+=message=>notice=message;model.Realtime.Start.Execute(null);Pump(()=>!model.Realtime.Busy);Check(notice?.Contains("장 외 시간")==true&&!model.Realtime.Running,"closed-market realtime start raises a popup request instead of pretending to run");window.Close();
+    }
+}

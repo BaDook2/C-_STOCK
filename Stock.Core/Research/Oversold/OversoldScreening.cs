@@ -1,9 +1,11 @@
-using System.Collections.Immutable;
+﻿using System.Collections.Immutable;
 using Stock.Core.Trading;
 namespace Stock.Core.Research.Oversold;
 
 public sealed record ScreeningObservation(StockItem Stock,DateTimeOffset? ObservedAt,decimal? Price,decimal? Drawdown,decimal? Rsi,decimal? VolumeRatio,int SupportCount,bool Candidate,string Status,string EvaluationJson,DateTimeOffset? DataFrom,DateTimeOffset? DataTo)
 {
+    public decimal Proximity {get;init;}
+    public bool IsNearCandidate {get;init;}
     public DateOnly[] MatchingDates {get;init;}=[];
     public EntryEvaluation? Evaluation=>EvaluationJson==""?null:Serialization.Unpack<EntryEvaluation>(EvaluationJson);
     public static ScreeningObservation Missing(StockItem stock,string reason)=>new(stock,null,null,null,null,null,0,false,reason,"",null,null);
@@ -67,12 +69,12 @@ public sealed partial class OversoldScreeningEngine
             var status=currentStatus is {KnownAt:var known}&&currentStatus.Date==date&&known<=asOf?currentStatus:facts.Status(stock.Symbol,date,at);
             var risk=currentStatus?.Date==date?currentRisk??facts.Risk(stock.Symbol,date,at):facts.Risk(stock.Symbol,date,at);
             evaluation=detector.Evaluate(bar.Price,day,session.Date,c,indicators,candidates,status,risk,values.TakeLast(c.AverageTradingValueLookbackDays).ToArray(),historyCount:cache.History.Count,currentResearch:true);
-            values.Add(bar.TradingValue);if(from==null||session.Date>=from){last=bar;var excluded=evaluation.Conditions.Any(x=>!x.Diagnostic&&x.Condition!="최종"&&x.Outcome==ConditionOutcome.Failed);if(evaluation.TechnicalCandidate&&!excluded){matched.Add(session.Date);lastMatched=bar;lastMatchedEvaluation=evaluation;}}
+            values.Add(bar.TradingValue);if(from==null||session.Date>=from){last=bar;if(ScreeningCandidatePolicy.IsExact(evaluation)||ScreeningCandidatePolicy.IsNear(evaluation,c)){matched.Add(session.Date);lastMatched=bar;lastMatchedEvaluation=evaluation;}}
         }
         if(last==null)return ScreeningObservation.Missing(stock,"선택 기간에 검증된 완성봉이 없습니다.");
-        var chosen=lastMatched??last;var e=lastMatchedEvaluation??evaluation!;var candidate=matched.Count>0;
-        var statusText=candidate?$"기간 내 기술 후보 {matched.Count:N0}개 봉 · {e.Reason}":e.TechnicalCandidate?"확인된 제외 조건 · 후보 제외":e.Reason;
-        return new(stock,chosen.ClosedAt,chosen.Price.Close,e.Indicators.MediumDrawdown,e.Indicators.Rsi,e.Indicators.VolumeRatio,e.Selected?.Count??0,candidate,statusText+" · 지정봉 연구 결과 (주문 승인 아님)",Serialization.Pack(e),bars[0].OpenTime,chosen.ClosedAt){MatchingDates=matched.ToArray()};
+        var chosen=lastMatched??last;var e=lastMatchedEvaluation??evaluation!;var candidate=matched.Count>0;var isNear=candidate&&!ScreeningCandidatePolicy.IsExact(e);
+        var statusText=isNear?$"근접 후보 {RealtimeConditionProximity.Calculate(e,c):N2}점 · {e.Reason}":candidate?$"기간 내 기술 후보 {matched.Count:N0}개 봉 · {e.Reason}":e.TechnicalCandidate?"확인된 제외 조건 · 후보 제외":e.Reason;
+        return new(stock,chosen.ClosedAt,chosen.Price.Close,e.Indicators.MediumDrawdown,e.Indicators.Rsi,e.Indicators.VolumeRatio,e.Selected?.Count??0,candidate,statusText+" · 지정봉 연구 결과 (주문 승인 아님)",Serialization.Pack(e),bars[0].OpenTime,chosen.ClosedAt){MatchingDates=matched.ToArray(),Proximity=RealtimeConditionProximity.Calculate(e,c),IsNearCandidate=isNear};
     }
 
     public ScreeningObservation Evaluate(StockItem stock,IReadOnlyList<StrategyBar> input,OversoldConfig requested,HistoricalFacts inputFacts,DateTimeOffset asOf,CancellationToken token=default,DateOnly? from=null,DateOnly? to=null)
@@ -96,6 +98,6 @@ public sealed partial class OversoldScreeningEngine
         }
         if(last==null)return ScreeningObservation.Missing(stock,"선택 기간에 검증된 완성봉이 없습니다.");
         var chosen=lastMatched??last;var e=lastMatchedEvaluation??evaluation!;
-        return new(stock,chosen.ClosedAt,chosen.Price.Close,e.Indicators.MediumDrawdown,e.Indicators.Rsi,e.Indicators.VolumeRatio,e.Selected?.Count??0,matched.Count>0,matched.Count>0?$"기간 내 신호 {matched.Count:N0}일 · {e.Reason}":e.Reason,Serialization.Pack(e),bars[0].OpenTime,chosen.ClosedAt){MatchingDates=matched.ToArray()};
+        return new(stock,chosen.ClosedAt,chosen.Price.Close,e.Indicators.MediumDrawdown,e.Indicators.Rsi,e.Indicators.VolumeRatio,e.Selected?.Count??0,matched.Count>0,matched.Count>0?$"기간 내 신호 {matched.Count:N0}일 · {e.Reason}":e.Reason,Serialization.Pack(e),bars[0].OpenTime,chosen.ClosedAt){MatchingDates=matched.ToArray(),Proximity=RealtimeConditionProximity.Calculate(e,c),IsNearCandidate=false};
     }
 }

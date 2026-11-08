@@ -1,4 +1,5 @@
-﻿namespace Stock.Core.Research.Oversold;
+using Stock.Core.Trading;
+namespace Stock.Core.Research.Oversold;
 public enum OversoldState { Idle,CrashTriggered,SupportApproached,WaitingForRebound,Entry1,Entry2,Entry3,Holding,PartialTP,Exited,Cooldown }
 public sealed record OversoldTransition(DateTimeOffset Time,OversoldState State,string Reason);
 public sealed record OversoldSignal(DateTimeOffset SignalTime,string Action,string Reason,DailyIndicators Indicators,SupportCluster? Cluster,OversoldState State,OversoldDecisionSnapshot? Snapshot=null);
@@ -30,6 +31,6 @@ public sealed class OversoldResult
 {
     public string Id {get;set;}="oversold-run:"+Guid.NewGuid().ToString("N");public DateTimeOffset At {get;set;}=DateTimeOffset.UtcNow;public StockItem Stock {get;set;}=null!;public DateOnly From {get;set;}public DateOnly To {get;set;}public BarSpecification? BarSpecification {get;set;}public OversoldConfig Configuration {get;set;}=null!;public string DataHash {get;set;}="";public string FactsHash {get;set;}="";public string Source {get;set;}="";
     public List<OversoldTransition> Transitions {get;set;}=[];public List<OversoldTrade> Trades {get;set;}=[];public List<OversoldSignal> Signals {get;set;}=[];public List<OversoldDecision> Decisions {get;set;}=[];public List<BarEquity> Equity {get;set;}=[];public List<string> Notices {get;set;}=[];public PerformanceSummary Performance {get;set;}=null!;public decimal Cash {get;set;}public int Quantity {get;set;}public bool PendingOrderAtEnd {get;set;}
-    public string Title=>$"{At.ToOffset(TimeSpan.FromHours(9)):yyyy.MM.dd HH:mm} · {Stock.Name} · 국내 과매도·낙주 · {BarSpecification?.ToString()??"일봉"}";
-    public SavedBacktest ToHistory()=>new(){Id="chart-run:"+Id,At=At,Stock=Stock,Period=$"국내 과매도·낙주 · {BarSpecification?.ToString()??"일봉"} next-open",DataHash=DataHash,Initial=Configuration.InitialCapital,Cash=Cash,Quantity=Quantity,Profit=Performance.FinalEquity-Configuration.InitialCapital,MaxDrawdown=Performance.MaxDrawdown,Fills=Trades.SelectMany(t=>t.Executions).Select(e=>new BarFill(e.ExecutionTime,e.Buy?"매수":"매도",e.Quantity,e.Price,e.Fee,e.RealizedPnl,e.Reason)).ToArray(),Equity=Equity.ToArray(),OversoldResultId=Id};
+    public string Title=>$"{At.ToOffset(TimeSpan.FromHours(9)):yyyy.MM.dd HH:mm} · {Stock.Name} · {(Stock.Exchange==Exchange.KRX?"국내 과매도·낙주":"미국 일봉 연구")} · {BarSpecification?.ToString()??"일봉"}";
+    public SavedBacktest ToHistory()=>new(){Id="chart-run:"+Id,At=At,Stock=Stock,Period=$"{(Stock.Exchange==Exchange.KRX?"국내 과매도·낙주":"미국 일봉 연구")} · {BarSpecification?.ToString()??"일봉"} next-open",DataHash=DataHash,Initial=Configuration.InitialCapital,Cash=Cash,Quantity=Quantity,Profit=Performance.FinalEquity-Configuration.InitialCapital,MaxDrawdown=Performance.MaxDrawdown,Fills=Trades.SelectMany(t=>t.Executions).Select(e=>new BarFill(e.ExecutionTime,e.Buy?"매수":"매도",e.Quantity,e.Price,e.Fee,e.RealizedPnl,e.Reason)).ToArray(),Equity=Equity.ToArray(),OversoldResultId=Id};
 }

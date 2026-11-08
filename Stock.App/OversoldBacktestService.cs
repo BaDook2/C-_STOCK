@@ -19,6 +19,9 @@ public sealed class OversoldBacktestService:IOversoldBacktestService
     private readonly ConcurrentDictionary<string,OversoldResult> cache=[];
     public Task<OversoldResult> RunAsync(OversoldBacktestRequest request,CancellationToken cancellationToken)
     {
+        request.BarSpecification?.Validate();
+        // A realtime daily snapshot uses the same daily engine/cache as a normal daily run.
+        if(request.BarSpecification?.Unit==BarUnit.Day)request=request with{BarSpecification=null,StrategyBars=null};
         request.Configuration.Validate();request.Facts.Validate();
         if((request.BarSpecification==null&&request.StrategyBars!=null)||(request.BarSpecification!=null&&request.StrategyBars==null))throw new InvalidOperationException("지정봉 설정과 가격 자료를 함께 전달하세요.");
         request.BarSpecification?.Validate();var dataHash=request.StrategyBars==null

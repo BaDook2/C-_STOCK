@@ -24,6 +24,8 @@ public sealed class ParameterField:Observable,IDataErrorInfo
     public bool IsEnum=>property.PropertyType.IsEnum;
     public bool IsText=>!IsBool&&!IsEnum;
     public ParameterChoice[] Choices=>IsEnum?Enum.GetNames(property.PropertyType).Select(n=>new ParameterChoice(n,n switch{"Market"=>"시장가","Limit"=>"지정가","ConservativeHighLow"=>"고저가 감지 · 손절 우선","CloseOnly"=>"확정 종가만 감지","AfterEntry"=>"첫 매수 체결 후","AfterTakeProfit1"=>"1차 익절 체결 후","US"=>"해외 (미국)","Korea"=>"국내","All"=>"전체",_=>n})).ToArray():[];
+    public bool ShowRange=>!IsBool&&!IsEnum&&!string.IsNullOrWhiteSpace(Range);
+    public double EditorWidth=>IsList?150:130;
     public string Range=>Metadata.Min is {} min?$"{Metadata.Unit} · {min:#,##0.########} ~ {Metadata.Max:#,##0.########}":Metadata.Unit;
     public string Error {get{try{_ = Parse();return "";}catch{return Metadata.DisplayName+": 값과 허용 범위를 확인하세요.";}}}
     public string this[string name]=>name is nameof(Value) or nameof(InputText)?Error:"";

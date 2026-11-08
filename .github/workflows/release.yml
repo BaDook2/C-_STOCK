@@ -1,4 +1,4 @@
-name: Windows single-file release
+name: Windows Avalonia single-file release
 
 on:
   push:
@@ -35,20 +35,51 @@ jobs:
           & $testExe (Join-Path $env:RUNNER_TEMP "stock-tests")
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-      - name: Publish self-contained Stock.exe
-        run: >-
-          dotnet publish Stock.App/Stock.App.csproj
-          -c Release
-          -p:PublishProfile=Win64
-          -p:UseSharedCompilation=false
-          -o release
+      - name: Verify Strategy D WPF integration
+        shell: pwsh
+        run: |
+          & "Stock.Tests/bin/Release/net10.0-windows10.0.19041.0/Stock.Tests.exe" --day-trading-ui (Join-Path $env:RUNNER_TEMP "stock-strategy-d-ui")
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Restore and build Avalonia
+        shell: pwsh
+        run: |
+          dotnet restore STOCK.Avalonia.sln
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet build STOCK.Avalonia.sln -c Release --no-restore -m:1 -nr:false -p:UseSharedCompilation=false
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Verify shared core, Avalonia workflows and control design
+        shell: pwsh
+        run: |
+          & ./avalonia-scripts/verify-core-manifest.ps1
+          if (!$?) { throw "Shared core manifest failed" }
+          dotnet run --project Stock.Portable.Tests -c Release --no-build
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet run --project Stock.Desktop.Tests -c Release --no-build -- (Join-Path $env:RUNNER_TEMP "avalonia-workflows")
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet run --project Stock.Desktop.Tests -c Release --no-build -- (Join-Path $env:RUNNER_TEMP "avalonia-design") --design
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Publish self-contained Avalonia Stock.exe
+        shell: pwsh
+        run: |
+          $version = $env:GITHUB_REF_NAME -replace '^v', ''
+          if ($version -notmatch '^\d+\.\d+\.\d+$') { throw "A new vMAJOR.MINOR.PATCH tag is required." }
+          dotnet publish Stock.Avalonia/Stock.Avalonia.csproj -c Release -r win-x64 --self-contained true -p:UseAppHost=true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:PublishTrimmed=false -p:DebugType=None -p:UseSharedCompilation=false "-p:Version=$version" -o release
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Name the single-file download
+        shell: pwsh
+        run: Copy-Item -LiteralPath "release/Stock.Avalonia.exe" -Destination "release/Stock.exe"
 
       - name: Smoke-test published EXE
         shell: pwsh
         run: |
           $exe = Resolve-Path "release/Stock.exe"
           $result = Join-Path $env:RUNNER_TEMP "stock-release-smoke"
-          $process = Start-Process -FilePath $exe -ArgumentList @("--smoke-test", $result) -WindowStyle Hidden -Wait -PassThru
+          $process = Start-Process -FilePath $exe -ArgumentList @("--startup-smoke", $result) -WindowStyle Hidden -PassThru
+          if (!$process.WaitForExit(45000)) { throw "Published EXE startup smoke exceeded45seconds" }
           if ($process.ExitCode -ne 0) {
             if (Test-Path (Join-Path $result "result.json")) { Get-Content (Join-Path $result "result.json") }
             exit $process.ExitCode
@@ -63,7 +94,7 @@ jobs:
           "$hash  Stock.exe" | Set-Content "release/Stock.exe.sha256" -Encoding ascii
           Get-Content "release/Stock.exe.sha256"
 
-      - name: Create or update GitHub Release
+      - name: Publish a new GitHub Release
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
@@ -71,7 +102,8 @@ jobs:
           $tag = "${{ github.ref_name }}"
           gh release view $tag *> $null
           if ($LASTEXITCODE -eq 0) {
-            gh release upload $tag "release/Stock.exe" "release/Stock.exe.sha256" --clobber
-          } else {
-            gh release create $tag "release/Stock.exe" "release/Stock.exe.sha256" --verify-tag --generate-notes --title "Stock $tag"
+            throw "This release already exists. Existing assets are never overwritten; use a new version tag."
           }
+          $notes = Join-Path "docs/avalonia" "RELEASE_NOTES_$tag.md"
+          if (!(Test-Path -LiteralPath $notes)) { throw "Write the reviewed release notes before publishing a new version." }
+          gh release create $tag "release/Stock.exe" "release/Stock.exe.sha256" --verify-tag --notes-file $notes --title "Stock $tag · Avalonia"

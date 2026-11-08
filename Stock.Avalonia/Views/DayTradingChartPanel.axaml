@@ -1,0 +1,6 @@
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="clr-namespace:Stock.Desktop" x:Class="Stock.Desktop.DayTradingChartPanel">
+ <Grid RowDefinitions="*,140,120"><local:StockChart x:Name="Chart" Bars="{Binding ChartBars}" Markers="{Binding Markers}" Zones="{Binding Zones}" Period="{Binding ChartPeriod}" MinHeight="200"/>
+  <DataGrid x:Name="Fills" Grid.Row="1" ItemsSource="{Binding VisibleFills}" AutoGenerateColumns="False" SelectionChanged="FillSelected" Margin="0,8"><DataGrid.Columns><DataGridTextColumn Header="시간" Binding="{Binding Time,Mode=OneWay}" Width="190"/><DataGridTextColumn Header="구분" Binding="{Binding Side,Mode=OneWay}" Width="70"/><DataGridTextColumn Header="가격" Binding="{Binding Price,Mode=OneWay}" Width="100"/><DataGridTextColumn Header="수량" Binding="{Binding Quantity,Mode=OneWay}" Width="70"/><DataGridTextColumn Header="실현손익" Binding="{Binding Profit,Mode=OneWay}" Width="110"/><DataGridTextColumn Header="사유" Binding="{Binding Reason,Mode=OneWay}" Width="*"/></DataGrid.Columns></DataGrid>
+  <TextBox Grid.Row="2" Text="{Binding Detail,Mode=OneWay}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" VerticalContentAlignment="Top" ScrollViewer.VerticalScrollBarVisibility="Auto" FontSize="12"/>
+ </Grid>
+</UserControl>

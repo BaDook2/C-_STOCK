@@ -10,11 +10,10 @@ public sealed partial class WorkspaceViewModel
     /// <summary>Keyless KRX research uses public completed candles and quote observations, never a broker feed or real order.</summary>
     private async Task StartPublicRealtimeScreening()
     {
-        if(provider is not ICurrentMarketData quotes||provider is not IPublicMinuteMarketData minutes||provider is not IPublicCurrentBatchData batchQuotes)
-            throw new InvalidOperationException("공개 현재가·분봉 공급자가 없습니다.");
+        if(provider is not ICurrentMarketData quotes||provider is not IPublicCurrentBatchData batchQuotes)
+            throw new InvalidOperationException("공개 현재가·일봉 공급자가 없습니다.");
         if(MultiSessionExists)throw new InvalidOperationException("기존 다량 전략 실행을 먼저 전체 중지하세요.");
-        if(!ScreenCustomBars)throw new InvalidOperationException("공개시세 실시간 감시는 분봉 또는 시간봉을 선택하세요.");
-        var specification=TimeBarSelection.Parse(ScreenBarValue,ScreenBarUnit);
+        var specification=new BarSpecification(1,BarUnit.Day);
         var strategyName=SelectedOversoldPreset??throw new InvalidOperationException("적용할 전략을 선택하세요.");
         var configuration=LoadMultiOversoldPreset(strategyName);
         StockItem[] targets;
@@ -30,6 +29,8 @@ public sealed partial class WorkspaceViewModel
             if(targets.Length==0)throw new InvalidOperationException("선택 시장의 실시간 감시 종목이 없습니다.");
         }
         var now=multiClock();var today=DailyQuoteMerger.Date(now,Exchange.KRX);
+        var marketQuote=await quotes.Current(targets[0],Token);
+        if(marketQuote.Quote.State=="CLOSE"){alert("현재는 장 외 시간입니다. 공개 시세의 시장 상태가 장 마감으로 확인됐습니다.");return;}
         var prepared=new List<LiveBatchItem>();var failures=new List<RealtimeScreeningDisplayRow>();
         foreach(var group in targets.Chunk(4))
         {
@@ -39,7 +40,7 @@ public sealed partial class WorkspaceViewModel
             {
                 try
                 {
-                    var bars=await minutes.MinuteHistory(stock,today.AddDays(-14),today,Token);
+                    var bars=await PublicStrategyHistory(stock,specification,today.AddDays(-14),today,Token);
                     DailySecurityStatus? status=null;
                     try{status=await quotes.CurrentSecurity(stock,Token);}catch(OperationCanceledException){throw;}catch{}
                     return(stock,Bars:bars,Status:status,Error:"");
@@ -70,7 +71,7 @@ public sealed partial class WorkspaceViewModel
         }
         if(prepared.Count==0)throw new InvalidOperationException("공개 분봉을 준비한 종목이 없습니다. 잠시 후 다시 시도하세요.");
         if(!IsOffline)throw new InvalidOperationException("실행 준비 중 계좌 모드가 변경되었습니다.");
-        await Task.Run(()=>RealtimeScreening.Start(new(prepared.ToArray(),strategyName,specification)),Token);
+        await Task.Run(()=>RealtimeScreening.Start(new(prepared.ToArray(),strategyName,specification)),Token);BeginRealtimeHistory();
         RealtimeScreening.SetConnectionState("공개 시세 연결 중");
         realtimeScreenAutoTrade=false;Changed(nameof(RealtimeAutoTrade));
         RealtimeScreeningRows.Clear();foreach(var failure in failures)RealtimeScreeningRows.Add(failure);
@@ -94,7 +95,7 @@ public sealed partial class WorkspaceViewModel
                         {
                             var rows=await Task.WhenAll(group.Select(async stock=>
                             {
-                                try{return(stock,Bars:await minutes.MinuteHistory(stock,today,today,token));}
+                                try{return(stock,Bars:await PublicStrategyHistory(stock,specification,today,today,token));}
                                 catch(OperationCanceledException){throw;}
                                 catch{return(stock,Bars:Array.Empty<PriceBar>());}
                             }));

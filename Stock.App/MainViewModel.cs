@@ -76,7 +76,7 @@ public sealed partial class MainViewModel : Observable,IDisposable
     public Dictionary<string,ActionCommand> Actions {get;}=[];
     public MainViewModel(Func<string,bool> confirm,Func<KiwoomCredentials?>? credentialsPrompt=null,TradingStore? store=null)
     {
-        this.confirm=confirm;this.credentialsPrompt=credentialsPrompt??(()=>null);this.store=store??new TradingStore(Path.Combine(StateDirectory,"stock.db"));settings=this.store.Load("기본");BuildEditors();RefreshSavedLists();
+        this.confirm=confirm;this.credentialsPrompt=credentialsPrompt??(()=>null);this.store=store??new TradingStore(Path.Combine(StateDirectory,"stock.db"),memoryMarketData:true);settings=this.store.Load("기본");BuildEditors();RefreshSavedLists();
         Add("설정",()=>{credentials=this.credentialsPrompt()??credentials;Status="키는 앱 메모리에만 보관합니다.";return Task.CompletedTask;},()=>CanConfigure);
         Add("연결",Connect,()=>CanConfigure);Add("시작",Start,()=>CanConfigure);Add("중단",Stop,()=>Live&&!Busy);
         Add("긴급중지",async()=>{lock(engineLock)engine?.EmergencyStop();if(remote!=null&&RunMode.StartsWith("키움 모의"))await remote.EmergencyStop();Status="신규 주문 차단 / 취소 확인은 다음 이벤트 또는 증권사 조회에서 확인하세요.";},()=>!Busy&&(engine!=null||remote!=null));

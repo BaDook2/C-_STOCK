@@ -1,4 +1,4 @@
-> 개발 재개: [HANDOFF.md](HANDOFF.md)와 [TASKS.md](TASKS.md)의 최신 목록을 먼저 읽으세요. 2026-10-10 일봉 스크리닝/장중 표시 수정 검증 및 루트 EXE 갱신 완료. 아래 과거 설명/검사 기록은 현재 소스 완료를 뜻하지 않습니다.
+> 새 Windows/Mac UI는 **Avalonia**이며 개발/지원 범위는 [README-Avalonia.md](README-Avalonia.md)를 먼저 읽으세요. 원본 WPF 소스는 보존합니다. 아래 WPF 사용 설명/옛 검사 기록은 새 UI의 지원·검증 완료를 뜻하지 않습니다. 개발 재개는 [HANDOFF.md](HANDOFF.md), [TASKS.md](TASKS.md)와 [Avalonia 작업 기록](docs/avalonia/HANDOFF.md)을 확인하세요.
 
 # STOCK — 오프라인 / 온라인
 

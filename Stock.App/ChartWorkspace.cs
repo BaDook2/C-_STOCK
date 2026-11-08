@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using Stock.Core.Research;
 using Stock.Core;
 using Stock.Core.Trading;
@@ -10,24 +11,55 @@ public sealed partial class WorkspaceViewModel
     private PriceBar[] minuteBars=[];
     private string minuteStock="";
     private string tickHistoryStock="";
+    private bool fitOneDayChartRange;
     public bool ChartLoading {get=>chartLoading;private set{if(chartLoading==value)return;chartLoading=value;Changed();}}
     public string ChartMessage {get=>ChartPeriods.Intraday(ChartPeriod)?TickStatus:chartMessage;private set{chartMessage=value;Changed();}}
     public bool CanUseIntraday=>CanConfigure&&IsOnline&&selected!=null&&broker is ITickHistoryBroker&&broker.Exchange==selected.Exchange;
-    public bool CanUseMinutes=>CanConfigure&&selected!=null&&(IsOffline?selected.Exchange==Exchange.KRX&&provider is IPublicMinuteMarketData:broker is IMinuteHistoryBroker&&broker.Exchange==selected.Exchange);
-    public string IntradayHelp=>selected==null?"먼저 종목을 선택하세요.":IsOffline?selected.Exchange==Exchange.KRX&&provider is IPublicMinuteMarketData?"네이버 KRX 공개 1분봉을 선택한 분·시간 단위로 표시합니다. 진행봉 가격은 공개 현재가 관측이며 거래량은 분봉 조회 때 갱신합니다.":"이 종목의 공개 분봉 자료가 없습니다.":broker==null?"연결된 시세 API가 없습니다.":broker.Exchange!=selected.Exchange?"연결 계좌와 선택 종목의 시장이 다릅니다.":"연결 증권사의 공식 1분봉과 실시간 체결을 표시합니다.";
+    public bool CanUseMinutes=>CanConfigure&&IsOnline&&selected!=null&&broker is IMinuteHistoryBroker&&broker.Exchange==selected.Exchange;
+    public string IntradayHelp=>IsOffline?"오프라인 데이터 기준은 일봉입니다. 지정봉은 온라인 연결 후 사용할 수 있습니다.":selected==null?"먼저 종목을 선택하세요.":broker is IMinuteHistoryBroker&&broker.Exchange==selected.Exchange?"연결 증권사의 공식 분봉·시간봉을 사용합니다.":"연결 계좌에서 선택 종목의 지정봉 조회를 지원하지 않습니다.";
     public string[] TickIntervals {get;}=ChartPeriods.Intervals.Select(n=>n+"틱").ToArray();
     public string[] MinuteIntervals {get;}=ChartPeriods.Intervals.Select(n=>n+"분").ToArray();
     public string? SelectedTickInterval {get=>ChartPeriod.EndsWith("틱")?ChartPeriod:null;set{if(value!=null)ChartPeriod=value;}}
     public string? SelectedMinuteInterval {get=>ChartPeriod.EndsWith("분")?ChartPeriod:null;set{if(value!=null)ChartPeriod=value;}}
     private string chartBarValue="1",chartBarUnit="분";
-    public string[] ChartBarValues=>TimeBarSelection.Values(chartBarUnit);
+    public ObservableCollection<string> ChartBarValues {get;}=new(TimeBarSelection.Values("분"));
     public TimeBarUnitOption[] ChartBarUnitOptions=>TimeBarSelection.Options;
-    public string ChartBarValue {get=>chartBarValue;set{if(value==null||!CanUseMinutes)return;chartBarValue=TimeBarSelection.NormalizeValue(value,chartBarUnit);Changed();ChartPeriod=chartBarValue+chartBarUnit;}}
-    public string ChartBarUnit {get=>chartBarUnit;set{if(!CanUseMinutes)return;chartBarUnit=TimeBarSelection.NormalizeUnit(value);chartBarValue=TimeBarSelection.NormalizeValue(chartBarValue,chartBarUnit);Changed();Changed(nameof(ChartBarValues));Changed(nameof(ChartBarValue));ChartPeriod=chartBarValue+chartBarUnit;}}
+    public string ChartBarValue
+    {
+        get=>chartBarValue;
+        set
+        {
+            if(value==null||!CanUseMinutes)return;
+            var next=TimeBarSelection.NormalizeValue(value,chartBarUnit);if(chartBarValue==next)return;
+            chartBarValue=next;Changed();ChartPeriod=chartBarValue+chartBarUnit;
+        }
+    }
+    public string ChartBarUnit
+    {
+        get=>chartBarUnit;
+        set
+        {
+            if(!CanUseMinutes)return;
+            var next=TimeBarSelection.NormalizeUnit(value);if(chartBarUnit==next)return;
+            chartBarUnit=next;chartBarValue=TimeBarSelection.NormalizeValue(chartBarValue,chartBarUnit);
+            Changed(nameof(ChartBarValue));RefreshChartBarValues();Changed();ChartPeriod=chartBarValue+chartBarUnit;
+        }
+    }
+    private bool IsMinuteChart=>ChartPeriod.EndsWith("분")&&ChartPeriods.Minutes(ChartPeriod)>0;
+    public bool CustomChartSelected {get=>ChartPeriods.Minutes(ChartPeriod)>0;set{if(value&&CanUseMinutes)ChartPeriod=chartBarValue+chartBarUnit;}}
     private void NotifyChartBarSelection()
     {
         if(ChartPeriods.Minutes(ChartPeriod)>0){chartBarUnit=ChartPeriod[^1..];chartBarValue=ChartPeriod[..^1];}
-        Changed(nameof(ChartBarUnit));Changed(nameof(ChartBarValues));Changed(nameof(ChartBarValue));
+        // Select a shared valid item before shrinking the list (e.g. 59 minutes -> 1 hour).
+        if(ChartBarValues.Contains(chartBarValue))Changed(nameof(ChartBarValue));
+        RefreshChartBarValues();Changed(nameof(ChartBarUnit));Changed(nameof(ChartBarValue));Changed(nameof(CustomChartSelected));
+    }
+    /// <summary>Preserve shared 1..12 items instead of replacing a ComboBox source during its selection callback.</summary>
+    private void RefreshChartBarValues()
+    {
+        var values=TimeBarSelection.Values(chartBarUnit);
+        while(ChartBarValues.Count>values.Length)ChartBarValues.RemoveAt(ChartBarValues.Count-1);
+        while(ChartBarValues.Count<values.Length)ChartBarValues.Add(values[ChartBarValues.Count]);
     }
     private void BeginIntraday()
     {
@@ -38,6 +70,7 @@ public sealed partial class WorkspaceViewModel
     private async Task LoadMinutes()
     {
         if(selected==null||ChartPeriods.Minutes(ChartPeriod)==0)return;
+        if(ChartRangeDaySelected)fitOneDayChartRange=true;
         var stock=selected;var operationToken=Token;var apiToken=ApiToken;using var request=CancellationTokenSource.CreateLinkedTokenSource(operationToken,apiToken);request.CancelAfter(TimeSpan.FromSeconds(15));ChartLoading=true;
         var generation=dailyGeneration;
         try
@@ -85,6 +118,20 @@ public sealed partial class WorkspaceViewModel
     private IReadOnlyList<PriceBar> IntradayBars()=>ChartPeriods.Minutes(ChartPeriod)>0&&minuteStock==selected?.Key
         ?IsOffline?ChartPeriods.MergeCurrentObservation(minuteBars,pendingDaily,ChartPeriod):ChartPeriods.MergeLiveTrades(minuteBars,tickBars,ChartPeriod)
         :ChartPeriods.FromTrades(tickBars,ChartPeriod);
+    /// <summary>Display-only daily window. Keep all received minutes for aggregation and strategy input.</summary>
+    private IReadOnlyList<PriceBar> ChartDisplayBars(IReadOnlyList<PriceBar> daily)
+    {
+        IReadOnlyList<PriceBar> bars=ChartPeriods.Intraday(ChartPeriod)?IntradayBars():ChartPeriods.Aggregate(daily,ChartPeriod);
+        if(!ChartRangeDaySelected||!IsMinuteChart||bars.Count==0)return bars;
+        var exchange=selected?.Exchange??Exchange.KRX;
+        var lastDay=DailyQuoteMerger.Date(bars[^1].Time,exchange);
+        bars=bars.Where(b=>DailyQuoteMerger.Date(b.Time,exchange)==lastDay).ToArray();
+        if(fitOneDayChartRange)
+        {
+            ChartWindowCount=bars.Count;Changed(nameof(ChartWindowCount));fitOneDayChartRange=false;
+        }
+        return bars;
+    }
     public void SetChartRange(DateTimeOffset date,bool start)
     {
         var day=date.ToOffset(TimeSpan.FromHours(9)).Date;

@@ -1,4 +1,4 @@
-﻿using System.IO;
+using System.IO;
 using System.Windows;
 using System.Windows.Automation.Peers;
 using System.Windows.Automation.Provider;
@@ -14,7 +14,7 @@ internal static partial class Program
     {
         using var db=new TradingStore(Path.Combine(Dir,"revision-ui.db"));var provider=new CountingMarket();using var vm=new WorkspaceViewModel(_=>false,provider:provider,store:db);var previous=window.DataContext;window.DataContext=vm;
         void Do(string action){vm.Actions[action].Execute(null);PumpUntil(()=>!vm.Busy);window.UpdateLayout();}
-        vm.Region="해외";vm.Query="애플";vm.ChartPeriod="주봉";Do("검색");Check(vm.ChartBars.Count>10&&vm.ChartBars.Count<600&&vm.ChartPeriod=="주봉","first search result auto-loads previously selected period");
+        vm.Region="해외";vm.Query="애플";vm.ChartPeriod="주봉";Do("검색");Check(vm.ChartBars.Count>10&&vm.ChartPeriod=="일봉","first search result respects daily-only offline data basis");
         var notifications=0;vm.PropertyChanged+=(_,e)=>{if(e.PropertyName==nameof(vm.ChartBars))notifications++;};vm.OpenStock(vm.SelectedStock!).GetAwaiter().GetResult();Check(provider.Reads.Count==1&&notifications==0,"clicking loaded stock causes no clear redraw or request");
         var busyFlashes=0;vm.PropertyChanged+=(_,e)=>{if(e.PropertyName==nameof(vm.Busy))busyFlashes++;};Do("관심등록");Check(busyFlashes==0,"synchronous buttons never flash whole-screen busy state");
         vm.From=new DateTime(2025,1,2);vm.To=new DateTime(2025,1,10);vm.SetChartRange(new DateTimeOffset(2025,1,20,12,0,0,TimeSpan.FromHours(9)),true);Check(vm.From==vm.To&&vm.To==new DateTime(2025,1,10),"chart start after end clamps start to end");vm.SetChartRange(new DateTimeOffset(2025,1,1,12,0,0,TimeSpan.FromHours(9)),false);Check(vm.To==vm.From&&vm.From==new DateTime(2025,1,10),"chart end before start clamps end to start");

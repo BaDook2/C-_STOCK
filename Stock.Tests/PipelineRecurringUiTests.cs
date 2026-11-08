@@ -23,7 +23,7 @@ internal static partial class Program
         Check(vm.ChartWindowCount==vm.ChartBars.Count,"quick chart range fits available bars");
         foreach(var period in new[]{"일봉","주봉","월봉"})
         foreach(var range in rangeChecks){vm.ChartPeriod=period;Do(range.Key);Check(chart.RightGapSlots<=.51,$"{period} {range.Key} fills real candles to the right plot edge with Ichimoku enabled");}
-        Check(Descendants(window).OfType<RadioButton>().Count(r=>r.GroupName=="ChartRange")==7,"seven quick ranges use the same selected radio styling as candle periods");
+        Check(Descendants(window).OfType<RadioButton>().Count(r=>r.GroupName=="ChartRange")==8,"eight quick ranges include the minute-only day and share candle-period styling");
         window.UpdateLayout();Dispatcher.CurrentDispatcher.Invoke(()=>{},DispatcherPriority.ApplicationIdle);Render((FrameworkElement)window.Content,Path.Combine(output,"recurring-layout.png"));
         var caption=Descendants(window).OfType<RecurringParameterCaption>().First();Check(caption.Children.Count==2,"recurring captions build label and help from shared metadata");
         vm.RecurringAmount="bad";Do("정기매수실행");Check(vm.History.Count==count&&vm.Status.Contains("숫자"),"invalid recurring amount preserves existing result and history");

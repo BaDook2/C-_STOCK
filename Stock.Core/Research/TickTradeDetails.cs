@@ -1,8 +1,8 @@
-﻿using Stock.Core.Trading;
+using Stock.Core.Trading;
 namespace Stock.Core.Research;
 public sealed record TickTradeDetail(string Id,DateTimeOffset EntryTime,decimal EntryPrice,DateTimeOffset? ExitTime,decimal? ExitPrice,decimal Quantity,decimal Profit,decimal ReturnPercent,string EntryReason,string ExitReason,string EntryOrder="",string ExitOrder="",bool EntryKnown=true)
 {
-    public string Summary=>$"거래 {Id}\n주문번호 매수 {EntryOrder} / 매도 {ExitOrder}\n매수 {(EntryKnown?$"{EntryTime.ToOffset(TimeSpan.FromHours(9)):yyyy.MM.dd HH:mm:ss.fffffff} · {EntryPrice:#,##0.########}":"기간 이전 자료 없음")}\n매도 {(ExitTime is {} exit?exit.ToOffset(TimeSpan.FromHours(9)).ToString("yyyy.MM.dd HH:mm:ss.fffffff"):"미청산")} · {ExitPrice:#,##0.########}\n수량 {Quantity:N0} · 보유 {(EntryKnown&&ExitTime is {} end?(end-EntryTime).ToString():"미확정")}\n손익 {(EntryKnown&&ExitTime!=null?$"{Profit:+#,##0.########;-#,##0.########;0} ({ReturnPercent:+0.00;-0.00;0.00}%)":"미산출")}\n진입: {EntryReason}\n청산: {ExitReason}";
+    public string Summary=>$"거래 {Id}\n주문번호 매수 {EntryOrder} / 매도 {ExitOrder}\n매수 {(EntryKnown?$"{EntryTime.ToOffset(TimeSpan.FromHours(9)):yyyy.MM.dd HH:mm:ss.fffffff} · {DisplayNumber.Price(EntryPrice)}":"기간 이전 자료 없음")}\n매도 {(ExitTime is {} exit?exit.ToOffset(TimeSpan.FromHours(9)).ToString("yyyy.MM.dd HH:mm:ss.fffffff"):"미청산")} · {(ExitPrice is {} price?DisplayNumber.Price(price):"—")}\n수량 {Quantity:N0} · 보유 {(EntryKnown&&ExitTime is {} end?(end-EntryTime).ToString():"미확정")}\n손익 {(EntryKnown&&ExitTime!=null?$"{Profit:+#,##0.########;-#,##0.########;0} ({ReturnPercent:+0.00;-0.00;0.00}%)":"미산출")}\n진입: {EntryReason}\n청산: {ExitReason}";
 }
 public sealed record TickFillMarker(string Id,DateTimeOffset Time,decimal Price,bool Buy,TickTradeDetail Detail);
 public static class TickTradeMatcher

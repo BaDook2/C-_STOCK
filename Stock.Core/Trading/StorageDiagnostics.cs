@@ -9,6 +9,7 @@ public sealed class StorageInspection
 {
     public DateTimeOffset At {get;init;}=DateTimeOffset.UtcNow;
     public string DatabasePath {get;init;}="";
+    public string PhysicalDatabasePath {get;set;}="";
     public long Bytes {get;set;}
     public string Engine {get;set;}="";
     public string SourceId {get;set;}="";
@@ -32,6 +33,7 @@ public static class StorageDiagnostics
         var report=new StorageInspection{DatabasePath=System.IO.Path.GetFullPath(path)};
         try
         {
+            report.PhysicalDatabasePath=StoragePaths.PhysicalPath(path);
             report.Bytes=new FileInfo(path).Length;
             using var db=new SqliteConnection(new SqliteConnectionStringBuilder{DataSource=path,Mode=SqliteOpenMode.ReadOnly,Pooling=false,DefaultTimeout=10}.ToString());db.Open();
             using var tx=db.BeginTransaction(deferred:true);

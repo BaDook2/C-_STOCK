@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Text;
@@ -75,7 +75,7 @@ internal static partial class Program
         row.RaiseEvent(new MouseButtonEventArgs(Mouse.PrimaryDevice,0,MouseButton.Left){RoutedEvent=Mouse.PreviewMouseUpEvent});PumpUntil(()=>!vm.Busy);
         Check(market.Reads.Count==1&&vm.ChartBars.Count==600,"single stock click immediately loads chart without data button");
         Check(!Descendants(window).OfType<Button>().Any(b=>Equals(b.Content,"데이터 가져오기")),"manual data-fetch button removed");
-        var periodTabs=Descendants(window).OfType<RadioButton>().Where(b=>b.GroupName=="ChartPeriod").ToArray();Check(periodTabs.Length==3,"day week month use tabs while tick and minute use combos");periodTabs.Single(b=>Equals(b.Content,"주봉")).IsChecked=true;Check(vm.ChartPeriod=="주봉"&&vm.ChartBars.Count<600,"period tab switches aggregated chart");vm.DailySelected=true;
+        var periodTabs=Descendants(window).OfType<RadioButton>().Where(b=>b.GroupName=="ChartPeriod"&&b.IsVisible).ToArray();Check(periodTabs.Length==1&&Equals(periodTabs[0].Content,"일봉"),"daily tab is the offline data basis and online custom bars use combos");periodTabs[0].IsChecked=true;Check(vm.ChartPeriod=="일봉"&&vm.ChartBars.Count==600,"daily period tab keeps exact daily history");vm.DailySelected=true;
         var samsung=vm.SelectedStock! with{Board="KOSPI"};var apple=new StockItem("AAPL","애플",Exchange.NASDAQ,"AAPL.O","정보기술");vm.WatchGroups[0].Items.Add(new(samsung));vm.WatchGroups[0].Items.Add(new(apple));vm.WatchGroups[1].Items.Add(new(samsung));vm.ScreenWatchlist=true;foreach(var g in vm.WatchGroups)g.IncludeInScreening=true;
         market.Reads.Clear();vm.Actions["스크리닝"].Execute(null);PumpUntil(()=>!vm.Busy);Check(market.Universes==0&&market.Reads.All(k=>k==samsung.Key)&&market.Reads.Count<=1&&vm.LatestScreening!.Results.Select(r=>r.Stock.Key).SequenceEqual(new[]{samsung.Key})&&vm.ScreenInfo.Contains("선택시장 밖 1개 제외"),"domestic market screening deduplicates watch groups, reuses a fresh daily cache and excludes overseas symbols before evaluation");Check(vm.ScreenInfo.Contains("중복 1개 제외"),"screening explains removed overlap");
         vm.ScreeningMarketSelection="코스피";market.Reads.Clear();vm.Actions["스크리닝"].Execute(null);PumpUntil(()=>!vm.Busy);Check(market.Reads.All(k=>k==samsung.Key)&&market.Reads.Count<=1&&vm.LatestScreening!.Results.Select(r=>r.Stock.Key).SequenceEqual(new[]{samsung.Key}),"watchlist screening respects the selected KOSPI board and may reuse fresh daily history");vm.ScreeningMarketSelection="코스닥";Check(vm.SelectedScreeningStocks().Count==0,"KOSDAQ selection excludes KOSPI watchlist stocks");vm.ScreeningMarketSelection="코스피+코스닥";vm.Sector=samsung.Sector;Check(vm.SelectedScreeningStocks().Single().Symbol==samsung.Symbol,"watchlist screening respects the domestic sector filter");
@@ -108,7 +108,7 @@ internal static partial class Program
         window.DataContext=previous;
     }
     private static void Render(FrameworkElement? root,string path)
-    {root!.UpdateLayout();Dispatcher.CurrentDispatcher.Invoke(()=>{},DispatcherPriority.ApplicationIdle);var bitmap=new RenderTargetBitmap((int)root.ActualWidth,(int)root.ActualHeight,96,96,PixelFormats.Pbgra32);bitmap.Render(root);var encoder=new PngBitmapEncoder();encoder.Frames.Add(BitmapFrame.Create(bitmap));using var f=File.Create(path);encoder.Save(f);}
+    {root!.UpdateLayout();Dispatcher.CurrentDispatcher.Invoke(()=>{},DispatcherPriority.ApplicationIdle);AuditTableAlignment(root,path);var bitmap=new RenderTargetBitmap((int)root.ActualWidth,(int)root.ActualHeight,96,96,PixelFormats.Pbgra32);bitmap.Render(root);var encoder=new PngBitmapEncoder();encoder.Frames.Add(BitmapFrame.Create(bitmap));using var f=File.Create(path);encoder.Save(f);}
     private sealed class CountingMarket:IPublicMarketData
     {
         private readonly FixtureMarketData inner=new();public int Searches,Universes;public List<string> Reads=[];

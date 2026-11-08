@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Reflection;
 using System.Collections.Specialized;
 using System.Windows;
@@ -59,7 +59,7 @@ internal static partial class Program
             typeof(WorkspaceViewModel).GetField("realtimeScreening",flags)!.SetValue(vm,core);
             var apply=typeof(WorkspaceViewModel).GetMethod("ApplyRealtimeSnapshot",flags)!;
             void Apply(RealtimeScreeningSnapshot value)=>apply.Invoke(vm,[value,new Dictionary<string,LiveBatchRowStatus>(),Array.Empty<RealtimeScreeningDisplayRow>()]);
-            Apply(core.Snapshot());window.UpdateLayout();
+            Apply(core.Snapshot());window.UpdateLayout();Render(window,Path.Combine(output,$"realtime-populated-{online}.png"));
             var grid=(DataGrid)window.FindName("RealtimeScreeningGrid");var selected=vm.RealtimeScreeningRows.Single(r=>r.Code==DailyStock.Symbol);grid.SelectedItem=selected;
             int resets=0;vm.RealtimeScreeningRows.CollectionChanged+=(_,e)=>{if(e.Action==NotifyCollectionChangedAction.Reset)resets++;};
             var before=core.Snapshot();
@@ -134,10 +134,10 @@ internal static partial class Program
         using(var vm=new WorkspaceViewModel(_=>false,provider:new ParallelScreeningFixture(),store:db))
         {
             window.DataContext=vm;vm.Actions["검색"].Execute(null);PumpUntil(()=>!vm.Busy);
-            Check(vm.IsOffline&&vm.CanUseMinutes&&!vm.CanUseIntraday,"offline KRX enables public minute/hour charts while raw ticks still require a broker");
-            vm.ChartBarValue="5";PumpUntil(()=>!vm.Busy);Check(vm.ChartPeriod=="5분"&&vm.ChartBars.Count>0&&vm.ChartBarValues.Length==59,"offline chart loads public minute OHLCV and offers 1 through 59 minutes");
+            Check(vm.IsOffline&&!vm.CanUseMinutes&&!vm.CanUseIntraday,"offline KRX exposes daily charts only");
+            vm.ChartBarValue="5";PumpUntil(()=>!vm.Busy);Check(vm.ChartPeriod=="일봉"&&vm.ChartBars.Count>0&&vm.ChartBarValues.Count==59,"offline chart ignores custom minute requests and retains daily OHLCV");
             vm.ChartBarUnit="시";PumpUntil(()=>!vm.Busy);vm.ChartBarValue="1";PumpUntil(()=>!vm.Busy);
-            Check(vm.ChartPeriod=="1시"&&vm.ChartBars.Count>0&&vm.ChartBarValues.Length==12&&vm.TickStatus.Contains("네이버 KRX 공개"),"offline chart uses public data for hour bars and offers 1 through 12 hours");
+            Check(vm.ChartPeriod=="일봉"&&vm.ChartBars.Count>0&&!vm.CanUseMinutes,"offline chart ignores custom hour requests and retains daily OHLCV");
         }
         Check(TradeOutcome.Label(false,"TP1",10).Contains("익절")&&TradeOutcome.Label(false,"EmergencyStop",-10).Contains("손절")&&TradeOutcome.Label(false,"TrailingStop",10).Contains("익절")&&TradeOutcome.Label(false,"TrailingStop",-10).Contains("손절"),"shared chart captions distinguish profit/loss and preserve trailing exit intent");
         Check(!TradeOutcome.Label(false,"").Contains("손절")&&!TradeOutcome.Label(false,"").Contains("익절"),"legacy fills with unknown cost and reason never invent an exit outcome");

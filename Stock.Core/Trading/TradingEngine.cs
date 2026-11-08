@@ -35,7 +35,7 @@ public sealed class RiskManager(TradingSettings settings)
         return null;
     }
 }
-public sealed class PaperBroker(string currency,decimal initialCash,ExecutionSettings settings)
+public sealed partial class PaperBroker(string currency,decimal initialCash,ExecutionSettings settings)
 {
     public string Currency { get; }=currency;
     public decimal InitialCash { get; }=initialCash;

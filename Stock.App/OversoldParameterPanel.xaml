@@ -9,7 +9,8 @@
     </StackPanel>
    </Expander>
    <ItemsControl ItemsSource="{Binding OversoldUsageGroups}" IsEnabled="{Binding CanConfigure}"><ItemsControl.ItemTemplate><DataTemplate>
-    <Border Background="White" BorderBrush="#E5E8EB" BorderThickness="1" CornerRadius="12" Padding="16" Margin="0,0,0,12">
+    <Border Background="White" BorderBrush="#E5E8EB" BorderThickness="1" CornerRadius="12" Padding="12" Margin="0,0,0,10">
+     <Border.Style><Style TargetType="Border"><Style.Triggers><DataTrigger Binding="{Binding IsEmpty}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></Border.Style>
      <Expander IsExpanded="True">
       <Expander.Header><WrapPanel><TextBlock Text="{Binding Metadata.Name}" FontSize="17" FontWeight="SemiBold"/><TextBlock Text="{Binding Count,StringFormat={} · {0:N0}개}" Foreground="#8B95A1" FontSize="14" VerticalAlignment="Center"/></WrapPanel></Expander.Header>
       <StackPanel Margin="0,10,0,0">
@@ -20,14 +21,18 @@
     <Expander Header="{Binding Name}" IsExpanded="False" Margin="0,0,0,10"><ItemsControl ItemsSource="{Binding Rows}"><ItemsControl.ItemTemplate><DataTemplate>
      <ItemsControl ItemsSource="{Binding Cells}"><ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Columns="3"/></ItemsPanelTemplate></ItemsControl.ItemsPanel><ItemsControl.ItemTemplate><DataTemplate>
       <Border Margin="0,8,8,0"><Border.Style><Style TargetType="Border"><Style.Triggers><DataTrigger Binding="{Binding IsEmpty}" Value="True"><Setter Property="Visibility" Value="Hidden"/></DataTrigger></Style.Triggers></Style></Border.Style>
-     <Border DataContext="{Binding Field}" Background="#F7F9FC" CornerRadius="10" Padding="10" MinHeight="145"><StackPanel>
-      <StackPanel.Resources><Style TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}"><Setter Property="Height" Value="32"/><Setter Property="Width" Value="180"/><Setter Property="Padding" Value="8,4"/><Setter Property="FontSize" Value="13"/><Setter Property="HorizontalAlignment" Value="Left"/></Style></StackPanel.Resources>
+     <Border DataContext="{Binding Field}" Background="#F7F9FC" CornerRadius="10" Padding="10,8" Tag="ParameterCard"><StackPanel>
+      <StackPanel.Resources><Style TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}"><Setter Property="Height" Value="32"/><Setter Property="Width" Value="{Binding EditorWidth}"/><Setter Property="Padding" Value="8,4"/><Setter Property="FontSize" Value="13"/><Setter Property="HorizontalAlignment" Value="Left"/></Style></StackPanel.Resources>
       <DockPanel><Button DockPanel.Dock="Right" Content="?" ToolTip="{Binding Metadata.ShortDescription}" Click="HelpClick" Style="{StaticResource Secondary}" Width="25" Height="25" Padding="0" Margin="6,0,0,0"/><TextBlock Text="{Binding Metadata.DisplayName}" FontWeight="SemiBold" VerticalAlignment="Center" TextWrapping="Wrap"/></DockPanel>
-      <CheckBox Content="사용" IsChecked="{Binding BoolValue}" Visibility="{Binding IsBool,Converter={StaticResource Visible}}" ToolTip="{Binding Metadata.ShortDescription}" Height="32"/>
-      <ComboBox ItemsSource="{Binding Choices}" SelectedValuePath="Value" DisplayMemberPath="Label" SelectedValue="{Binding Value}" Visibility="{Binding IsEnum,Converter={StaticResource Visible}}" Height="32" MaxWidth="240" HorizontalAlignment="Left" Margin="0,8,0,0"/>
-      <TextBox x:Name="ParameterEditor" Text="{Binding InputText,UpdateSourceTrigger=PropertyChanged,ValidatesOnDataErrors=True}" local:FixedDecimalInput.Kind="{Binding Metadata.InputKind}" Visibility="{Binding IsText,Converter={StaticResource Visible}}" ToolTip="{Binding InputTooltip}" Margin="0,8,0,0"/>
-      <TextBlock Text="{Binding ElementName=ParameterEditor,Path=(local:FixedDecimalInput.Error)}" Foreground="#C73545" FontSize="11" TextWrapping="Wrap"/>
-      <TextBlock Text="{Binding Range}" FontSize="10" Foreground="#6B7684" Margin="0,5,0,0" TextWrapping="Wrap"/><TextBlock Text="{Binding Error}" Foreground="#C73545" FontSize="10" TextWrapping="Wrap"/>
+      <Grid Margin="0,5,0,0">
+       <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+       <CheckBox Content="사용" IsChecked="{Binding BoolValue}" Visibility="{Binding IsBool,Converter={StaticResource Visible}}" ToolTip="{Binding Metadata.ShortDescription}" Height="32" Margin="0"/>
+       <ComboBox ItemsSource="{Binding Choices}" SelectedValuePath="Value" DisplayMemberPath="Label" SelectedValue="{Binding Value}" Visibility="{Binding IsEnum,Converter={StaticResource Visible}}" Height="32" MaxWidth="240" HorizontalAlignment="Left"/>
+       <TextBox x:Name="ParameterEditor" Text="{Binding InputText,UpdateSourceTrigger=PropertyChanged,ValidatesOnDataErrors=True}" local:FixedDecimalInput.Kind="{Binding Metadata.InputKind}" Visibility="{Binding IsText,Converter={StaticResource Visible}}" ToolTip="{Binding InputTooltip}"/>
+       <TextBlock Grid.Column="1" Text="{Binding Range}" Visibility="{Binding ShowRange,Converter={StaticResource Visible}}" FontSize="11" Foreground="#6B7684" Margin="8,0,0,0" VerticalAlignment="Center" TextWrapping="Wrap"/>
+      </Grid>
+      <TextBlock Text="{Binding ElementName=ParameterEditor,Path=(local:FixedDecimalInput.Error)}" Foreground="#C73545" FontSize="11" TextWrapping="Wrap"><TextBlock.Style><Style TargetType="TextBlock"><Style.Triggers><Trigger Property="Text" Value=""><Setter Property="Visibility" Value="Collapsed"/></Trigger></Style.Triggers></Style></TextBlock.Style></TextBlock>
+      <TextBlock Text="{Binding Error}" Foreground="#C73545" FontSize="11" TextWrapping="Wrap"><TextBlock.Style><Style TargetType="TextBlock"><Style.Triggers><Trigger Property="Text" Value=""><Setter Property="Visibility" Value="Collapsed"/></Trigger></Style.Triggers></Style></TextBlock.Style></TextBlock>
      </StackPanel></Border></Border>
      </DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
     </DataTemplate></ItemsControl.ItemTemplate></ItemsControl></Expander>

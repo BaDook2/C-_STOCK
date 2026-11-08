@@ -1,0 +1,110 @@
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Class="Stock.Desktop.OrderToolsPanel">
+    <TabControl x:Name="OrderTabs" SelectedIndex="{Binding WorkspaceToolTab,Mode=TwoWay}" HorizontalContentAlignment="Stretch">
+        <TabControl.ItemsPanel>
+            <ItemsPanelTemplate>
+                <UniformGrid Rows="2" Columns="2" />
+            </ItemsPanelTemplate>
+        </TabControl.ItemsPanel>
+        <TabItem Header="실제 계좌 주문" IsVisible="{Binding Online}">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="0,16,0,0" Spacing="12">
+                    <TextBlock Text="실제 계좌 주문" FontSize="18" FontWeight="Bold" />
+                    <TextBlock Text="{Binding Accounts.Mode}" Foreground="#3182F6" TextWrapping="Wrap" />
+                    <Button Content="계좌 잔고·주문 조회" Command="{Binding Accounts.Refresh}" HorizontalAlignment="Stretch" />
+                    <StackPanel DataContext="{Binding Accounts}" Spacing="8">
+                        <TextBlock Text="{Binding OrderAuthorization}" Classes="muted" TextWrapping="Wrap" />
+                        <Grid ColumnDefinitions="120,*" RowDefinitions="Auto,Auto,Auto">
+                            <TextBlock Text="1회 주문 한도" VerticalAlignment="Center" /><TextBox Grid.Column="1" Text="{Binding OrderLimit,Mode=TwoWay}" IsEnabled="{Binding OrderInputsEditable}" />
+                            <TextBlock Grid.Row="1" Text="종목 투자 한도" VerticalAlignment="Center" /><TextBox Grid.Row="1" Grid.Column="1" Text="{Binding SymbolLimit,Mode=TwoWay}" IsEnabled="{Binding OrderInputsEditable}" />
+                            <TextBlock Grid.Row="2" Text="일 손실 한도" VerticalAlignment="Center" /><TextBox Grid.Row="2" Grid.Column="1" Text="{Binding DailyLoss,Mode=TwoWay}" IsEnabled="{Binding OrderInputsEditable}" />
+                        </Grid>
+                        <Button Content="실제 주문 활성화" Command="{Binding EnableOrders}" HorizontalAlignment="Stretch" />
+                        <Button Content="실제 주문 잠금" Command="{Binding DisableOrders}" Classes="secondary" HorizontalAlignment="Stretch" />
+                        <TextBlock Text="선택 종목 · 시장가 수량 (주)" /><TextBox Text="{Binding Quantity,Mode=TwoWay}" />
+                        <Grid ColumnDefinitions="*,*"><Button Content="매수" Command="{Binding Buy}" HorizontalAlignment="Stretch" /><Button Grid.Column="1" Content="매도" Command="{Binding Sell}" Classes="secondary" HorizontalAlignment="Stretch" Margin="8,0,0,0" /></Grid>
+                        <Button Content="HTS 확인 후 주문 차단 해제" Command="{Binding ReviewOrders}" Classes="secondary" HorizontalAlignment="Stretch" />
+                    </StackPanel>
+                    <Button Content="실시간 실제 전략매매 설정" Command="{Binding OpenActualExecution}" HorizontalAlignment="Stretch" ToolTip.Tip="실제 주문 활성화와 시작 확인이 필요합니다. 키움 국내 계좌만 지원합니다." />
+                    <Button Content="다중매매 전체 중지" Classes="secondary" Command="{Binding StopAllStrategies}" HorizontalAlignment="Stretch" />
+                    <TextBlock Text="{Binding Accounts.Status}" Classes="muted" TextWrapping="Wrap" />
+                </StackPanel>
+            </ScrollViewer>
+        </TabItem>
+        <TabItem Header="가상 계좌 주문">
+            <StackPanel Margin="0,16,0,0" Spacing="12">
+                <TextBlock Text="가상 계좌 주문" FontSize="18" FontWeight="Bold" />
+                <Button Content="실시간 가상 전략매매 설정" Command="{Binding OpenVirtualExecution}" HorizontalAlignment="Stretch" />
+                <TextBlock Text="{Binding VirtualTradingHelp}" Classes="muted" TextWrapping="Wrap" />
+                <TextBlock Text="{Binding Realtime.Status}" Foreground="#3182F6" TextWrapping="Wrap" />
+                <Button Content="가상 전략매매 전체 중지" Command="{Binding Realtime.StopAll}" Classes="secondary" HorizontalAlignment="Stretch" />
+            </StackPanel>
+        </TabItem>
+        <TabItem Header="전략 백테스트">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="0,16,0,0" Spacing="12">
+                    <Border Background="#F9FAFB" CornerRadius="12" Padding="12">
+                        <StackPanel Spacing="12">
+                            <TextBlock Text="전략 백테스트" FontSize="18" FontWeight="Bold" />
+                            <TextBlock Text="선택 종목의 과거 전략 동작을 확인해요." Classes="muted" TextWrapping="Wrap" />
+                            <Grid ColumnDefinitions="*,Auto,*">
+                                <CalendarDatePicker SelectedDate="{Binding Research.From,Mode=TwoWay}" SelectedDateFormat="Custom" CustomDateFormatString="yyyy-MM-dd" HorizontalAlignment="Stretch" />
+                                <TextBlock Grid.Column="1" Text="~" VerticalAlignment="Center" Margin="6,0" />
+                                <CalendarDatePicker Grid.Column="2" SelectedDate="{Binding Research.To,Mode=TwoWay}" SelectedDateFormat="Custom" CustomDateFormatString="yyyy-MM-dd" HorizontalAlignment="Stretch" />
+                            </Grid>
+                            <WrapPanel>
+                                <RadioButton Content="일봉" GroupName="ResearchBars" IsChecked="{Binding Research.Daily,Mode=TwoWay}" Padding="8,7" />
+                                <RadioButton Content="지정 봉" GroupName="ResearchBars" IsChecked="{Binding Research.Custom,Mode=TwoWay}" IsVisible="{Binding Online}" IsEnabled="{Binding Research.CanCustom}" Padding="8,7" />
+                                <ComboBox ItemsSource="{Binding Research.Values}" SelectedItem="{Binding Research.Value,Mode=TwoWay}" Width="60" MinWidth="0" IsVisible="{Binding Research.Custom}" />
+                                <ComboBox ItemsSource="{Binding Research.Units}" SelectedItem="{Binding Research.Unit,Mode=TwoWay}" Width="70" MinWidth="0" IsVisible="{Binding Research.Custom}" />
+                            </WrapPanel>
+                            <TextBlock Text="실행할 전략" Classes="muted" />
+                            <ComboBox ItemsSource="{Binding Strategies.Names}" SelectedItem="{Binding Strategies.Selected,Mode=TwoWay}" HorizontalAlignment="Stretch" />
+                            <Button Content="백테스트" Command="{Binding Research.Run}" HorizontalAlignment="Stretch" />
+                            <Button Content="전략 D / 당일매매 검증" Command="{Binding OpenDayTradingResearch}" Classes="secondary" HorizontalAlignment="Stretch" />
+                        </StackPanel>
+                    </Border>
+                    <TextBlock Text="{Binding Research.Status}" Classes="muted" TextWrapping="Wrap" />
+                    <Border Background="White" BorderBrush="#E5E8EB" BorderThickness="1" CornerRadius="12" Padding="12" IsVisible="{Binding Research.HasResult}">
+                        <StackPanel Spacing="10">
+                            <TextBlock Text="백테스트 결과" FontSize="18" FontWeight="Bold" />
+                            <TextBlock Text="{Binding Research.Result.Summary}" TextWrapping="Wrap" />
+                            <Button Content="상세 결과 / 판단 기록" Click="OpenResearchResult" Classes="secondary" HorizontalAlignment="Stretch" />
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+        </TabItem>
+        <TabItem Header="정기매수 백테스트">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="0,16,0,0" Spacing="12">
+                    <Border Background="#F9FAFB" CornerRadius="12" Padding="12">
+                        <StackPanel Spacing="12">
+                            <TextBlock Text="정기매수 백테스트 설정" FontSize="18" FontWeight="Bold" />
+                            <TextBlock Text="같은 종목을 정기적으로 매수했을 때의 과거 성과를 확인합니다." Classes="muted" TextWrapping="Wrap" />
+                            <Grid ColumnDefinitions="*,Auto,*">
+                                <CalendarDatePicker SelectedDate="{Binding Recurring.From,Mode=TwoWay}" SelectedDateFormat="Custom" CustomDateFormatString="yyyy-MM-dd" HorizontalAlignment="Stretch" />
+                                <TextBlock Grid.Column="1" Text="~" Margin="6,0" VerticalAlignment="Center" />
+                                <CalendarDatePicker Grid.Column="2" SelectedDate="{Binding Recurring.To,Mode=TwoWay}" SelectedDateFormat="Custom" CustomDateFormatString="yyyy-MM-dd" HorizontalAlignment="Stretch" />
+                            </Grid>
+                            <Grid ColumnDefinitions="100,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto">
+                                <TextBlock Text="매수 주기" VerticalAlignment="Center" />
+                                <ComboBox Grid.Column="1" ItemsSource="{Binding Recurring.Frequencies}" DisplayMemberBinding="{Binding Label}" SelectedValueBinding="{Binding Value}" SelectedValue="{Binding Recurring.Frequency,Mode=TwoWay}" HorizontalAlignment="Stretch" Margin="0,0,0,10" />
+                                <TextBlock Grid.Row="1" Text="매수 시점" VerticalAlignment="Center" />
+                                <ComboBox Grid.Row="1" Grid.Column="1" ItemsSource="{Binding Recurring.Timings}" DisplayMemberBinding="{Binding Label}" SelectedValueBinding="{Binding Value}" SelectedValue="{Binding Recurring.Timing,Mode=TwoWay}" HorizontalAlignment="Stretch" Margin="0,0,0,10" />
+                                <TextBlock Grid.Row="2" Text="1회 매수 금액" VerticalAlignment="Center" />
+                                <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding Recurring.Amount,Mode=TwoWay}" Margin="0,0,0,10" />
+                                <TextBlock Grid.Row="3" Text="초기 투자금" VerticalAlignment="Center" />
+                                <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding Recurring.Initial,Mode=TwoWay}" Margin="0,0,0,10" />
+                                <TextBlock Grid.Row="4" Text="수수료 (%)" VerticalAlignment="Center" />
+                                <TextBox Grid.Row="4" Grid.Column="1" Text="{Binding Recurring.Commission,Mode=TwoWay}" />
+                            </Grid>
+                            <Button Content="정기매수 백테스트 실행" Command="{Binding Recurring.Run}" HorizontalAlignment="Stretch" />
+                        </StackPanel>
+                    </Border>
+                    <TextBlock Text="백테스트 결과" FontSize="18" FontWeight="Bold" />
+                    <TextBlock Text="{Binding Recurring.Status}" Classes="muted" TextWrapping="Wrap" />
+                </StackPanel>
+            </ScrollViewer>
+        </TabItem>
+    </TabControl>
+</UserControl>

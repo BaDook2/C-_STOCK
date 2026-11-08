@@ -5,7 +5,7 @@ public static class RealtimeWarmup
     /// <summary>Loads indicator preparation before the requested trading period; this interval never creates past orders.</summary>
     public static DateOnly BacktestHistoryStart(DateOnly first,BarSpecification specification,OversoldConfig configuration)
     {
-        var minutes=checked(specification.Value*(specification.Unit==BarUnit.Hour?60:1));
+        var minutes=specification.Unit==BarUnit.Day?390:checked(specification.Value*(specification.Unit==BarUnit.Hour?60:1));
         var perDay=Math.Max(1,390/minutes);
         var tradingDays=(int)Math.Ceiling(RequiredBars(configuration)/(double)perDay);
         return first.AddDays(-Math.Max(14,(int)Math.Ceiling(tradingDays*7d/5d)+14));

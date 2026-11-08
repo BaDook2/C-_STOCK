@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
@@ -196,28 +196,37 @@ public sealed class CandleChart : FrameworkElement
         for(int i=start;i<end;i+=Math.Max(1,(end-start)/5))Text(dc,b[i].Time.ToOffset(TimeSpan.FromHours(9)).ToString(ChartPeriods.Intraday(Period)?"HH:mm:ss":"yy.MM.dd"),Math.Max(8,X(i)-17),top+height+64,Muted,11);
         Text(dc,"거래량",8,top+height+8,Muted,10);
         var located=locatedTrades.Where(x=>x.Index>=start&&x.Index<end).ToArray();
-        if(step<15||located.Length>Math.Max(12,width/60))
+        // Bucket aggregation bounds the initial work at overview scale; measured text bounds
+        // finish the job for long reasons, profit figures, edge-clamped and opposite-side labels.
+        var seeds=step<15||located.Length>Math.Max(12,width/60)
+            ?ChartMarkerAggregation.Cluster(located,x=>x.Trade.Buy,x=>x.Index,x=>x.Trade.Price,start,end,width).Select(g=>(IReadOnlyList<LocatedTrade>)g.Items)
+            :located.Select(x=>(IReadOnlyList<LocatedTrade>)new[]{x});
+        (string Label,double X,double Y,Brush Brush) LabelFor(IReadOnlyList<LocatedTrade> items)
         {
-            foreach(var cluster in ChartMarkerAggregation.Cluster(located,x=>x.Trade.Buy,x=>x.Index,x=>x.Trade.Price,start,end,width))
+            var position=items.Average(x=>x.Index);var index=Math.Clamp((int)Math.Round(position),start,end-1);
+            var buys=items.Count(x=>x.Trade.Buy);var sells=items.Count-buys;var buy=buys>=sells;
+            var numbers=items.Select(x=>x.Trade.TradeNumber).Where(n=>n.HasValue).Select(n=>n!.Value).Distinct().Order().ToArray();
+            var prefix=numbers.Length==0?"":numbers.Length==1?$"#{numbers[0]} ":$"#{numbers[0]}~#{numbers[^1]} ";
+            var label=items.Count==1?prefix+(buy?"▲ ":"▼ ")+items[0].Trade.SideLabel+" "+items[0].Trade.Quantity.ToString("N0")+(items[0].Trade.DateOnly?"*":"")
+                :prefix+(buys>0?$"▲ 매수 {buys:N0}건":"")+(buys>0&&sells>0?" · ":"")+(sells>0?$"▼ 매도 {sells:N0}건":"");
+            if(sells>0)
             {
-                var index=Math.Clamp((int)Math.Round(cluster.Position),start,end-1);var brush=cluster.Buy?Red:Blue;
-                var y=Y(cluster.Price??b[index].Close)+(cluster.Buy?12:-27);
-                var numbers=cluster.Items.Select(x=>x.Trade.TradeNumber).Where(n=>n.HasValue).Select(n=>n!.Value).Distinct().Order().ToArray();
-                var numberText=numbers.Length==0?"":numbers.Length<=3?string.Join(",",numbers.Select(n=>"#"+n))+" ":$"#{numbers[0]}~#{numbers[^1]} ";
-                var sides=string.Join(" / ",cluster.Items.Select(x=>x.Trade.SideLabel).Distinct());
-                var bounds=DrawBadge(dc,numberText+(cluster.Buy?"▲ ":"▼ ")+sides+" "+cluster.Count.ToString("N0")+"건",X(index),Math.Clamp(y,top,top+height+35),brush);
-                var representative=cluster.Items.OrderBy(x=>Math.Abs(x.Index-cluster.Position)).ThenBy(x=>x.Trade.Time).First().Trade;
-                markerHitRegions.Add((bounds,representative));
+                if(items.Count>1)
+                {
+                    var exits=items.Where(x=>!x.Trade.Buy).Select(x=>x.Trade.SideLabel).ToArray();var reasons=exits.Distinct().ToArray();
+                    label+=" · "+(reasons.Length==1?reasons[0]:string.Join(" · ",exits.GroupBy(text=>text.Contains("익절")?"익절":text.Contains("손절")?"손절":text.Contains("본전")?"본전":"기타 청산").Select(g=>$"{g.Key} {g.Count():N0}건")));
+                }
+                var sold=items.Where(x=>!x.Trade.Buy).ToArray();if(sold.All(x=>x.Trade.RealizedPnl.HasValue))label+=" · "+DisplayNumber.SignedPrice(sold.Sum(x=>x.Trade.RealizedPnl!.Value));
             }
+            var price=items.Average(x=>x.Trade.Price??b[x.Index].Close);
+            var y=items.All(x=>x.Trade.DateOnly)?top+height+20:Y(price)+(buy?12:-27);
+            return(label,X(position),Math.Clamp(y,top,top+height+35),buy?Red:Blue);
         }
-        else foreach(var item in located)
+        foreach(var group in ChartMarkerAggregation.MergeOverlaps(seeds,items=>{var label=LabelFor(items);return BadgeBounds(label.Label,label.X,label.Y);}))
         {
-            var trade=item.Trade;var index=item.Index;
-            // Daily-only broker reports are annotations, never an invented execution price/time.
-            var label=(trade.TradeNumber is {} number?$"#{number} ":"")+(trade.Buy?"▲ ":"▼ ")+trade.SideLabel+" "+trade.Quantity.ToString("N0")+(trade.DateOnly?"*":"");
-            var y=trade.DateOnly?top+height+20:Y(trade.Price??b[index].Close)+(trade.Buy?12:-25);
-            var bounds=Text(dc,label,X(index)-24,Math.Clamp(y,top,top+height+35),trade.Buy?Red:Blue,14,keepInside:true);
-            markerHitRegions.Add((bounds,trade));
+            var label=LabelFor(group);var bounds=DrawBadge(dc,label.Label,label.X,label.Y,label.Brush);
+            var position=group.Average(x=>x.Index);var representative=group.OrderBy(x=>Math.Abs(x.Index-position)).ThenBy(x=>x.Trade.Time).First().Trade;
+            markerHitRegions.Add((bounds,representative));
         }
         if(EquityCurve is {Count:>0} curve)
         {
@@ -314,11 +323,16 @@ public sealed class CandleChart : FrameworkElement
     /// <summary>Selects an actual fill represented by a label or by the candle underneath it.</summary>
     public bool SelectMarkerAtPoint(Point point)
     {if(MarkerAtPoint(point) is not {} marker)return false;TradeMarkerClicked?.Invoke(marker);return true;}
+    private Rect BadgeBounds(string label,double centerX,double y)
+    {
+        var text=BadgeText(label,Muted);var x=Math.Clamp(centerX-text.Width/2,6,Math.Max(6,ActualWidth-94-text.Width));
+        return new Rect(x-4,y-2,text.Width+8,text.Height+4);
+    }
+    private FormattedText BadgeText(string label,Brush brush)=>new(label,CultureInfo.GetCultureInfo("ko-KR"),FlowDirection.LeftToRight,new Typeface("Malgun Gothic"),14,brush,VisualTreeHelper.GetDpi(this).PixelsPerDip);
     private Rect DrawBadge(DrawingContext dc,string label,double centerX,double y,Brush brush)
     {
-        var text=new FormattedText(label,CultureInfo.GetCultureInfo("ko-KR"),FlowDirection.LeftToRight,new Typeface("Malgun Gothic"),14,brush,VisualTreeHelper.GetDpi(this).PixelsPerDip);
-        var x=Math.Clamp(centerX-text.Width/2,6,Math.Max(6,ActualWidth-94-text.Width));var rect=new Rect(x-4,y-2,text.Width+8,text.Height+4);
-        dc.DrawRoundedRectangle(new SolidColorBrush(Color.FromArgb(225,255,255,255)),new Pen(brush,1),rect,4,4);dc.DrawText(text,new Point(x,y));
+        var text=BadgeText(label,brush);var rect=BadgeBounds(label,centerX,y);
+        dc.DrawRoundedRectangle(new SolidColorBrush(Color.FromArgb(225,255,255,255)),new Pen(brush,1),rect,4,4);dc.DrawText(text,new Point(rect.Left+4,rect.Top+2));
         return rect;
     }
     private Rect Text(DrawingContext dc,string text,double x,double y,Brush brush,double size,bool keepInside=false)

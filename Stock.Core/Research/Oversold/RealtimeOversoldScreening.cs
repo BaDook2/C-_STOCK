@@ -8,7 +8,7 @@ public sealed record RealtimeScreeningStatusRow(
     string Key,string Name,string Code,decimal? Price,decimal? ChangePercent,decimal Proximity,
     int MetConditions,int TotalConditions,string UnmetConditions,string StrategyState,
     DateTimeOffset? LastAnalyzedAt,string DataState,string Error,bool Focused,bool BuySignal)
-{public bool MatchesStrategy {get;init;} public bool MissingConditions {get;init;} public DateTimeOffset? LastQuoteTime {get;init;}}
+{public bool MatchesStrategy {get;init;} public bool NearCandidate {get;init;} public bool MissingConditions {get;init;} public DateTimeOffset? LastQuoteTime {get;init;}}
 public sealed record RealtimeScreeningSnapshot(
     bool Running,bool AutoTradingEnabled,string Status,string ConnectionState,string StrategyName,
     BarSpecification? BarSpecification,IReadOnlyList<RealtimeScreeningStatusRow> Rows)
@@ -95,6 +95,8 @@ public sealed class RealtimeOversoldScreeningService
         }
     }
 
+    public EntryEvaluation? EntrySnapshot(string key)
+    {lock(sync)return rows.TryGetValue(key,out var row)?row.Strategy.LatestEntryEvaluation:null;}
     public event Action<RealtimeScreeningSignal>? SignalRaised;
     public RealtimeOversoldScreeningService(Func<DateTimeOffset>? clock=null)
     {this.clock=clock??(()=>DateTimeOffset.UtcNow);}
@@ -263,13 +265,13 @@ public sealed class RealtimeOversoldScreeningService
             OversoldState.WaitingForRebound=>"집중 감시 · 반등 대기",
             OversoldState.SupportApproached=>"집중 감시 · 지지 접근",
             OversoldState.CrashTriggered=>"집중 감시 · 급락 감지",
-            _ when proximity>=60=>"집중 감시",
+            _ when ScreeningCandidatePolicy.IsNear(evaluation,row.Item.Oversold!.Configuration)=>"근접 후보",
             _=>"관찰 후보"
         };
         var last=row.Context.Last;decimal? change=last?.PreviousClose is >0&&row.Context.Price>0?(row.Context.Price/last.PreviousClose.Value-1)*100:null;
         return new(row.Item.Stock.Key,row.Item.Stock.Name,row.Item.Stock.Symbol,row.Context.Price>0?row.Context.Price:null,change,proximity,met,total,
             unmet.Length==0?"없음":string.Join(", ",unmet),state,row.Strategy.LastAnalyzedAt==default?null:row.Strategy.LastAnalyzedAt,row.DataState,row.Error,state.StartsWith("집중",StringComparison.Ordinal)||buy,buy)
-            {MatchesStrategy=matches,MissingConditions=relevant.Any(c=>c.Outcome is ConditionOutcome.MissingData or ConditionOutcome.NotEvaluated),LastQuoteTime=last?.ExchangeTime};
+            {MatchesStrategy=matches,NearCandidate=row.Enabled&&row.Error==""&&fresh&&ScreeningCandidatePolicy.IsNear(evaluation,row.Item.Oversold!.Configuration),MissingConditions=relevant.Any(c=>c.Outcome is ConditionOutcome.MissingData or ConditionOutcome.NotEvaluated),LastQuoteTime=last?.ExchangeTime};
     }
 
     private static string Outcome(ConditionOutcome outcome)=>outcome switch

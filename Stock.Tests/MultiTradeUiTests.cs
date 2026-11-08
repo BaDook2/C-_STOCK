@@ -1,4 +1,4 @@
-﻿using System.IO;
+using System.IO;
 using System.Runtime.CompilerServices;
 using System.Threading.Channels;
 using System.Windows;
@@ -33,7 +33,7 @@ internal static partial class Program
         var multi=vm.MultiTrading;var actionNotices=new List<string>();multi.NotificationRequested+=actionNotices.Add;multi.Reload();Check(multi.UseMock&&multi.Presets.SequenceEqual(vm.Presets),"multi-trade strategy choices mirror the registered strategies shown in strategy settings");
         multi.UseMock=false;Check(!multi.UseMock&&multi.RunCaption=="실제 계좌 일괄수행","unchecking mock selects only the guarded live route");
         Check(!vm.MultiSessionExists&&feeds.Count==0&&b.Requests.Count==0,"changing mode alone creates no feed or broker orders");
-        multi.SeedSymbols([DailyStock]);multi.Actions["실행"].Execute(null);PumpUntil(()=>vm.MultiSessionExists&&actionNotices.Count>0||multi.Message.Contains("확인"));
+        multi.PublicCustom=true;multi.PublicBarValue="1";multi.PublicBarUnit="분";multi.SeedSymbols([DailyStock]);multi.Actions["실행"].Execute(null);PumpUntil(()=>vm.MultiSessionExists&&actionNotices.Count>0||multi.Message.Contains("확인"));
         Check(vm.MultiSessionExists&&requested.Single().Single().Symbol==DailyStock.Symbol&&b.Requests.Count==0,"selected fake account starts only selected oversold symbol without immediate orders");Check(actionNotices.Count>0,"successful live start publishes a separate popup notice instead of relying on the footer");
         // The fixture starts with one completed warm-up bar.  The default short-crash
         // lookback needs three bars, so close two live minute bars and observe one
@@ -69,7 +69,7 @@ internal static partial class Program
         Check(db.State<string[]>("chart-presets")!.Length>0,"legacy preset storage retained without execution");vm.IsOffline=true;PumpUntil(()=>!vm.Busy);Check(multi.UseMock&&multi.CanToggleMock&&multi.CanUseLiveBudget,"offline transition resets mock while keeping the choice and budget editors enabled");
         Check(vm.CanOpenRealtimePaper&&vm.VirtualTradingHelp.Contains("설정을 편집하고 저장")&&multi.RealtimeAvailabilityText.Contains("공개 현재가"),"offline virtual account offers strategy settings and explains its live data requirement");
         multi.PrepareLaunchMode(true);multi.Save();Check(multi.UseMock&&multi.UseRealtime&&db.State<MultiTradeDrafts>("multi-trade-draft")?.UseRealtime==true,"offline virtual account saves the same realtime strategy draft");
-        string? offlinePaperNotice=null;multi.NotificationRequested+=message=>offlinePaperNotice=message;multi.Actions["실행"].Execute(null);PumpUntil(()=>offlinePaperNotice!=null);Check(offlinePaperNotice!.Contains("공개 현재가·분봉")&&!vm.MultiSessionExists&&feeds.Count==2&&b.Requests.Count==1,"offline fake provider without public minute support reports missing capability and never submits a broker order");multi.PrepareLaunchMode(null);
+        string? offlinePaperNotice=null;multi.NotificationRequested+=message=>offlinePaperNotice=message;multi.Actions["실행"].Execute(null);PumpUntil(()=>offlinePaperNotice!=null);Check(offlinePaperNotice!.Contains("공개 현재가·일봉")&&!vm.MultiSessionExists&&feeds.Count==2&&b.Requests.Count==1,"offline fake provider without public quote support reports missing capability and never submits a broker order");multi.PrepareLaunchMode(null);
         string? unsupportedNotice=null;multi.NotificationRequested+=message=>unsupportedNotice=message;multi.UseMock=false;Check(!multi.UseMock&&multi.Actions["실행"].CanExecute(null),"unsupported actual mode keeps execution clickable so it can explain why it cannot start");multi.Actions["실행"].Execute(null);PumpUntil(()=>unsupportedNotice!=null);Check(unsupportedNotice!.Contains("키움 국내 실계좌"),"unsupported execution publishes an explicit popup reason instead of silently disabling the button");multi.UseMock=true;multi.UseRealtime=false;
         var samsung=new StockItem("005930","삼성전자",Exchange.KRX,"005930","반도체");var hynix=new StockItem("000660","SK하이닉스",Exchange.KRX,"000660","반도체");
         vm.WatchGroups[0].Items.Add(new(samsung));vm.WatchGroups[1].Items.Add(new(samsung));vm.WatchGroups[1].Items.Add(new(hynix));
@@ -88,7 +88,7 @@ internal static partial class Program
         foreach(var size in new[]{(1540d,1040d),(1160d,760d)})
         {
             window.Width=size.Item1;window.Height=size.Item2;vm.ActiveTab=0;
-            foreach(var tab in new[]{1,2,3}){vm.WorkspaceToolTab=tab;window.UpdateLayout();Dispatcher.CurrentDispatcher.Invoke(()=>{},DispatcherPriority.ApplicationIdle);var chart=(CandleChart)window.FindName("PriceChart");Check(chart.ActualHeight>200,"chart stretches at "+size+" tool tab "+tab);Render((FrameworkElement)window.Content,Path.Combine(output,$"tools-{(int)size.Item1}-{tab}.png"));}
+            foreach(var tab in new[]{1,2,3}){vm.WorkspaceToolTab=tab;window.UpdateLayout();Dispatcher.CurrentDispatcher.Invoke(()=>{},DispatcherPriority.ApplicationIdle);var chart=(CandleChart)window.FindName("PriceChart");Check(chart.ActualHeight>200,"chart stretches at "+size+" tool tab "+tab+" · height "+chart.ActualHeight);Render((FrameworkElement)window.Content,Path.Combine(output,$"tools-{(int)size.Item1}-{tab}.png"));}
         }
         var priceChart=(CandleChart)window.FindName("PriceChart");var chartHost=(Grid)priceChart.Parent;var chartLayout=(Grid)chartHost.Parent;Check(chartLayout.RowDefinitions[2].Height.IsStar&&double.IsNaN(priceChart.Height)&&priceChart.VerticalAlignment==VerticalAlignment.Stretch,"chart uses the flexible star row instead of fixed or blank card space");
         vm.WorkspaceToolTab=3;window.UpdateLayout();var box=Descendants(window).OfType<TextBox>().Single(t=>t.GetBindingExpression(TextBox.TextProperty)?.ParentBinding.Path.Path=="RecurringFee");box.ApplyTemplate();window.UpdateLayout();

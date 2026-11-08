@@ -1,4 +1,4 @@
-﻿using System.Windows;
+using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
@@ -28,7 +28,7 @@ public sealed class RawTickChartView:UserControl
         var side=new StackPanel{Width=270};side.Children.Add(new TextBlock{Text="체결 상세 · 한국시간",FontSize=18,FontWeight=FontWeights.Bold,Margin=new Thickness(12)});side.Children.Add(detail);side.Children.Add(new TextBlock{Text="부분 체결은 FIFO로 나누어 표시합니다. 같은 위치의 마커는 클릭할 때 선택 목록을 엽니다. 날짜만 있는 체결은 정확한 틱 마커로 사용하지 않습니다.",TextWrapping=TextWrapping.Wrap,Margin=new Thickness(12),Foreground=Brushes.Gray});DockPanel.SetDock(side,Dock.Right);root.Children.Add(side);
         var grid=new Grid();grid.Children.Add(Chart);grid.Children.Add(loading);root.Children.Add(grid);Content=root;
         Chart.Plot.Axes.Bottom.TickGenerator=new ScottPlot.TickGenerators.NumericAutomatic{LabelFormatter=x=>FormatTime(x)};
-        Chart.Plot.Axes.Left.TickGenerator=new ScottPlot.TickGenerators.NumericAutomatic{LabelFormatter=y=>y.ToString("#,##0.########")};
+        Chart.Plot.Axes.Left.TickGenerator=new ScottPlot.TickGenerators.NumericAutomatic{LabelFormatter=y=>Math.Floor(y).ToString("N0")};
         Chart.Plot.RenderManager.AxisLimitsChanged+=(_,_)=>{if(!internalAxes){axisPending=true;debounce.Stop();debounce.Start();}};
         Chart.PreviewMouseDown+=(_,_)=>{if(model!=null)model.FollowLatest=false;};Chart.PreviewMouseWheel+=(_,_)=>{if(model!=null)model.FollowLatest=false;QueueMarkerRender();};Chart.MouseMove+=Mouse;Chart.PreviewMouseLeftButtonUp+=(_,e)=>{Click(Chart,e);QueueMarkerRender();};
         debounce.Tick+=async(_,_)=>{debounce.Stop();if(axisPending){axisPending=false;await Navigate();}};
@@ -71,7 +71,7 @@ public sealed class RawTickChartView:UserControl
     private void Mouse(object sender,MouseEventArgs e)
     {
         if(rows.Length==0||cross==null)return;var point=Chart.Plot.GetCoordinates(Chart.GetPlotPixelPosition(e));int index=Array.BinarySearch(xs,point.X);if(index<0){index=~index;if(index>0&&(index==xs.Length||point.X-xs[index-1]<=xs[index]-point.X))index--;}index=Math.Clamp(index,0,rows.Length-1);if(index<0)return;
-        var tick=rows[index];cross.Position=new(xs[index],(double)tick.Price);cross.IsVisible=true;hover.Text=$"{tick.Time.ToOffset(TimeSpan.FromHours(9)):yyyy.MM.dd HH:mm:ss.fffffff} · {tick.Price:#,##0.########} · 체결량 {tick.Size:#,##0.########} · 순서 {tick.Sequence:N0} / 행 {tick.Key.RowId:N0}";Chart.Refresh();
+        var tick=rows[index];cross.Position=new(xs[index],(double)tick.Price);cross.IsVisible=true;hover.Text=$"{tick.Time.ToOffset(TimeSpan.FromHours(9)):yyyy.MM.dd HH:mm:ss.fffffff} · {DisplayNumber.Price(tick.Price)} · 체결량 {tick.Size:#,##0.########} · 순서 {tick.Sequence:N0} / 행 {tick.Key.RowId:N0}";Chart.Refresh();
     }
     private void Click(object sender,MouseButtonEventArgs e)=>SelectAtPixel(Chart.GetPlotPixelPosition(e));
     public void SelectAtPixel(ScottPlot.Pixel pixel)

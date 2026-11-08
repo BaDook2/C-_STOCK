@@ -1,23 +1,24 @@
-# 완료 — 2026-11-06 스크리닝 지정봉 체결·선택
+# 진행 — 전략 D 완료 / 별도 Avalonia 1차 이식
 
-- [x] 일반 스크리닝 분·시간봉 상세에서 공통 백테스트 엔진으로 당시 설정/기간의 모형체결과 지지 snapshot을 계산해 표시. 준비 봉 정책은 메인 백테스트와 공유.
-- [x] 우클릭 전후 범위가 같은25봉 이하 차트는 즉시 탐색. 개별/묶음 글자·체결 봉 클릭 시 해당 거래 표 행을 선택·스크롤하고 상세 표시. 오른쪽 표식 잘림 방지.
-- [x] 빌드 경고0·오류0, 전용58개/관련328개/전체1,317개, publish·EXE smoke 종료0/Success/NoBrokerCalls=true. Windows 실제 마우스 확인. 실제 주문/키 변경 없음.
-- [x] v0.1.14/bb1d510 공개. [Actions42183510638](https://github.com/BaDook2/C-_STOCK/actions/runs/42183510638) 빌드0경고·0오류, 전체1,317개/배포 EXE smoke/Release 성공. 전체 검사21분31초, job23분19초.
-- [x] 공개 EXE checksum/자산 digest/실제 SHA256 일치, 다운로드 EXE smoke 종료0/Success/NoBrokerCalls=true. 루트와 release/Stock.exe도 동일 공개 파일로 교체·해시 대조 완료.
+최신 E1~E5(2026-11-08): 미완료부터 완성하라는 답변에 따라 보안 저장/기본 연결, 실제 주문·취소·체결/기존 실전 batch, 일봉 가상 checkpointv2·보호 재개를 구현했다. 현재 source/검증 정본은 docs/avalonia/TASKS.md와 HANDOFF.md. build0/0·Core192·Avalonia273·디자인18·WPF1652·실제공개28 및 최종C162후보 일반 검색4회/백테스트·팬·클릭/달력·손익색 성공. GitHub CI/공개 다운로드 검증 전이며 기존 Stock.exe E433...1934와 사용자 자료는 유지 중이다. 실제 Mac/실제 증권사/돈 주문 미검증. 아래 옛 미구현·답변 대기/사용량 제한 기록보다 최신 상태를 우선한다.
 
-## 근거·배포
+최신(2026-11-08 D3): 사용자가 Avalonia 익절/손절 색상·최종 검수 후 Stock.exe 교체/Release를 조건부 요청했다. sibling stock_avalonia에서 색상·전체 검사와 실행 후보까지 완료했으나 실계좌/키 영속/일봉 자동 가상 실행·복원 누락을 확인해 교체 범위 답변을 기다린다. 원본 EXE/원격은 유지. 정본은 sibling TASKS/HANDOFF와 docs/RELEASE_READINESS_20261108.md. 이전의 주간40% 중단 조건은 사용자가 해제했다.
 
-- docs/verification/ScreeningTradeChart-2026-11-06.md, docs/verification/Release-v0.1.14.md.
-- 로컬 검증 EXE: publish/win-x64/Stock.exe, 80,835,673 bytes / SHA256 FDD5538DA55E444BC3F5AB42AF27A75543640C6E205D9EEC2F42E89364A915B4.
-- [최신 릴리즈](https://github.com/BaDook2/C-_STOCK/releases/tag/v0.1.14), [Stock.exe](https://github.com/BaDook2/C-_STOCK/releases/download/v0.1.14/Stock.exe). 공개/루트/release EXE80,868,637 bytes / SHA256 77A647E6F86ECA9C069B991C31FAD2BC35C9EB921F11C6724766422A46F8B7DB. 이전 루트 파일은 artifacts에 보존했다.
+최신 사용자: 하던 일을 먼저 끝내고 원본 STOCK을 보존한 채 sibling stock_avalonia로 Mac 개발용 전환. 두 작업 전체에서 주간잔여40% 하한 유지. GitHub 게시 요청 없음. 실계좌 주문 명시 활성화 전 실행 금지.
 
-## 유지할 미확정·제한
+- [x] P0~P5 범용 당일매매 코어 + 전략 D: 설정/causal 지표/신호/계좌/원본·봉 재생/성과·검사.
+- [x] P6 WPF 설정/연구/가상 실행·차트/기록·긴급중지·회귀·루트 Stock.exe 갱신.
+- [~] P7 별도 `C:/Users/wkdru/Desktop/C#/stock_avalonia`: Avalonia1차 이식/Windows 실행/양 Mac CPU 교차 빌드 완료. 실제 Mac 실행·Keychain·실계좌 주문 UI/대사·일부 기존 화면/차트 UX는 미완료.
+- [!] 실제 주문 어댑터/실계좌 활성화는 별도 사용자 지시 전 금지.
+- [!] Mac 실행환경이 없어 실제 Mac 검증은 아직 할 수 없음. 원본 WPF는 유지한다.
+- [!] 이전 SQLite 최초 손상 사건 미확정. 현재 작업에서 원본 DB 변경/복제/복구하지 않음. docs/maintenance/Storage.md 참조.
 
-- [!] 09:18/09:20 최초 SQLite11의 유발 사건은 재현/확정되지 않았다. 원본/실패 사본4개/최종 실제 DB의 무결성·JSON 정상. 새 증거 없이 정상 DB를 초기화·재구축·수리하지 않는다. docs/maintenance/Storage.md 참고.
-- 실계좌 주문/실제 키 변경은 실행하지 않았다. 테스트는 격리 DB/가짜 증권사. 과거 상태·위험 미확인은 실제 주문 승인으로 통과시키지 않는다.
-- 체결이 발생하지 않은 결과에 매매 표식을 만들지 않는다. 국내390분 정규장 내7~12시간 완성 봉이나 제공자가 반환하지 않은 분봉을 다른 자료로 가장하지 않는다.
+## 최신 상태 — 2026-11-08
 
-## 완료 기록
+원본 WPF 전체1651 + 새 Core192 + D WPF13 성공, Release0경고0오류, 단일EXE 격리 smoke 성공. 루트/release/publish Stock.exe 갱신. SHA256 E433834BC4DAFB369723F5E9D60161E14B17B27E09700E318F1A8DB4354F1934 (80,983,144bytes). 이전 exe artifacts/before-strategy-d-20261108-000540에 보존. docs/ui/StrategyD.md 및 docs/verification/StrategyD-Progress.md.
 
-현재 요청은 완료됐다. 다음 요청이 없으면 동일 검사/태그/릴리즈를 반복하지 않는다. 코드와 검증은 docs/verification/ScreeningTradeChart-2026-11-06.md, 공개 배포는 Release-v0.1.14.md를 확인한다. 실제 주문/키 변경/정상 DB 수리는 실행하지 않았다.
+별도 Avalonia: .NET10/Avalonia12.1.5/ScottPlot5.1.59, Core소스80개 원본과 해시 차이0. 원본 DB/API키/개인설정/.git 미복제. 검색/시세/일주월/분시간차트·61개/JSON·공통 백테스트·일반/실시간 스크리닝·D·관심/시장/정기매수·기록·계좌조회 이식. Release0/0, portable192, 실제 AXAML Headless74 성공. Windows self-contained EXE두 번 native 실행 Exit0/Success/NoBrokerCalls. Mac arm64/x64 publish와 apphost/native 파일 검사 성공; 실제 Mac은 미검증.
+
+실제 수정 파일·기능 경계·검사·재개는 sibling stock_avalonia/AGENTS.md → TASKS.md → HANDOFF.md → docs/IMPLEMENTATION.md/VERIFICATION.md. Mac Keychain·실계좌 주문 전송 UI/대사·일봉 다음날 가상주문·보유 복원·일부 화면 동등성은 남았다. 새 루트 Stock.Avalonia.exe는 원본 Stock.exe와 다른 앱이다. GitHub push/tag/release 없음. 주간잔여 직전70%; 재개 전 새로 조회,40% 이하 중지.
+
+과거 작업 로그는 docs/history/2026-11-08-TASKS-before-Avalonia-handoff.md에 보존했다. 옛 '회귀 진행 중/아직 폴더 미생성/예전 EXE' 문장은 현재 상태가 아니다.

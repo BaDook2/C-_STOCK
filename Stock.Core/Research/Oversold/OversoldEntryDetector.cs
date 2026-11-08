@@ -1,6 +1,7 @@
 namespace Stock.Core.Research.Oversold;
 
 public enum ConditionOutcome { Passed,Failed,NotEvaluated,MissingData,Disabled }
+public sealed record EntryDetectorState(SupportCluster? Approach,decimal? Low,int ApproachedAt,int Observations,int ApproachedObservation,DateOnly? Triggered);
 public sealed record ConditionEvaluation(string Condition,ConditionOutcome Outcome,string Value,string Threshold,string Reason,bool Diagnostic=false);
 public sealed record EntryEvaluation(bool Enter,OversoldState State,string Reason,DailyIndicators Indicators,SupportCluster? Selected,SupportCluster[] Clusters,ConditionEvaluation[] Conditions,decimal? ReboundLow,DateOnly? TriggerDate)
 { public bool TechnicalCandidate {get;init;} }
@@ -11,6 +12,12 @@ public sealed class OversoldEntryDetector
     private SupportCluster? approach;private decimal? approachLow;private int approachedAt=-1,observations,approachedObservation;private DateOnly? triggered;
     public decimal? ReboundLow=>approachLow;
     public DateOnly? TriggerDate=>triggered;
+    public EntryDetectorState Capture()=>new(approach,approachLow,approachedAt,observations,approachedObservation,triggered);
+    public void Restore(EntryDetectorState value)
+    {
+        if(value.Observations<0||value.ApproachedObservation<0||value.ApproachedAt< -1||value.Approach!=null&&value.Low is not >0)throw new InvalidOperationException("보관된 진입 후보 상태가 올바르지 않습니다.");
+        approach=value.Approach;approachLow=value.Low;approachedAt=value.ApproachedAt;observations=value.Observations;approachedObservation=value.ApproachedObservation;triggered=value.Triggered;
+    }
     public void Reset(){approach=null;approachLow=null;triggered=null;approachedAt=-1;}
     public void Observe(PriceBar? bar,int sessionIndex,OversoldConfig config)
     {

@@ -1,4 +1,4 @@
-﻿using Stock.Core.Trading;
+using Stock.Core.Trading;
 using Config=Stock.Core.Research.Oversold.OversoldConfig;
 namespace Stock.Core.Research.Oversold;
 
@@ -31,6 +31,7 @@ public static partial class OversoldParameterMetadata
         var section=Sections.Single(s=>s.Scope==member.Scope);
         var usage=metadata.Key switch
         {
+            nameof(Config.ShowNearCandidates) or nameof(Config.MinimumCandidateProximity)=>"일반/실시간 스크리닝 후보 표시 전용입니다. 실제 진입·청산 조건과 주문 승인은 변경하지 않습니다. 전략별 JSON과 실행 snapshot에 보존합니다.",
             nameof(Config.InitialCapital)=>"독립 모형 계좌의 현금과 성과 기준입니다. 스크리닝에서도 초기 현금이 총 예정 투자금 이상인지 검증합니다(초기 현금 ≥ 예정 투자금). 스크리닝의 진입 후보 신호에는 현금 체결 계산을 사용하지 않습니다.",
             nameof(Config.CommissionPercent) or nameof(Config.TaxPercent) or nameof(Config.SlippagePercent)=>"백테스트의 모형 체결가격·정수 매수 수량·잔액·손익에 적용합니다. 현재 스크리닝은 체결 없이 진입 신호만 확인하므로 후보 판정에 사용하지 않습니다. 실계좌의 실제 청구 비용을 변경하지 않습니다.",
             nameof(Config.TouchPolicy)=>"손절·익절 수치를 정하는 전략 조건과 달리, 그 수치에 도달했는지를 일봉 고저가 또는 확정 종가로 판단하는 모형 가정입니다. 비상손절·익절·추적 손절 감지에 적용하며, 최초 지지 하단 이탈은 언제나 종가로 판단합니다. 현재 스크리닝은 보유 포지션이 없어 이 정책을 사용하지 않습니다. 실제 장중 체결 감지나 주문 방식 설정이 아닙니다.",

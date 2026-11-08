@@ -25,13 +25,13 @@ public sealed partial class WorkspaceViewModel
     private TradingSettings tickSettings=new();
     public ObservableCollection<SettingField> TickFields {get;}=[];
     public string TickStatus {get;private set;}="실제 체결·호가가 필요한 전략입니다. 키 설정 후 틱을 선택하세요.";
-    public string[] ChartPeriodOptions {get;}=ChartPeriods.Intervals.Select(n=>n+"틱").Concat(Enumerable.Range(1,60).Select(n=>n+"분")).Concat(Enumerable.Range(1,12).Select(n=>n+"시")).Concat(["일봉","주봉","월봉"]).ToArray();
+    public string[] ChartPeriodOptions {get;}=Enumerable.Range(1,59).Select(n=>n+"분").Concat(Enumerable.Range(1,12).Select(n=>n+"시")).Concat(["일봉"]).ToArray();
     public bool IsTick=>ChartPeriods.Intraday(ChartPeriod);
     public bool TickSelected {get=>IsTick;set{if(value)ChartPeriod="1틱";}}
     public bool DailySelected {get=>ChartPeriod=="일봉";set{if(value)ChartPeriod="일봉";}}
     public bool WeeklySelected {get=>ChartPeriod=="주봉";set{if(value)ChartPeriod="주봉";}}
     public bool MonthlySelected {get=>ChartPeriod=="월봉";set{if(value)ChartPeriod="월봉";}}
-    public string ChartPeriod {get=>chartPeriod;set{if(value=="틱")value="1틱";if(chartPeriod==value||Busy||Replaying||!ChartPeriodOptions.Contains(value))return;if(ChartPeriods.Intraday(value)&&!(ChartPeriods.Minutes(value)>0?CanUseMinutes:CanUseIntraday)){TickStatus=IntradayHelp;Changed(nameof(TickStatus));Changed(nameof(ChartMessage));return;}chartPeriod=value;Changed();Changed(nameof(IsTick));Changed(nameof(TickSelected));Changed(nameof(DailySelected));Changed(nameof(WeeklySelected));Changed(nameof(MonthlySelected));Changed(nameof(StockDetail));Changed(nameof(SelectedTickInterval));Changed(nameof(SelectedMinuteInterval));Changed(nameof(ChartMessage));NotifyChartBarSelection();ChartBars=visibleDaily;if(ChartPeriods.Intraday(value))BeginIntraday();else if(IsOnline&&credentials!=null)StartTicks();else StopTicks();Refresh();}}
+    public string ChartPeriod {get=>chartPeriod;set{if(value=="틱")value="1틱";if(chartPeriod==value||Busy||Replaying||!ChartPeriodOptions.Contains(value))return;if(IsOffline&&value!="일봉")return;if(ChartPeriods.Intraday(value)&&!(ChartPeriods.Minutes(value)>0?CanUseMinutes:CanUseIntraday)){TickStatus=IntradayHelp;Changed(nameof(TickStatus));Changed(nameof(ChartMessage));return;}chartPeriod=value;Changed();Changed(nameof(IsTick));Changed(nameof(TickSelected));Changed(nameof(DailySelected));Changed(nameof(WeeklySelected));Changed(nameof(MonthlySelected));Changed(nameof(StockDetail));Changed(nameof(SelectedTickInterval));Changed(nameof(SelectedMinuteInterval));Changed(nameof(ChartMessage));NotifyChartBarSelection();SelectRangeForChartPeriod();ChartBars=visibleDaily;if(ChartPeriods.Intraday(value))BeginIntraday();else if(IsOnline&&credentials!=null)StartTicks();else StopTicks();Refresh();}}
     public string MarketStatus {get=>marketStatus;private set{marketStatus=value;Changed();}}
     public MarketQuote? Kospi {get;private set;}
     public MarketQuote? Kosdaq {get;private set;}
@@ -73,9 +73,16 @@ public sealed partial class WorkspaceViewModel
     }
     private void BuildTickFields(){TickFields.Clear();foreach(var (name,target) in new (string,object)[]{("① 호가 스캘핑",tickSettings.Scalping),("② 틱 박스권",tickSettings.Box),("③ 틱 급락 반등",tickSettings.Rebound),("지지선 · 실제 틱 매물대",tickSettings.Analysis),("기존 공통 리스크",tickSettings.Risk),("기존 주문 모델",tickSettings.Execution)})foreach(var p in target.GetType().GetProperties().Where(p=>p.GetCustomAttribute<SettingAttribute>()!=null))TickFields.Add(new(target,p,true){GroupLabel=name});}
     private void ChangeMode(bool value)
-    {online=value;multiTrading?.ResetToMock();ResetConfiguredPractice();if(!value&&ChartPeriods.Intraday(chartPeriod)){chartPeriod="일봉";ChartBars=visibleDaily;Changed(nameof(ChartPeriod));Changed(nameof(DailySelected));Changed(nameof(IsTick));Changed(nameof(SelectedTickInterval));Changed(nameof(SelectedMinuteInterval));Changed(nameof(ChartMessage));}paper=null;replayIndex=-1;Trades.Clear();if(!value&&WorkspaceToolTab==0)WorkspaceToolTab=1;else if(value&&WorkspaceToolTab==1)WorkspaceToolTab=0;Changed(nameof(IsOnline));Changed(nameof(IsOffline));Changed(nameof(ScreenDaily));Changed(nameof(ScreenCustomBars));Changed(nameof(ShowScreenCustomBars));Changed(nameof(CanAutoTradeRealtimeScreening));Changed(nameof(BacktestDaily));Changed(nameof(BacktestCustomBars));Changed(nameof(BacktestBarDescription));Changed(nameof(ModeDescription));Changed(nameof(OrderHeading));Changed(nameof(ConnectedAccountText));Changed(nameof(PaperSummary));ReloadTradeMarkers();Refresh();if(dataset!=null)StartDailyQuotes(dataset.Stock);}
+    {online=value;multiTrading?.ResetToMock();ResetConfiguredPractice();if(!value&&chartPeriod!="일봉"){chartPeriod="일봉";SelectRangeForChartPeriod();ChartBars=visibleDaily;NotifyChartBarSelection();Changed(nameof(ChartPeriod));Changed(nameof(DailySelected));Changed(nameof(IsTick));Changed(nameof(SelectedTickInterval));Changed(nameof(SelectedMinuteInterval));Changed(nameof(ChartMessage));}paper=null;replayIndex=-1;Trades.Clear();if(!value&&WorkspaceToolTab==0)WorkspaceToolTab=1;else if(value&&WorkspaceToolTab==1)WorkspaceToolTab=0;Changed(nameof(IsOnline));Changed(nameof(IsOffline));Changed(nameof(ScreenDaily));Changed(nameof(ScreenCustomBars));Changed(nameof(ShowScreenCustomBars));Changed(nameof(CanAutoTradeRealtimeScreening));Changed(nameof(BacktestDaily));Changed(nameof(BacktestCustomBars));Changed(nameof(BacktestBarDescription));Changed(nameof(ModeDescription));Changed(nameof(OrderHeading));Changed(nameof(ConnectedAccountText));Changed(nameof(PaperSummary));ReloadTradeMarkers();Refresh();if(dataset!=null)StartDailyQuotes(dataset.Stock);}
     private Task EnterOnline()
     {
+        if(suspendedConnection is {} savedSession)
+        {
+            suspendedConnection=null;connection=savedSession.Connection;credentials=connection.Brokerage==Brokerage.Kiwoom?connection.Kiwoom():null;
+            broker=savedSession.Broker;session=savedSession.Session;ChangeMode(true);
+            Replace(Orders,session.Orders);Replace(Holdings,session.Balance?.Holdings??[]);AccountInfo=savedSession.AccountInfo;
+            Changed(nameof(ConnectedAccountText));return Task.CompletedTask;
+        }
         BrokerConnection? saved=null;
         try{saved=defaultConnectionLoader?.Invoke();}catch{ /* A damaged saved key falls back to the normal key dialog. */ }
         return ConfigureKeys(true,saved);
@@ -83,6 +90,7 @@ public sealed partial class WorkspaceViewModel
     /// <summary>실전 서버의 인증과 계좌 확인이 성공한 뒤에만 온라인 모드를 허용합니다.</summary>
     public async Task PrepareCredentialReset(Brokerage? affected)
     {
+        if(suspendedConnection is {} parked&&(affected==null||parked.Connection.Brokerage==affected)){suspendedConnection=null;await parked.Session.Revoke();parked.Broker.Dispose();}
         if(affected!=null&&connection?.Brokerage!=affected)return;
         // Block before awaiting feed/cancellation completion. Durable pending-order records remain.
         liveBatch?.RequestStop(null,"API 키 초기화 · 신규 주문 차단");
@@ -92,6 +100,7 @@ public sealed partial class WorkspaceViewModel
     }
     private async Task ConfigureKeys(bool enterOnline,BrokerConnection? supplied=null)
     {
+        if(suspendedConnection is {} parked){suspendedConnection=null;await parked.Session.Revoke();parked.Broker.Dispose();}
         if(session is {} oldSession)await oldSession.Revoke();await StopRealtimeScreening(true);await StopMulti();replayTimer.Stop();Replaying=false;StopTicks();Disconnect();ChangeMode(false);credentials=null;connection=null;
         var legacy=supplied==null&&connectionPrompt==null?prompt():null;
         var c=supplied??(connectionPrompt!=null?connectionPrompt():legacy==null?null:new BrokerConnection{Brokerage=Brokerage.Kiwoom,AppKey=legacy.AppKey,Secret=legacy.SecretKey});

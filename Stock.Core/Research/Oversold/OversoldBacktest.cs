@@ -1,4 +1,4 @@
-﻿using Stock.Core.Trading;
+using Stock.Core.Trading;
 namespace Stock.Core.Research.Oversold;
 /// <summary>One symbol, sequential point-in-time decisions and next tradable opening fills.</summary>
 public sealed partial class OversoldBacktest
@@ -10,11 +10,11 @@ public sealed partial class OversoldBacktest
     }
     public OversoldResult Run(BarDataset dataset,OversoldConfig requested,DateOnly from,DateOnly to,HistoricalFacts input,CancellationToken token=default,IReadOnlyList<ISupportProvider>? supportProviders=null)
     {
-        var c=requested.Clone();c.Validate();if(from>to)throw new InvalidOperationException("시작일은 종료일 이하여야 합니다.");if(dataset.Stock.Exchange!=Exchange.KRX)throw new InvalidOperationException("국내 일반주식 일봉 전용입니다.");var facts=input.Snapshot();
+        var c=requested.Clone();c.Validate();if(from>to)throw new InvalidOperationException("시작일은 종료일 이하여야 합니다.");if(dataset.Stock.Exchange!=Exchange.KRX&&!c.UsePriceOnlyBacktest)throw new InvalidOperationException("해외 일봉 백테스트는 과거 종목상태·위험 자료가 없어 가격자료 검증 모드를 켠 연구용으로만 지원합니다. 금액과 가격 단위는 USD입니다.");var facts=input.Snapshot();
         var result=new OversoldResult{Stock=dataset.Stock,From=from,To=to,Configuration=c,Source=dataset.Source+" / "+facts.Source,DataHash=TradingStore.Hash(Serialization.Pack(dataset.CompletedBars)),FactsHash=TradingStore.Hash(Serialization.Pack(facts)),Cash=c.InitialCapital};
         var bars=dataset.CompletedBars.OrderBy(b=>b.Time).ToArray();foreach(var b in bars)b.Validate();if(bars.GroupBy(DailyDates.Of).Any(g=>g.Count()>1))throw new InvalidOperationException("같은 날짜의 일봉이 중복되었습니다.");
         var declared=facts.Sessions.Where(s=>s.Date>=from&&s.Date<=to).ToDictionary(s=>s.Date);
-        var derived=bars.Select(DailyDates.Of).Where(d=>d>=from&&d<=to&&!declared.ContainsKey(d)).Distinct().Select(d=>new DailyMarketSession(d,new DateTimeOffset(d.ToDateTime(new TimeOnly(9,0)),TimeSpan.FromHours(9)),new DateTimeOffset(d.ToDateTime(new TimeOnly(15,30)),TimeSpan.FromHours(9)))).ToArray();
+        var derived=bars.Select(DailyDates.Of).Where(d=>d>=from&&d<=to&&!declared.ContainsKey(d)).Distinct().Select(d=>ResearchMarketSession.For(d,dataset.Stock.Exchange)).ToArray();
         var sessions=declared.Values.Concat(derived).OrderBy(s=>s.Date).ToArray();
         if(derived.Length>0)result.Notices.Add($"실제 완성 일봉 {derived.Length:N0}개의 날짜로 거래 세션을 구성했습니다. 평일이나 없는 봉은 임의 생성하지 않았습니다.");
         if(sessions.Length==0){result.Notices.Add("선택 기간에 완성 일봉과 검증된 거래 세션이 없습니다.");result.Performance=PerformanceCalculator.Calculate(c.InitialCapital,[],[],c.AnnualRiskFreePercent,c.AnnualTradingDays);return result;}
@@ -33,7 +33,7 @@ public sealed partial class OversoldBacktest
         {
             token.ThrowIfCancellationRequested();var session=sessions[day];while(cursor<bars.Length&&DailyDates.Of(bars[cursor])<session.Date)Append(bars[cursor++]);var bar=cursor<bars.Length&&DailyDates.Of(bars[cursor])==session.Date?bars[cursor]:null;
             if(bar!=null&&bar.Time>session.Close)throw new InvalidOperationException("일봉 확정 시각이 입력한 시장 종가 시각보다 늦습니다.");
-            DailySecurityStatus? StatusAt(DateTimeOffset at)=>facts.Status(dataset.Stock.Symbol,session.Date,at)??(c.UsePriceOnlyBacktest?new(dataset.Stock.Symbol,session.Date,at,HistoricalBoard.Kospi,HistoricalSecurityKind.Common,false,false):null);
+            DailySecurityStatus? StatusAt(DateTimeOffset at)=>facts.Status(dataset.Stock.Symbol,session.Date,at)??(c.UsePriceOnlyBacktest?new(dataset.Stock.Symbol,session.Date,at,dataset.Stock.Exchange==Exchange.KRX?HistoricalBoard.Kospi:HistoricalBoard.Nasdaq,HistoricalSecurityKind.Common,false,false):null);
             bool? RiskAt(DateTimeOffset at)=>facts.Risk(dataset.Stock.Symbol,session.Date,at)??(c.UsePriceOnlyBacktest?false:null);
             var openStatus=StatusAt(session.Open);
             if(pending!=null&&bar!=null&&openStatus is {Suspended:false})

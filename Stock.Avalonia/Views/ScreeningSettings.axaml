@@ -1,0 +1,40 @@
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Class="Stock.Desktop.ScreeningSettings">
+    <StackPanel Spacing="12" IsVisible="{Binding Editable}" IsEnabled="{Binding SettingsEnabled}">
+        <StackPanel Orientation="Horizontal">
+            <RadioButton Content="시장 상위 종목" IsChecked="{Binding UseMarketTop,Mode=TwoWay}" />
+            <RadioButton Content="관심종목" IsChecked="{Binding UseWatchlist,Mode=TwoWay}" />
+        </StackPanel>
+        <WrapPanel>
+            <ComboBox ItemsSource="{Binding Markets}" SelectedItem="{Binding Market,Mode=TwoWay}" Width="150" Height="40" Margin="0,0,10,0" />
+            <TextBlock Text="분야" VerticalAlignment="Center" Margin="2,0,8,0" />
+            <ComboBox ItemsSource="{Binding Sectors}" SelectedItem="{Binding Sector,Mode=TwoWay}" Width="190" Height="40" Margin="0,0,12,0" />
+            <StackPanel Orientation="Horizontal" IsVisible="{Binding UseMarketTop}" Spacing="8" Margin="0,0,12,0">
+                <TextBlock Text="시장별 상위" VerticalAlignment="Center" />
+                <ComboBox ItemsSource="{Binding TopCounts}" SelectedItem="{Binding TopCount,Mode=TwoWay}" Width="85" Height="40" />
+            </StackPanel>
+            <ItemsControl ItemsSource="{Binding $parent[Window].DataContext.WatchGroups}" IsVisible="{Binding UseWatchlist}" Margin="0,0,12,0">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <StackPanel Orientation="Horizontal" />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <CheckBox Content="{Binding Name}" IsChecked="{Binding IncludeInScreening,Mode=TwoWay}" />
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <Button Content="목록 · 분야 불러오기" Command="{Binding LoadCatalog}" Classes="secondary" Height="40" Margin="0,0,8,0" />
+            <TextBlock Text="전략" VerticalAlignment="Center" Margin="0,0,8,0" />
+            <ComboBox ItemsSource="{Binding Strategies.Names}" SelectedItem="{Binding Strategies.Selected,Mode=TwoWay}" Width="210" Height="40" Margin="0,0,10,0" />
+            <Button Content="전략 D 스크리닝·가상" Command="{Binding $parent[Window].DataContext.OpenDayTradingScreen}" Classes="secondary" Height="40" Margin="0,0,10,0" />
+            <TextBlock Text="데이터 기준" VerticalAlignment="Center" Margin="0,0,8,0" />
+            <RadioButton Content="일봉" IsChecked="{Binding Daily,Mode=TwoWay}" Margin="0" />
+            <StackPanel Orientation="Horizontal" IsVisible="{Binding $parent[Window].DataContext.Online}" IsEnabled="{Binding CanCustom}">
+                <RadioButton Content="지정 봉" IsChecked="{Binding Custom,Mode=TwoWay}" />
+                <ComboBox ItemsSource="{Binding Values}" SelectedItem="{Binding Value,Mode=TwoWay}" Width="65" MinWidth="0" Height="40" />
+                <ComboBox ItemsSource="{Binding Units}" SelectedItem="{Binding Unit,Mode=TwoWay}" Width="78" MinWidth="0" Height="40" Margin="4,0" />
+            </StackPanel>
+        </WrapPanel>
+    </StackPanel>
+</UserControl>

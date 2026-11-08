@@ -119,7 +119,7 @@ public sealed class KiwoomBroker : IAccountBroker,IExecutionHistoryBroker,IMinut
             foreach(var row in Rows([page],list))
             {
                 observedTimes.Add(Text(row,"cntr_tm"));
-                if(oldestNeeded is {} oldest&&DateTime.TryParseExact(Text(row,"cntr_tm"),"yyyyMMddHHmmss",CultureInfo.InvariantCulture,DateTimeStyles.None,out var parsed)&&DateOnly.FromDateTime(parsed)<=DateOnly.FromDateTime(oldest.DateTime))return true;
+                if(oldestNeeded is {} oldest&&DateTime.TryParseExact(Text(row,"cntr_tm"),"yyyyMMddHHmmss",CultureInfo.InvariantCulture,DateTimeStyles.None,out var parsed)&&new DateTimeOffset(parsed,TimeSpan.FromHours(9))<=oldest)return true;
             }
             return minimumRows>0&&observedTimes.Count>=minimumRows;
         }

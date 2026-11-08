@@ -1,22 +1,14 @@
 # 테스트 기록
 
-## 화면 목적
-저장된 과거 백테스트를 선택하고 결과·체결 내역과 작업 로그를 확인한다.
+백테스트와 일반/실시간 스크리닝을 실행 한 번당 한 행으로 모아 보여준다. 실행일(한국시간) 시작/종료일로 필터링한다. 기본 기간은 최근 한 달이며 날짜를 넓히면 이전 기록도 조회한다. 표의 종류/종목·전략/테스트 기간·봉/결과를 확인하고 행 더블클릭 또는 `상세 · 차트 보기`를 누른다.
 
-## UI 기능
+- 백테스트: 기존 `chart-run:`과 `OversoldResult`를 그대로 읽고 저장된 가격 원본·체결·지지 snapshot으로 기존 ScreeningChartDialog를 연다. 재계산/현재 시세 조회로 이전 결과를 바꾸지 않는다. 표식/거래 행 선택과 상세를 재사용한다.
+- 일반 스크리닝: 기존 `oversold-screen:` 실행 당시 설정·조건 집계·전체 평가 종목을 ScreeningResultDialog로 연다. 종목을 선택하면 당시 원본의 차트를 연다. 후보가0개여도 상세를 확인할 수 있다.
+- 실시간 스크리닝: 시작 한 번당 중지/종료 시 한 기록을 저장한다. 당시 완성봉·종목별 마지막 평가·근접도와 전략/봉을 보존한다. 중지 시 자동 보유분 청산은 하지 않으며 기존 보호 관리 정책은 유지한다.
+- 저장소 점검과 활동 로그는 유지한다. 읽기 오류는 로그/안내로 표시하고 기록이나 DB를 초기화하지 않는다.
 
-| UI | 기능 | 실행 코드 |
-|---|---|---|
-| 결과 요약 | 손익·수익률·최대 낙폭·수수료·보유 수량 | SelectedRun.Summary |
-| 가상 체결 표 | 한국시간, 매수/매도, 수량, 가격, 비용, 실현손익, 이유 | SelectedRun.Fills / BarFill.KoreaTime |
-| 활동 기록 | 검색·조회 실패·전략 실행 등 한국시간 기록 | Logs / Log |
-| 저장소 점검 | 실제 앱 DB의 전체 무결성과 UTF-8/JSON을 읽기 전용 검사하고 별도 보고서를 저장 | CheckStorage / StorageDiagnostics |
+가격 자료는 기존 SQLite state 구조를 재사용한다. 메인 전략 백테스트는 `oversold-bars-snapshot:DataHash`를 읽는다. 스크리닝은 `screen-data:Hash`에 원본 StrategyBar 배열을 보관하고 `screen-bars:실행ID:종목:봉`이 참조한다. 동일 자료는 해시로 중복 제거한다. 최초 계산한 차트/체결/지지 snapshot은 `screen-chart:실행ID:종목`에 보관하며 설정·범위·봉이 같은 경우만 재사용한다. 실시간 종목별 사실은 별도 `screen-facts:`로 유지한다.
 
-## 동작 과정
-BarPaperAccount → UpdatePaper → Trades / ResultInfo → 화면.
-상단 목록은 SQLite의 chart-run: 기록을 최신 저장 순으로 불러온다. 앱을 재시작해도 과거 기록을 선택할 수 있다. 기록 선택은 현재 가상 계좌·차트를 변경하지 않는다. 차트 아래 실행 버튼 바로 오른쪽에는 현재 테스트의 손익·수익률·낙폭·체결 수가 즉시 표시된다. 이전 형식의 저장 기록도 읽으며 손상된 개별 기록은 건너뛴다.
+옛 기록에 차트 원본이 없으면 당시 결과를 현재 가격으로 가장하지 않고 원본 부재와 저장 요약을 안내한다. 새 테스트는 원본도 보관한다. 기존 화면의 자동 미선택 정책 때문에 빈 요약으로 보이던 기록은 새 표에서 바로 확인할 수 있다.
 
-## 관련 코드
-
-저장소 점검 결과의 DB 절대 경로를 확인한다. 오류가 발생하면 `storage-diagnostics/failure-*.json`에 원본 오류 코드와 독립 연결 검사가 남는다. 초기화/수리를 자동 실행하지 않는다. [운영 절차](../maintenance/Storage.md).
-MainWindow.xaml, WorkspaceViewModel.cs, ChartStrategies.cs, TradingStore.cs.
+관련: ResearchHistoryWorkspace.cs, MainWindow.xaml(.cs), ScreeningNavigation.cs, OversoldWorkspace.cs. 저장소 운영은 ../maintenance/Storage.md.

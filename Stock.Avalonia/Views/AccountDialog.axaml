@@ -1,0 +1,57 @@
+<Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="clr-namespace:Stock.Desktop" x:Class="Stock.Desktop.AccountDialog" Title="실제 계좌 키 설정" Width="690" Height="790" MinHeight="660" Background="White" WindowStartupLocation="CenterOwner">
+    <Window.Resources>
+        <local:BrokerLogoConverter x:Key="BrokerLogo" />
+    </Window.Resources>
+    <DockPanel Background="White">
+        <StackPanel DockPanel.Dock="Bottom" Margin="28,8,28,20" Spacing="8">
+            <TextBlock Text="Windows 계정 암호화 / Mac Keychain으로 저장합니다. 인증과 계좌 조회가 성공한 키만 저장합니다." Classes="muted" FontSize="11" TextWrapping="Wrap" />
+            <Button Content="API 키 초기화" Command="{Binding ResetSelected}" HorizontalAlignment="Right" />
+            <Button Content="선택한 계좌 연결" Command="{Binding Connect}" HorizontalAlignment="Stretch" />
+            <ProgressBar IsIndeterminate="True" IsVisible="{Binding Busy}" Height="3" />
+        </StackPanel>
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="28" Spacing="10">
+                <DockPanel>
+                    <Button DockPanel.Dock="Right" Content="모든 API키 초기화" Command="{Binding ResetAll}" />
+                    <TextBlock Text="어느 계좌를 연결할까요?" FontSize="25" FontWeight="Bold" />
+                </DockPanel>
+                <TextBlock Text="선택한 한 계좌로만 연결합니다. 다른 계좌로 자동 전환하지 않습니다." Classes="muted" TextWrapping="Wrap" Margin="0,0,0,8" />
+                <ListBox Classes="brokerTiles" ItemsSource="{Binding Brokers}" SelectedItem="{Binding SelectedInfo,Mode=TwoWay}" IsEnabled="{Binding Editable}">
+                    <ListBox.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <UniformGrid Columns="2" />
+                        </ItemsPanelTemplate>
+                    </ListBox.ItemsPanel>
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel Margin="6">
+                                <Image Source="{Binding Id,Converter={StaticResource BrokerLogo}}" Width="90" Height="34" Stretch="Uniform" Margin="0,4,0,9" />
+                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" HorizontalAlignment="Center" />
+                                <TextBlock Text="실전 API 연결" FontSize="10" Classes="muted" HorizontalAlignment="Center" Margin="0,5,0,0" />
+                            </StackPanel>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+                <TextBlock Text="{Binding SelectedInfo.Notice}" TextWrapping="Wrap" />
+                <TextBlock Text="App Key" FontSize="12" Margin="0,8,0,0" />
+                <local:SecretInput Text="{Binding AppKey,Mode=TwoWay}" PasswordChar="{Binding SecretMask}" CornerRadius="0" BorderBrush="#A1A9B2" />
+                <TextBlock Text="Secret Key" FontSize="12" Margin="0,8,0,0" />
+                <local:SecretInput Text="{Binding Secret,Mode=TwoWay}" PasswordChar="{Binding SecretMask}" CornerRadius="0" BorderBrush="#A1A9B2" />
+                <CheckBox Content="키 표시" IsChecked="{Binding Reveal,Mode=TwoWay}" />
+                <CheckBox Content="이 기기에 키 보안 저장" IsChecked="{Binding Remember,Mode=TwoWay}" />
+                <CheckBox Content="기본 연결 계좌로 사용" IsChecked="{Binding UseAsDefault,Mode=TwoWay}" IsEnabled="{Binding Remember}" />
+                <StackPanel IsVisible="{Binding NeedsAccount}" Spacing="8">
+                    <TextBlock Text="계좌번호 앞 8자리" />
+                    <TextBox Text="{Binding Account,Mode=TwoWay}" />
+                    <TextBlock Text="계좌 상품코드 2자리" />
+                    <TextBox Text="{Binding Product,Mode=TwoWay}" />
+                </StackPanel>
+                <StackPanel IsVisible="{Binding NeedsMac}" Spacing="8">
+                    <TextBlock Text="접속 장치 MAC 주소 (12자리)" />
+                    <TextBox Text="{Binding Mac,Mode=TwoWay}" />
+                </StackPanel>
+                <TextBlock Text="{Binding Status}" TextWrapping="Wrap" Classes="muted" FontSize="11" />
+            </StackPanel>
+        </ScrollViewer>
+    </DockPanel>
+</Window>

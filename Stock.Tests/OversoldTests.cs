@@ -1,4 +1,4 @@
-﻿using Stock.Core;
+using Stock.Core;
 using Stock.Core.Research;
 using Stock.Core.Research.Oversold;
 using Stock.Core.Trading;
@@ -13,7 +13,7 @@ internal static partial class Program
     {
         public IReadOnlyList<SupportCandidate> Get(IReadOnlyList<PriceBar> h,OversoldConfig c){if(h.Count==0)return [];var p=center?.Invoke(h.Count)??80;var d=DailyDates.Of(h[^1]);return [new("A",SupportKind.MovingAverage,p-10,p,p+10,d,d,"fixture"),new("B",SupportKind.ConfirmedPivotHigh,p-10,p,p+10,d,d,"fixture")];}
     }
-    private static OversoldConfig DailyConfig()=>new(){AverageTradingValueLookbackDays=2,CrashLookbackDays=3,ShortCrashLookbackDays=3,UseRsiFilter=false,UseVolumeFilter=false,UseTakeProfit1=false,UseTakeProfit2=false,UseTrailingStop=false,UseEmergencyStop=false,CommissionPercent=0,InitialCapital=10_000,PlannedInvestment=8_000,MaxHoldingDays=100,MovingAveragePeriods="1,2"};
+    private static OversoldConfig DailyConfig()=>new(){ShowNearCandidates=false,AverageTradingValueLookbackDays=2,CrashLookbackDays=3,ShortCrashLookbackDays=3,UseRsiFilter=false,UseVolumeFilter=false,UseTakeProfit1=false,UseTakeProfit2=false,UseTrailingStop=false,UseEmergencyStop=false,CommissionPercent=0,InitialCapital=10_000,PlannedInvestment=8_000,MaxHoldingDays=100,MovingAveragePeriods="1,2"};
     private static OversoldResult DailyRun(PriceBar[] bars,OversoldConfig? cfg=null,HistoricalFacts? facts=null,int start=2,ISupportProvider? support=null)=>new OversoldBacktest().Run(new(DailyStock,bars,"TEST_FIXTURE",DailyTime(100)),cfg??DailyConfig(),DateOnly.FromDateTime(DailyTime(start).DateTime),DailyDates.Of(bars[^1]),facts??DailyFacts(bars.Length),supportProviders:[support??new FixedDailySupport()]);
     private static StrategyBar MinuteBar(DateOnly date,int index,decimal close,decimal? open=null,decimal? high=null,decimal? low=null,int minutes=5)
     {var started=new DateTimeOffset(date.ToDateTime(new TimeOnly(9,0)),TimeSpan.FromHours(9)).AddMinutes(index*minutes);var ended=started.AddMinutes(minutes);return new(new(ended,open??close,high??Math.Max(open??close,close),low??Math.Min(open??close,close),close,100),started,ended,index+1,4_000_000_000,"TEST_MINUTE_FIXTURE");}

@@ -1,0 +1,427 @@
+[
+  {
+    "Path": "Stock.Core/BrokerConnection.cs",
+    "HashMode": "Utf8Lf",
+    "Sha256": "7BCF5EE0ABB334C28515A006619BD12C458B0473050352D97764B7B9FC762C25"
+  },
+  {
+    "Path": "Stock.Core/DemoBroker.cs",
+    "HashMode": "Utf8Lf",
+    "Sha256": "7FEAAAE6AB0D0268B09F172F3685115DADD3AA5C765C5BF29AEEA844686224E9"
+  },
+  {
+    "Path": "Stock.Core/KisBroker.cs",
+    "HashMode": "Utf8Lf",
+    "Sha256": "9CF423CE7D74D6C50978F3C35049EC80208F96EC9DEABDA4FEA6191B0A793777"
+  },
+  {
+    "Path": "Stock.Core/KiwoomBroker.cs",
+    "HashMode": "Utf8Lf",
+    "Sha256": "BB678E87054786BB4433267E50CEA07E99E560FE3052FD3801DF04E64967F857"
+  },
+  {
+    "Path": "Stock.Core/MeritzBroker.cs",
+    "HashMode": "Utf8Lf",
+    "Sha256": "104232E61AFF1E14A19BE25190995EB7463EEB69AFE31822DC98A9C0AE2A5905"
+  },
+  {
+    "Path": "Stock.Core/Models.cs",
+    "HashMode": "Utf8Lf",
+    "Sha256": "9F910FBBA97CA9F7B8311C8F5A57DC71DED4FA70FBD3FC6F71EEE2FE5E84F36E"
+  },
+  {
+    "Path": "Stock.Core/OrderGuard.cs",
+    "HashMode": "Utf8Lf",
+    "Sha256": "7F38C5003B5958448F3C6D5B9BA44955A22AE899B9D8C3DC16E1C1C0AB655A6E"
+  },
+  {
+    "Path": "Stock.Core/Pipeline/PipelineConfig.cs",
+    "HashMode": "Utf8Lf",
+    "Sha256": "227F7F573BA567A3DA586C34C461EDF6CC39A4537F63980AD6C8E04D69BB830A"
+  },
+  {
+    "Path": "Stock.Core/Pipeline/PipelineEngine.cs",
+    "HashMode": "Utf8Lf",
+    "Sha256": "5A470EF1659DFC133A9FE6A33B5BC73A818781B694FE1355535B1A680F9C313A"
+  },
+  {
+    "Path": "Stock.Core/Pipeline/PipelinePresetMapper.cs",
+    "HashMode": "Utf8Lf",
+    "Sha256": "A1B2134ED33639E0399E8BE6AA45C13BD11F100EFD4E9EE76998D0B01BB1752B"
+  },
+  {
+    "Path": "Stock.Core/Pipeline/RankingProviders.cs",
+    "HashMode": "Utf8Lf",
+    "Sha256": "1C0C467D298080CB7006D131617E5C823F5C7E2178D662DAFFB66A2F04B8668D"
+  },
+  {
+    "Path": "Stock.Core/Research/BrokerCurrentMarketData.cs",
+    "HashMode": "Utf8Lf",
+    "Sha256": "DF49EF32ED8F66B0BF376BEAA69C5C61CB9FD922E607A3A784E5244EC241FD6F"
+  },
+  {
+    "Path": "Stock.Core/Research/ChartStrategies.cs",
+    "HashMode": "Utf8Lf",
+    "Sha256": "7E17751C569A0AA05E0ADC8031327A1AA44F3E8D1D8711171D76299307C874DE"
+  },
+  {
+    "Path": "Stock.Core/Research/CurrentMarketSnapshot.cs",
+    "HashMode": "Utf8Lf",
+    "Sha256": "AFC1953E3503EE48513BB778A95BFD55D4FC908969BDEF94517626A15B48C559"
+  },
+  {
+    "Path": "Stock.Core/Research/DayTrading/CausalMarketInput.cs",
+    "HashMode": "Utf8Lf",
+    "Sha256": "CA000E4937236A381FB7E0DEC862A2E0777791283787F0283C861AEA6BF6BBB9"
+  },
+  {
+    "Path": "Stock.Core/Research/DayTrading/ClosedBarReplay.cs",
+    "HashMode": "Utf8Lf",
+    "Sha256": "FF7CB41978FD5C6E29072F4C481D94F2D4ED4AEEBF7F2D5161479200030B226C"
+  },
+  {
+    "Path": "Stock.Core/Research/DayTrading/DayTradingConfiguration.cs",
+    "HashMode": "Utf8Lf",
+    "Sha256": "03DF08E0EF1AE796A5724E8C4EFC35C8A582C190E15AA44309D536CB920AA533"
+  },
+  {
+    "Path": "Stock.Core/Research/DayTrading/DayTradingPortfolioEngine.cs",
+    "HashMode": "Utf8Lf",
+    "Sha256": "1DBAEDEA7218E8E0A96145B3C066409C07778953CC667696EC9466ABE92E103C"
+  },
+  {
+    "Path": "Stock.Core/Research/DayTrading/DayTradingRuntime.cs",
+    "HashMode": "Utf8Lf",
+    "Sha256": "0BB924254834ADD91BD3F1DE84B8E92522228B66B93384ACC33B253E720F5FCD"
+  },
+  {
+    "Path": "Stock.Core/Research/DayTrading/DayTradingSessionService.cs",
+    "HashMode": "Utf8Lf",
+    "Sha256": "B9FA303B72CA71EED645338F5899A3530D4635546D5ADAA14602D82043A602CD"
+  },
+  {
+    "Path": "Stock.Core/Research/DayTrading/IntradayPositionRules.cs",
+    "HashMode": "Utf8Lf",
+    "Sha256": "835E2262767B7B805B5A7376A73C47EF238FC8A21F70AE88B9EF882FF711E966"
+  },
+  {
+    "Path": "Stock.Core/Research/DayTrading/IntradayPresentation.cs",
+    "HashMode": "Utf8Lf",
+    "Sha256": "FD91B6398BFFA627D766A525C3756075FF4BD089EA1D1C788C9C57DFC135C0A0"
+  },
+  {
+    "Path": "Stock.Core/Research/DayTrading/IntradayReplay.cs",
+    "HashMode": "Utf8Lf",
+    "Sha256": "D823ED42D102CA6E5EC281A797DF7F54EC12E9839D6156408C89FA8181D36020"
+  },
+  {
+    "Path": "Stock.Core/Research/DayTrading/IntradayReportBuilder.cs",
+    "HashMode": "Utf8Lf",
+    "Sha256": "E71AC95F3D0E74528584EB93375BB45F186E9309437C5C23DC390C01BBFB3B08"
+  },
+  {
+    "Path": "Stock.Core/Research/DayTrading/StrategyDDataEngine.cs",
+    "HashMode": "Utf8Lf",
+    "Sha256": "91C53AF389A754E1A49CE7A803F265665002A07EF2E144C39044E8AC73337C36"
+  },
+  {
+    "Path": "Stock.Core/Research/DayTrading/StrategyDEditorModel.cs",
+    "HashMode": "Utf8Lf",
+    "Sha256": "C497323AAF69A0D83BA3B8422E1E1B9495B130D2D0FE7CF7D982E8DF10DC43CD"
+  },
+  {
+    "Path": "Stock.Core/Research/DayTrading/StrategyDefinition.cs",
+    "HashMode": "Utf8Lf",
+    "Sha256": "E1CD2AB283FC09EECF956881FFA69F9CDC75504EC937ABC62B80F9DD1535E2B9"
+  },
+  {
+    "Path": "Stock.Core/Research/DayTrading/StrategyDSignalEngine.cs",
+    "HashMode": "Utf8Lf",
+    "Sha256": "20A3B550705ECBD7B372E043966EE499A9BCD235DF804556540C6640CEC421FF"
+  },
+  {
+    "Path": "Stock.Core/Research/DayTrading/VolumeProfileAndSupport.cs",
+    "HashMode": "Utf8Lf",
+    "Sha256": "A1AFCDDB62BA1701BBBDC8A85FE08CF620F51D08A88CE0E2D1F3B997CA5A9287"
+  },
+  {
+    "Path": "Stock.Core/Research/ForeignPublicMarketData.cs",
+    "HashMode": "Utf8Lf",
+    "Sha256": "C9B729121849E3F2E464BA74A39C336F71CFE3528998E972C17DD1BE9F8EFDF3"
+  },
+  {
+    "Path": "Stock.Core/Research/Oversold/BarSpecification.cs",
+    "HashMode": "Utf8Lf",
+    "Sha256": "5D0AD4A9512F378EEC1CB23D892A998A500EE770A59AAFDCE1E9C103F4AAFB24"
+  },
+  {
+    "Path": "Stock.Core/Research/Oversold/CurrentOversoldScreening.cs",
+    "HashMode": "Utf8Lf",
+    "Sha256": "64B3F5AECAE397C31CAE2B96154E01685B9F5F180F38B231C5A8D39F77292F03"
+  },
+  {
+    "Path": "Stock.Core/Research/Oversold/HistoricalFacts.cs",
+    "HashMode": "Utf8Lf",
+    "Sha256": "7C1A46095D72EBF78E6E0B8493D5619967E1A894757AA6D2A23912B5769C2E52"
+  },
+  {
+    "Path": "Stock.Core/Research/Oversold/OversoldBacktest.cs",
+    "HashMode": "Utf8Lf",
+    "Sha256": "8BC36628545DF4B6552A247F2A04ED35FC686EB97DE73B66F7AB5E367542331C"
+  },
+  {
+    "Path": "Stock.Core/Research/Oversold/OversoldConfig.cs",
+    "HashMode": "Utf8Lf",
+    "Sha256": "6E283F47AE628F70D7CF97B76118E8D89DD014E07F67C2CE4AB724285DC76700"
+  },
+  {
+    "Path": "Stock.Core/Research/Oversold/OversoldEntryDetector.cs",
+    "HashMode": "Utf8Lf",
+    "Sha256": "F3DD7412CFE7F22F62C3F39DB2F1AC0BC1A5E68A3392DC13271E4C611C74CC1C"
+  },
+  {
+    "Path": "Stock.Core/Research/Oversold/OversoldLiveCheckpoint.cs",
+    "HashMode": "Utf8Lf",
+    "Sha256": "E42B5E76A6BDF6BA3103BC5D90EFA0968B998DFC0761CCBC7DEB7B33968F682A"
+  },
+  {
+    "Path": "Stock.Core/Research/Oversold/OversoldLiveStrategy.cs",
+    "HashMode": "Utf8Lf",
+    "Sha256": "B8718FEE2056E691281359D8349222FA4BF8CA2552B05C695A0D33FE660CD108"
+  },
+  {
+    "Path": "Stock.Core/Research/Oversold/OversoldMinuteBacktest.cs",
+    "HashMode": "Utf8Lf",
+    "Sha256": "9C77E502255FC9E47DAC22EE966D670404053D20B398FB44EB1063D14527E840"
+  },
+  {
+    "Path": "Stock.Core/Research/Oversold/OversoldParameterLayout.cs",
+    "HashMode": "Utf8Lf",
+    "Sha256": "67D7C7389DA7AC4C53B79F57C8B142CFC8A5663E6AC156C78BED6A0F3750CC69"
+  },
+  {
+    "Path": "Stock.Core/Research/Oversold/OversoldParameterMetadata.cs",
+    "HashMode": "Utf8Lf",
+    "Sha256": "0FD90DDB4406BEC020F8D5C096932CDA16709D38F14EFBA22B48DA98A512556B"
+  },
+  {
+    "Path": "Stock.Core/Research/Oversold/OversoldPositionRules.cs",
+    "HashMode": "Utf8Lf",
+    "Sha256": "8F2941158CED08F5934C8EE52B22B0FA6B129F8C3720AEE508EA94CC64576BA8"
+  },
+  {
+    "Path": "Stock.Core/Research/Oversold/OversoldResults.cs",
+    "HashMode": "Utf8Lf",
+    "Sha256": "DC287C79BA304448501D455181577F405E1BABE1C8B8D1C3174C6E7119846A2A"
+  },
+  {
+    "Path": "Stock.Core/Research/Oversold/OversoldScreening.cs",
+    "HashMode": "Utf8Lf",
+    "Sha256": "A13737C024906080C63DF66B974C2C9D67A0FFA18581F0361AA3D997D651FA1A"
+  },
+  {
+    "Path": "Stock.Core/Research/Oversold/RealtimeOversoldScreening.cs",
+    "HashMode": "Utf8Lf",
+    "Sha256": "97DC3831BC1C396049C6A9BEC813F870B827556D57EDF509690E52517D803C75"
+  },
+  {
+    "Path": "Stock.Core/Research/Oversold/RealtimeWarmup.cs",
+    "HashMode": "Utf8Lf",
+    "Sha256": "49BDF82632EB41F6E496FADA2A25A618DCE7A10892B9CFAFC7088DEC6CA67DCF"
+  },
+  {
+    "Path": "Stock.Core/Research/Oversold/ResearchMarketSession.cs",
+    "HashMode": "Utf8Lf",
+    "Sha256": "4DF4618E5FCCD3ED6E8435D33BBDBFDEF7249A0C7F55732E2AAEA687804894DA"
+  },
+  {
+    "Path": "Stock.Core/Research/Oversold/ScreeningCandidatePolicy.cs",
+    "HashMode": "Utf8Lf",
+    "Sha256": "2C71DF489D5197981E7501B3A43C0A39347089958937B62AD75E4B26A2B3E3FE"
+  },
+  {
+    "Path": "Stock.Core/Research/Oversold/SupportProviders.cs",
+    "HashMode": "Utf8Lf",
+    "Sha256": "AB77DCFC8475A0EBB4110DC7589089B4C6043B7953C55E27B0A993BC92EC8E1B"
+  },
+  {
+    "Path": "Stock.Core/Research/Oversold/TickCoverageTracker.cs",
+    "HashMode": "Utf8Lf",
+    "Sha256": "DD4757E07E5A26AC6777B41AE3F61D924FAB468C6CFF83472332237ACA048BB9"
+  },
+  {
+    "Path": "Stock.Core/Research/PublicCurrentMarketData.cs",
+    "HashMode": "Utf8Lf",
+    "Sha256": "A82077920DEB0F0C50A3F57EF8A747FC48D7BA5252401B0C680E7ECD0A8BA567"
+  },
+  {
+    "Path": "Stock.Core/Research/PublicMarketData.cs",
+    "HashMode": "Utf8Lf",
+    "Sha256": "069ABB8CFF94726EBB0B24F10C7B76AC9EC3A03A341FA463FAC324B76E1C38E2"
+  },
+  {
+    "Path": "Stock.Core/Research/PublicMinuteMarketData.cs",
+    "HashMode": "Utf8Lf",
+    "Sha256": "A6ED13B509FD4B69AED2C7286B1B84BAE1069AC8BE1F1305C51FE8F72B57AEA9"
+  },
+  {
+    "Path": "Stock.Core/Research/RawTickIngestion.cs",
+    "HashMode": "Utf8Lf",
+    "Sha256": "D7621BC1C2ACBBF02D64B66C36D283E52E2E85A4D230A4EFA0A5F8151381A2A5"
+  },
+  {
+    "Path": "Stock.Core/Research/RawTickRepository.cs",
+    "HashMode": "Utf8Lf",
+    "Sha256": "07F82CBEF91C00F4C7222FCCC494BA73AB8E072C759AD0E41300891650C95F6A"
+  },
+  {
+    "Path": "Stock.Core/Research/RecurringPurchaseBacktest.cs",
+    "HashMode": "Utf8Lf",
+    "Sha256": "178944DB6AADBA79866D7B7AA6EA78DA640D53C66024B358FFA6A2C8D6D934CD"
+  },
+  {
+    "Path": "Stock.Core/Research/TickChartWindow.cs",
+    "HashMode": "Utf8Lf",
+    "Sha256": "C2F8BE3332EB4DBB7A75D77F442C7085A65BE56A15FD03E9F0E3FDAE5B5865D0"
+  },
+  {
+    "Path": "Stock.Core/Research/TickTradeDetails.cs",
+    "HashMode": "Utf8Lf",
+    "Sha256": "125BE88F3A80E1AC3608C16E2FE4DC5202A1B67482FBA9D8A24428BB52786544"
+  },
+  {
+    "Path": "Stock.Core/Research/TradeMarker.cs",
+    "HashMode": "Utf8Lf",
+    "Sha256": "76AABE3C378BA82D4E814B5FBCF2FEA138368F07D8259239C2139009E2CFC137"
+  },
+  {
+    "Path": "Stock.Core/Research/WorkspaceModels.cs",
+    "HashMode": "Utf8Lf",
+    "Sha256": "89E04C83B1D4FFB71C50EB44BE64F1DCCE78853E6ABB4141CE525F78431F5386"
+  },
+  {
+    "Path": "Stock.Core/Security/BrokerCredentialVault.cs",
+    "HashMode": "Utf8Lf",
+    "Sha256": "E064977DBF2EC2F8F5BEEF970B1D9282D0DB11505F90D0B2352BAF63C57C9C4B"
+  },
+  {
+    "Path": "Stock.Core/Security/WindowsDpapiSecretStore.cs",
+    "HashMode": "Utf8Lf",
+    "Sha256": "BEEAB6F9B17BB1A3E6621A81743CEDCAAF8DCE8D3B7BEFC8889E47E6CDFA35DD"
+  },
+  {
+    "Path": "Stock.Core/Stock.Core.csproj",
+    "HashMode": "Utf8Lf",
+    "Sha256": "2A4E9755CC54A8B355EEB99A8BBC5D4723D61BE81813A9540256E3D759A54D10"
+  },
+  {
+    "Path": "Stock.Core/TossBroker.cs",
+    "HashMode": "Utf8Lf",
+    "Sha256": "2F35CEB69FA3413A2A23CE9BA32A15C8EF94CCF9A67690850BF2BD24543D5C39"
+  },
+  {
+    "Path": "Stock.Core/Trading/AdvancedPaperRisk.cs",
+    "HashMode": "Utf8Lf",
+    "Sha256": "4E335670BB7E8C3230B30E01BFB7457B2F842EE8AA959A243C573703394A7CD7"
+  },
+  {
+    "Path": "Stock.Core/Trading/AdvancedStrategyGate.cs",
+    "HashMode": "Utf8Lf",
+    "Sha256": "72D2C04CF881BC3A170DDF9329CC745686EA5A8665C645A461487C911F0059B9"
+  },
+  {
+    "Path": "Stock.Core/Trading/LiveBatchModels.cs",
+    "HashMode": "Utf8Lf",
+    "Sha256": "32F5EB48782381890488388442AE3F8EBD49FAE3B76BD0AE5961C9E93676DEC6"
+  },
+  {
+    "Path": "Stock.Core/Trading/LiveStrategyBatch.cs",
+    "HashMode": "Utf8Lf",
+    "Sha256": "DCF0C785AEB95FAF7B3EBF4C3CF9B83CBD2D26CF6E9A0A187E221327221E203E"
+  },
+  {
+    "Path": "Stock.Core/Trading/MarketData.cs",
+    "HashMode": "Utf8Lf",
+    "Sha256": "56C200CC700A78A1F2D2D1E1BF6B97B0F6A04E24A346F7C7BDC83CDB8872918B"
+  },
+  {
+    "Path": "Stock.Core/Trading/MarketModels.cs",
+    "HashMode": "Utf8Lf",
+    "Sha256": "232720BBE0BCD5345F08EE24AB2AB689F12C54F4EF3BF6DCFB7A038514CCA3CB"
+  },
+  {
+    "Path": "Stock.Core/Trading/PaperBrokerCheckpoint.cs",
+    "HashMode": "Utf8Lf",
+    "Sha256": "9EEC6A096CFEFAA4D2A827E8C84078783AB80B0E018558FE9ED4E2C4C635879F"
+  },
+  {
+    "Path": "Stock.Core/Trading/ParameterMetadata.cs",
+    "HashMode": "Utf8Lf",
+    "Sha256": "064016F9E600696313D73296B4B6F466DA6F673F25A0E41BC8A8F90245A7FF02"
+  },
+  {
+    "Path": "Stock.Core/Trading/RealtimePaperCheckpoint.cs",
+    "HashMode": "Utf8Lf",
+    "Sha256": "7844AB3DE60AEAA2074DC9999BC4643214F16C9F2926AF88924DF96BD2BE4AA6"
+  },
+  {
+    "Path": "Stock.Core/Trading/RealtimePaperStrategyBatch.cs",
+    "HashMode": "Utf8Lf",
+    "Sha256": "B459AE280CDD0B7C99062F1CFDDD162F14FC24DC374B485854E709CE39D97D5C"
+  },
+  {
+    "Path": "Stock.Core/Trading/RemoteTradingSession.cs",
+    "HashMode": "Utf8Lf",
+    "Sha256": "077D9FA43DE2CEAAB9E805E2F7C392B1D2F4ED0CA5783DB9D6FC487E4C8D81B0"
+  },
+  {
+    "Path": "Stock.Core/Trading/SessionMarketData.cs",
+    "HashMode": "Utf8Lf",
+    "Sha256": "87578678DE1FFAB1CC73D9EBD46816588BE5892A8DD877B35A9751799C28267E"
+  },
+  {
+    "Path": "Stock.Core/Trading/Settings.cs",
+    "HashMode": "Utf8Lf",
+    "Sha256": "CDDFD7951D43BEBC313E56F8B19D28B80192F58A3C9C1B0270B08E194E012CB4"
+  },
+  {
+    "Path": "Stock.Core/Trading/StorageDiagnostics.cs",
+    "HashMode": "Utf8Lf",
+    "Sha256": "F90961EBD0F5B50DF5B34B686414758735502A3FE96F45F5278EE654E4C4C93C"
+  },
+  {
+    "Path": "Stock.Core/Trading/StoragePaths.cs",
+    "HashMode": "Utf8Lf",
+    "Sha256": "7C9BBBA9A73E3026A7FDB9ACF11F6E4FE9949AEA9392DCE156922BC6006F28E7"
+  },
+  {
+    "Path": "Stock.Core/Trading/Strategies.cs",
+    "HashMode": "Utf8Lf",
+    "Sha256": "98F18AC2CC11430450C10DAAE3E7DBFB50645BBE350A9D340E92E2997D9471BF"
+  },
+  {
+    "Path": "Stock.Core/Trading/StrategyParameters.cs",
+    "HashMode": "Utf8Lf",
+    "Sha256": "FCB220655E58C08436AEA2CA343BC6726EC0E7DDFA7FFD9BC752C2F2441D0C0D"
+  },
+  {
+    "Path": "Stock.Core/Trading/StrategyPresetMapper.cs",
+    "HashMode": "Utf8Lf",
+    "Sha256": "59AD0040DE6E4E51B8F0C69B9B187447255582D56872F1F479FDAD8979EC53D7"
+  },
+  {
+    "Path": "Stock.Core/Trading/StreamingBacktest.cs",
+    "HashMode": "Utf8Lf",
+    "Sha256": "9741B0FCEFE34A7618E74C52CF23F0C23EB974394492753433A943D757131F66"
+  },
+  {
+    "Path": "Stock.Core/Trading/TradingEngine.cs",
+    "HashMode": "Utf8Lf",
+    "Sha256": "60C76209F44C0708ADC5B5AA57341A89FE5EAC576DA04416680D68A441D4C479"
+  },
+  {
+    "Path": "Stock.Core/Trading/TradingStore.cs",
+    "HashMode": "Utf8Lf",
+    "Sha256": "BB7080485901B66F24A2D15B1F8C429F13B24E82856A9F99EA21E8EA683B3B05"
+  }
+]

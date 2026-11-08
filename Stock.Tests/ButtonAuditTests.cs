@@ -54,7 +54,8 @@ internal static partial class Program
             vm.SelectedWatch=vm.WatchItems!.First();Click(6,"관심해제");Click(6,"그룹추가");
             Click(4,"저장소점검");Check(alerts.Any(a=>a.Contains("저장소 정상"))&&StorageDiagnostics.Inspect(db.Path).Healthy,"storage inspection button reports the same checked database without modifying its data");
             Click(0,"키설정");vm.IsOnline=true;PumpUntil(()=>!vm.Busy);Click(3,"계좌조회");Click(3,"외부확인");
-            Tool("전략 백테스트");Click(0,"백테스트");Check(vm.LatestResult?.OversoldResultId!=null,"online mode's backtest button remains executable and uses the same stored strategy");Click(0,"낙주결과상세");Click(4,"낙주기록상세");
+            Tool("전략 백테스트");Click(0,"백테스트");Check(vm.LatestResult?.OversoldResultId!=null,"online mode's backtest button remains executable and uses the same stored strategy");Click(0,"낙주결과상세");
+            vm.ResearchFrom=DateTime.MinValue;vm.ResearchTo=DateTime.MaxValue.Date;vm.SelectedResearchRecord=vm.ResearchHistory.First(r=>r.Kind=="전략 백테스트");Click(4,"테스트상세");
             Tool("실제 계좌 주문");vm.Quantity="1";Click(0,"매수");Click(0,"매도");
             Check(fakeBroker.Submitted==0,"online order buttons respect rejected confirmation and never contact a real broker");
             Click(0,"긴급중지");Check(vm.Status.Contains("긴급중지"),"emergency button executes independently from ordinary order controls");

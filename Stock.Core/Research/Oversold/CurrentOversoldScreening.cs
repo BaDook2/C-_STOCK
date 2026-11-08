@@ -8,7 +8,6 @@ public sealed partial class OversoldScreeningEngine
         HistoricalFacts historical,DateTimeOffset asOf,DailySecurityStatus? currentStatus=null,bool? currentRisk=null,CancellationToken token=default,DateOnly? from=null,DateOnly? to=null)
     {
         var c=requested.Clone();c.Validate();var facts=historical.Snapshot();
-        if(stock.Exchange!=Exchange.KRX)return ScreeningObservation.Missing(stock,"해외 제외 · 국내 일반주식 전략");
         var today=DailyQuoteMerger.Date(asOf,stock.Exchange);
         var end=to??today;var begin=from??end;
         if(begin>end||end>today)throw new InvalidOperationException("스크리닝 시작일·종료일을 확인하세요.");
@@ -32,15 +31,14 @@ public sealed partial class OversoldScreeningEngine
             if(day>=begin&&day<=end)
             {
                 representative=bar;representativeEvaluation=result;
-                var excluded=result.Conditions.Any(x=>!x.Diagnostic&&x.Condition!="최종"&&x.Outcome==ConditionOutcome.Failed);
-                if(result.TechnicalCandidate&&!excluded){matches.Add(day);lastMatch=bar;lastMatchEvaluation=result;}
+                if(ScreeningCandidatePolicy.IsExact(result)||ScreeningCandidatePolicy.IsNear(result,c)){matches.Add(day);lastMatch=bar;lastMatchEvaluation=result;}
             }
         }
         if(representative==null)return ScreeningObservation.Missing(stock,"선택 기간에 관측된 일봉이 없습니다.");
         var final=lastMatch??representative;var e=lastMatchEvaluation??representativeEvaluation!;
-        var candidate=matches.Count>0;
+        var candidate=matches.Count>0;var isNear=candidate&&!ScreeningCandidatePolicy.IsExact(e);
         // This is a research result, including preview signals. No current screening result is an order authorization.
-        var statusText=(candidate?$"기간 내 기술 후보 {matches.Count:N0}일 · "+e.Reason:e.TechnicalCandidate?"확인된 제외 조건 · 후보 제외":e.Reason)+(final.Price.IsComplete?" · 확정 일봉 기준":" · 당일 진행봉 (백테스트 제외)");
-        return new(stock,final.Price.IsComplete?final.ClosedAt:asOf,final.Price.Close,e.Indicators.MediumDrawdown,e.Indicators.Rsi,e.Indicators.VolumeRatio,e.Selected?.Count??0,candidate,statusText,Serialization.Pack(e),bars[0].OpenTime,final.ClosedAt){MatchingDates=matches.ToArray()};
+        var statusText=(isNear?$"근접 후보 {RealtimeConditionProximity.Calculate(e,c):N2}점 · "+e.Reason:candidate?$"기간 내 기술 후보 {matches.Count:N0}일 · "+e.Reason:e.TechnicalCandidate?"확인된 제외 조건 · 후보 제외":e.Reason)+(final.Price.IsComplete?" · 확정 일봉 기준":" · 당일 진행봉 (백테스트 제외)");
+        return new(stock,final.Price.IsComplete?final.ClosedAt:asOf,final.Price.Close,e.Indicators.MediumDrawdown,e.Indicators.Rsi,e.Indicators.VolumeRatio,e.Selected?.Count??0,candidate,statusText,Serialization.Pack(e),bars[0].OpenTime,final.ClosedAt){MatchingDates=matches.ToArray(),Proximity=RealtimeConditionProximity.Calculate(e,c),IsNearCandidate=isNear};
     }
 }

@@ -1,27 +1,29 @@
-# 현재 상태 — 2026-11-06 스크리닝 지정봉 체결·선택
+# 현재 — Avalonia 미완료 E1~E4 구현, Windows 최종 배포 검수
 
-## 다음 실행
+2026-11-08 최신 사용자 답변은 **미완료 기능부터 완성**. 키 영속/기본 연결, 실제 주문·취소·확인 체결/기존 실전 전략 adapter, 일봉 관측 가상 실행·원장 복원을 구현했다. 정본은 `docs/avalonia/HANDOFF.md`, `docs/avalonia/TASKS.md`, `docs/avalonia/COMPLETION_E1_E4_20261108.md`다. 아래 옛 미구현·답변 대기는 과거 기록이다.
 
-AGENTS → TASKS 순서로 읽는다. 이번 요청은 구현·검증·v0.1.14 공개·루트 EXE 동기화까지 완료됐다. 새 요청 없이 같은 검사나 릴리즈를 반복하지 않는다.
+새 소스는 이 저장소의 `Stock.Avalonia`/`Stock.Desktop.Tests`/`Stock.Portable.Tests`/`STOCK.Avalonia.sln`/`avalonia-scripts`에 소스만 통합했다. 원본 WPF 소스/개인 DB/키/기존 EXE는 보존한다. 공통85개 source와 정규화 SHA manifest. WPF1652/Core192/UI273/디자인18/실제공개28 성공; 최종 v0.1.15 후보 C162D6C5...D8EC23은 시작·일반 검색/재실행4회/Mac 양RID cross-publish 성공. 일반 백테스트·표식·팬/달력과 새 GitHub CI/다운로드 검증 중이다. 아직 공개/기존 EXE 교체 안 함. 실제 Mac/API/돈 주문/서명·공증 미검증.
 
-- 코드 bb1d510a2c85a1a33c81b7ed7082bbef4f8ed319. 최신 공개 https://github.com/BaDook2/C-_STOCK/releases/tag/v0.1.14
-- Actions42183510638 빌드0경고·0오류/전체1,317개/publish/smoke/Release 성공. 전체 검사21분31초, job23분19초.
-- 공개 EXE80,868,637 bytes / SHA256 77A647E6F86ECA9C069B991C31FAD2BC35C9EB921F11C6724766422A46F8B7DB. checksum/digest/계산 해시 일치, 다운로드 smoke 종료0/Success/NoBrokerCalls=true. 루트/release EXE 동일 해시 확인.
-- docs/verification/Release-v0.1.14.md, artifacts/release-v0.1.14-{ci.log,job.log,job.json,proof.json}, download-v0.1.14-smoke-20261106-171427/result.json에 근거 보존. 이전 공개 EXE도 artifacts에 백업했다. v0.1.12는 과거 취소 태그이므로 재개하지 않는다.
-- 문서 완료 기록 커밋은 제품 변경이 아니므로 새 릴리즈를 만들지 않는다.
+검사: `pwsh avalonia-scripts/verify.ps1`, WPF `dotnet run --project Stock.Tests -c Release -- artifacts/wpf-tests`. 사용량40% 중단 지시는 해제됐다. 실제 주문 금지, 키/DB/빌드 출력 Git 포함 금지. 실제 계좌는 명시 활성화/건별 확인, 실전 자동은 키움 국내+검증 facts/거래대금 자료만. 가상 복원은 paused/신규매수 OFF. 표시 열은 OneWay로 원본을 바꾸지 않는다.
 
-## 구현과 검증
+---
 
-- 원인: 일반 스크리닝 지정봉 상세에서 체결 엔진 호출이 누락됐다. ScreeningNavigation이 IOversoldBacktestService에 당시 설정/사실/분·시간봉을 전달한다. 준비 봉 정책 RealtimeWarmup.BacktestHistoryStart는 메인 백테스트와 공유한다. 차트 범위는 원래 시작~종료일이고 모형체결은 실제 주문으로 기록하지 않는다.
-- CandleChart:25봉 이하처럼 우클릭 전후가 같으면 즉시 휠/드래그. 큰 전체 차트는 기존 잠금/확대 한도 유지. 표식 글자·묶음의 실제 렌더 영역과 체결 봉으로 선택하고 오래된 화면 좌표를 재사용하지 않는다. 오른쪽 표식은 실제 글자 폭으로 배치한다.
-- ScreeningChartViewModel.SelectedTrade 양방향 표 선택. 시간/방향/수량/가격을 비교하고 출처/번호/사유를 우선한다. 표식 클릭은 표 선택·스크롤·상세만, 표 행 클릭은 체결 봉으로 이동.
-- Release 빌드0경고·0오류, 전용58개/관련328개/전체1,317개, publish·단일 EXE smoke 종료0/Success/NoBrokerCalls=true.
-- Windows 실제 마우스:1시간봉6개 우클릭 없이 BUY/SELL 클릭→행/상세 선택, 휠6→5개.1분 전환360봉/2표식 유지, 잠긴 전체의 묶음 클릭→행 선택/360봉 유지. 격리 fixture이고 주문0회.
-- 성능2만봉/160표식/30프레임: 전용 P95 26.31ms, 전체 UI 검사 중 P95 54.35ms. 지표/표식 매핑 각1회, 원본 유지. 부하에 따른 차이를 포함해 보고했다.
-- 근거 docs/verification/ScreeningTradeChart-2026-11-06.md와 artifacts/screening-fill-{build-final,final,related,full,publish}.log, screening-fill-publish-smoke/result.json, screening-fill-native/.
-- 로컬 publish EXE80,835,673 bytes / SHA256 FDD5538DA55E444BC3F5AB42AF27A75543640C6E205D9EEC2F42E89364A915B4. 현재 루트에는 위 GitHub 검증 공개 EXE를 반영했다. 로컬/CI 파일은 각각 검증했다.
-- GitHub CLI wrapper artifacts/tools/Invoke-GitHub.ps1은 기존 Git 자격을 메모리에서만 사용한다. 토큰 출력/저장 금지. Windows SDK 레지스트리 접근 때문에 빌드/테스트는 require_escalated가 필요했다.
+# 이전 — WPF 전략 D 마무리 / 별도 Avalonia 1차 전환
 
-## 이전 DB 사실 유지
+최신(2026-11-08 D3): Avalonia 색상/검수/Stock.exe 후보258F8CB6...C095E 완료. 모든 기능 동등성 조건은 실계좌/키 영속/일봉 자동 실행·복원 누락으로 아직 충족하지 않아 원본 Stock.exe와 GitHub를 유지했다. 교체/사전 공개 범위를 사용자에게 질문한 상태다. 다음 작업은 sibling stock_avalonia/AGENTS → TASKS → HANDOFF 및 docs/RELEASE_READINESS_20261108.md를 먼저 읽는다. 아래 '게시 요청 없음/주간40%' 문장은 이전 이력이며 최신 사용자는 조건부 게시를 요청하고 사용량 중단 조건은 해제했다.
 
-실제 DB C:/Users/wkdru/AppData/Local/StockPaperTrading/KiwoomQuant/workspace-v2.db. 09:18/09:20 SQLite11 최초 유발 사건은 미확정이다. 원본98MB/실패 사본4개/최종145MB DB 무결성·JSON 정상. 원본 백업은 같은 폴더 diagnostics-20261106-102905. 장기/풀링 연결을 작업별 비풀링으로 바꾸고 진단 증거를 추가했지만 새 failure 없이 근본 원인을 확정하거나 정상 DB를 수리하지 않는다. 데이터 삭제/VACUUM/실제 키 변경 없음. docs/maintenance/Storage.md, docs/verification/{StorageAudit,FeatureAudit}-2026-11-06.md 참고.
+AGENTS.md → TASKS.md 먼저. 원본 STOCK 유지. 새 전환은 sibling `../stock_avalonia`다. GitHub 게시 요청 없음. 실제 주문 금지. 주간잔여40% 하한(직전70%, 재개 전 get_usage_limits 재조회).
+
+## 원본 WPF는 검증·EXE 반영까지 마침
+
+P0~P6 첫 가상/연구 버전 완료. 전체1651/신규 Core192/WPF D13 성공. Release0경고0오류, 격리 단일EXE smoke Success/NoBrokerCalls. 루트/release Stock.exe80,983,144bytes SHA256 E433834BC4DAFB369723F5E9D60161E14B17B27E09700E318F1A8DB4354F1934. 이전 파일 artifacts/before-strategy-d-20261108-000540/Stock.exe. 현재 같은 전체 회귀를 다시 실행할 필요 없음.
+
+코어 Research/DayTrading, UI DayTradingWorkspace/ViewModel/Dialog/ChartPanel. docs/architecture/StrategyD-Plan.md, docs/ui/StrategyD.md, docs/verification/StrategyD-Progress.md. 기존61개·레거시 엔진은 보존. 새 schema2/strategy-d-intraday-v1. 실제 broker order adapter 미연결, 원본 가상 구독20종목, strict 시각/당시 facts 미확인 차단. 공개가격을 원본 체결로 위장하지 않음.
+
+## Avalonia 다음 작업
+
+별도 경로 C:/Users/wkdru/Desktop/C#/stock_avalonia에 실제 .sln/AXAML/DI/MVVM와 공통Core80개를 생성했다. 개인 DB/키/config/.git/bin/obj/EXE는 복제하지 않았다. 새 DB는 독립 LocalApplicationData/Stock.Avalonia. 자세한 재개는 그 프로젝트 AGENTS/TASKS/HANDOFF와 docs/IMPLEMENTATION.md/VERIFICATION.md가 정본이다.
+
+새 프로젝트 Release0/0, portable192 + Headless74, Windows native 단일EXE 두 번 Exit0/Success, osx-arm64/x64 publish 및 Mach-O/native 의존성 검사 성공. 실제 Mac 실행은 미검증이다. macOS Keychain·실계좌 주문 UI/대사·일봉 다음날 가상주문/보유복원·일부 고급 차트 설정·Mac UI 동등성은 후속이다. 전체 이식 완료라고 보고하지 않는다.
+
+PowerShell/.NET, Python PATH 없음. 빌드/restore/native test require_escalated. 사용자/지침 요청 없이 agent 생성 금지. 원본 DB 최초 손상/리다이렉션은 docs/maintenance/Storage.md; 이번 범위에서 복구/자료삭제는 하지 않음. 과거 HANDOFF는 docs/history/2026-11-08-HANDOFF-before-Avalonia-handoff.md.
