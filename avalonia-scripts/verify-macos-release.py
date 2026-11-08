@@ -10,7 +10,11 @@ from pathlib import Path
 
 
 def run(*args, timeout=60):
-    result = subprocess.run(args, check=True, text=True, capture_output=True, timeout=timeout)
+    try:
+        result = subprocess.run(args, check=True, text=True, capture_output=True, timeout=timeout)
+    except subprocess.CalledProcessError as error:
+        print(error.stdout or "", error.stderr or "", flush=True)
+        raise
     return result.stdout.strip()
 
 
@@ -42,7 +46,7 @@ def check_bundle(app, version):
                 or path.name.startswith(("Stock.Desktop.Tests", "Stock.Portable.Tests"))):
             private_files.append(str(path.relative_to(app)))
         if "Mach-O" in run("file", "-b", str(path)):
-            run("lipo", "-verify_arch", "arm64", str(path))
+            run("lipo", str(path), "-verify_arch", "arm64")
             native_count += 1
     assert not private_files, "Private/test material must not be bundled"
     run("codesign", "--verify", "--deep", "--strict", "--verbose=2", str(app))
