@@ -12,6 +12,8 @@
 
 - 현재 Windows 배포 UI는 Avalonia v0.1.16이다. `STOCK.Avalonia.sln` / `Stock.Avalonia` / `HANDOFF.md`를 우선한다. 원본 WPF `Stock.App` / `Stock.sln`은 호환 소스로 보존한다. 공통 Core를 UI별로 중복 생성하지 않는다. v0.1.16은 Git-only 전체 검사/CI/공개 다운로드·실제 실행 검증 후 교체했다. 실제 Mac 검증과 Windows 검증은 구분한다.
 
+- Apple Silicon Mac 앱은 v0.1.16의 추가 자산(macos-v0.1.16-r3)으로 게시했다. Mac ARM64 CI에서 실제 앱/ZIP/DMG 시작·공개 차트·더미 Keychain을 검사했다. 사용자 Mac의 물리 입력·권한 승인과 Apple Developer ID/공증은 별도다. Mac 배포는 사용자 명시 요청 시 새 macos-v버전-r번호 태그만 사용하며 기존 Windows 자산/태그를 덮어쓰지 않는다.
+
 - C# WPF, MVVM, 기존 DI/Service/Repository/SQLite 구조를 먼저 확인하고 재사용한다. 같은 역할의 엔진을 중복 생성하지 않는다.
 - 국내/해외 종목·시세·전략·백테스트·실시간 실행·주문·기록 저장을 지원하는 프로젝트다. 현재 UI가 지원/숨김/미지원인 기능은 해당 docs/ui 문서를 확인한다.
 - View는 표시와 명령 전달, ViewModel은 화면 상태, Service/Engine은 계산·API·DB 책임을 가진다. 핵심 전략·API/DB 로직을 UI 이벤트에 직접 넣지 않는다.
@@ -31,6 +33,7 @@
 ## GitHub 릴리즈 — 사용자 명시 요청 시에만
 
 - 2026-11-08의 조건부 교체·게시 요청은 v0.1.16으로 이행 완료했다. 이후 추가 수정은 새 사용자 릴리즈 요청 전까지 태그/Release하지 않는다. 완료 기록 정리만으로 릴리즈를 반복하지 않는다.
+- 같은 날 추가한 Apple Silicon Mac 파일 게시 요청도 macos-v0.1.16-r3으로 이행 완료했다. 향후 Mac 파일 추가·변경 역시 새 명시 요청이 필요하다.
 
 - 최신 사용자 요청(2026-11-06)에 따라 GitHub Release는 사용자가 명시적으로 릴리즈를 요청한 경우에만 진행한다. 이 지시는 이전의 검증 성공 후 자동 게시 지시와 상시 승인을 대체한다.
 - 작업 완료·검사 성공·작업 재개 또는 소스 코드의 GitHub push 요청만으로 릴리즈를 진행하지 않는다. 명시적인 릴리즈 요청이 없으면 배포용 새 버전 태그 생성/push, 릴리즈 Actions 실행, Release 게시를 하지 않는다. 소스 커밋/push는 별도의 사용자 지시 범위를 따른다.

@@ -1,10 +1,10 @@
-# 현재 완료 — Avalonia Windows v0.1.16
+# 현재 완료 — Windows v0.1.16 / Apple Silicon macOS r3
 
-## 새 요청 — Apple Silicon macOS 배포 (2026-11-08)
+## Apple Silicon macOS 배포 완료 (2026-11-08)
 
-- [~] M1 기존 v0.1.16 앱 코드 유지, macOS ARM64 CI에서 self-contained Stock.app/DMG/ZIP 생성·서명 무결성/실행 권한 검사.
-- [ ] M2 Mac Core/화면/디자인/더미 Keychain 및 실제 앱의 합성 시작·공개자료 검색 검사, DMG/ZIP 재열기 검증.
-- [ ] M3 기존 Windows 자산을 유지하고 v0.1.16에 Mac 파일·체크섬 추가, 공개 다운로드 재검증·사용 안내.
+- [x] M1 기존 v0.1.16 앱 코드 유지, macOS15.8.2 ARM64 CI에서 self-contained Stock.app/DMG/ZIP 생성·서명 무결성/실행 권한 검사.
+- [x] M2 Mac Core192/UI275/디자인18/실제 더미 Keychain4, 실제 앱 합성 시작·공개자료3종목 차트 및 ZIP/DMG 재열기 성공.
+- [x] M3 Windows 자산 유지, v0.1.16에 Stock-AppleSilicon-v0.1.16-r3.dmg/zip 및 각각의 .sha256 추가. 공개 재다운로드가 CI 파일·GitHub digest·체크섬과 일치. 설치 안내 추가.
 - [!] Apple Developer ID/공증 자격증명은 제공받지 않았다. ad-hoc 서명과 Apple 공증을 구분하고 첫 실행 안내를 포함한다. 실제 돈 주문은 실행하지 않는다.
 
 최신 사용자 답변인 “미완료 기능부터 완성”과 앞선 조건부 교체·게시 요청을 이행했다. 현재 진행 중인 구현 작업은 없다. 새 요구 없이 완료 작업을 다시 실행하거나 릴리즈하지 않는다. 사용량40% 중단 지시는 해제됐다.
@@ -20,7 +20,7 @@
 
 ## 지원 경계·외부 검증
 
-- [!] 실제 Mac 호스트가 없어 Mac native 실행/Keychain 권한·잠금/트랙패드/서명·공증은 미검증. 양 RID 교차 빌드와 구분한다.
+- [!] Mac ARM64 CI의 앱/공개 차트·더미 Keychain은 검증했다. 사용자 Mac의 DPI·트랙패드·권한 승인/잠금과 Apple Developer ID 서명·공증은 별도다. Intel 앱은 이번 게시 범위가 아니다.
 - [!] 실제 증권사 read-only API·실제 돈 주문은 이번 검사에서 실행하지 않았다. 계좌 주문은 사용자의 명시 활성화 전까지 잠근다.
 - 실전 자동은 기존 지원인 키움 국내만 연결한다. 검증된 시점별 종목/위험/시장 세션/실제 거래대금 자료가 필요하다. 전략 D 실전 adapter는 이전과 같이 미연결이다.
 - 새 앱 저장소는 원본 WPF와 분리된다. 기존 자료는 보존하고 자동 이관하지 않으므로 새 앱에서 계좌를 다시 연결한다.

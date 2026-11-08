@@ -1,6 +1,6 @@
 # Apple Silicon Mac 배포
 
-현재 작업: v0.1.16과 같은 앱 소스를 Apple Silicon(M1 이후)용 self-contained Stock.app으로 빌드한다. macOS 14 이상을 대상으로 하며 별도 .NET 설치는 필요 없다. DMG/ZIP은 Mac에서 생성해 실행 권한과 번들 구조를 보존한다. Intel용은 이번 게시 범위에 포함하지 않는다.
+현재 배포: v0.1.16과 같은 앱 소스를 Apple Silicon(M1 이후)용 self-contained Stock.app으로 빌드했다. macOS 14 이상을 대상으로 하며 별도 .NET 설치는 필요 없다. DMG/ZIP은 Mac에서 생성해 실행 권한과 번들 구조를 보존한다. Intel용은 이번 게시 범위에 포함하지 않는다.
 
 ## 설치
 
@@ -25,7 +25,23 @@ ad-hoc 서명은 무결성 확인용이며 Apple Developer ID 서명·공증을 
 
 ## 현재 결과
 
-준비·검증 진행 중. 실제 게시 자산/해시/CI 결과는 완료 후 기록한다.
+[DMG 다운로드](https://github.com/BaDook2/C-_STOCK/releases/download/v0.1.16/Stock-AppleSilicon-v0.1.16-r3.dmg) · [ZIP 다운로드](https://github.com/BaDook2/C-_STOCK/releases/download/v0.1.16/Stock-AppleSilicon-v0.1.16-r3.zip) · [성공한 Mac CI](https://github.com/BaDook2/C-_STOCK/actions/runs/42487371788).
+
+- 빌드 태그 macos-v0.1.16-r3 / 패키징 commit a2ba9d8c8991a0d60ab6bce06ddf8b4bacd87478 / 앱 코드 db1ee44e3083118b05982f4574446a8ba8f7a787(기존 v0.1.16과 동일).
+- macOS15.8.2 ARM64, .NET10.0.14. 빌드0경고0오류, Core192/UI275/디자인18 및 실제 더미 Keychain4개 성공.
+- ARM64 native 파일19개·실행 권한·JIT entitlement·서명 무결성·self-contained 확인, 앱 내부 개인자료/테스트 파일0개.
+- LaunchServices의 원본 Stock.app, ZIP 재추출, DMG 읽기전용 마운트에서 각각 시작 성공: 601봉·2quote·NoBrokerCalls.
+- 실제 공개자료 삼성전자1500/SK하이닉스1500/애플2514봉, 데이터와 렌더링 봉 수 일치. 이미지에서 한글/캔들/가격을 확인했다. RenderTargetBitmap은 Mac 사용자 실화면·물리 입력 검증으로 과장하지 않는다.
+- 공개 DMG/ZIP/체크섬 재다운로드가 Mac CI 산출물 및 GitHub asset digest와 정확히 일치했다. Windows Stock.exe/체크섬의 자산 ID·해시는 유지했다. 실제 돈 주문0.
+
+| 파일 | bytes | SHA256 |
+|---|---:|---|
+| Stock-AppleSilicon-v0.1.16-r3.dmg | 53,161,455 | 3d06c06bd8166dd0ef8e2c7b47299215eab08a0df8fe8ddbd320d05a90e0cbbe |
+| Stock-AppleSilicon-v0.1.16-r3.zip | 46,914,659 | 99a40a6265290a7ab788c5ac0e20b2336916fa3403b32cfb9f3be7d98e055ed3 |
+
+로컬 증거: STOCK/artifacts/macos-r3-ci.log, artifacts/macos-r3-verification/stock-macos-release/audit/verification.json와 PNG, artifacts/releases/v0.1.16-macos-r3-public/download-verification.json. 설치 파일과 검수 자료는 Git 제외다. 계좌 키/원본 사용자 DB를 읽거나 복제하지 않았다. 사용자 Mac의 DPI·트랙패드·승인/잠금·실제 증권사와 정식 Apple 서명/공증은 별도다.
+
+### 이전 시도
 
 r1 CI에서 ARM64 빌드0/0·Core192·Avalonia275(실제 더미 Keychain4개 포함)·디자인18은 성공했다. 패키징 중 평면 Contents/MacOS의 관리 DLL이 서명되지 않아 앱 본체 서명에서 실패했으며 자산을 게시하지 않았다. leaf 파일을 모두 먼저 서명하고 본체를 마지막에 서명하도록 수정했다. 무결성 검증을 완화하지 않았다. 후속 r태그는 기존 태그를 덮어쓰지 않는다.
 

@@ -2,6 +2,8 @@
 
 Windows 단일 실행 파일은 GitHub의 **Releases → Assets → Stock.exe**에서 받는다. 설치된 .NET은 필요 없다. `Stock.exe.sha256`은 다운로드 무결성 확인용이며 프로그램 실행에 필요한 파일은 아니다.
 
+Apple Silicon Mac(M1 이후, macOS14+)은 [DMG](https://github.com/BaDook2/C-_STOCK/releases/download/v0.1.16/Stock-AppleSilicon-v0.1.16-r3.dmg) 또는 [ZIP](https://github.com/BaDook2/C-_STOCK/releases/download/v0.1.16/Stock-AppleSilicon-v0.1.16-r3.zip)을 받는다. Stock.app을 응용 프로그램으로 옮겨 실행하며 .NET 별도 설치는 필요 없다. Mac ARM64 CI에서 시작/공개 차트/더미 Keychain/ZIP·DMG를 검사했다. Apple Developer ID·공증은 없으므로 [설치 안내](docs/avalonia/MACOS_APPLE_SILICON.md)를 확인한다.
+
 원본 WPF 소스는 `Stock.App`/`Stock.sln`에 유지한다. 새 Windows/Mac UI는 `Stock.Avalonia`이며 `STOCK.Avalonia.sln`을 열어 개발한다. `Stock.Core`의 전략·백테스트·주문 엔진을 공유한다. 시작 프로젝트는 `Stock.Avalonia`이고 Tests는 테스트용 콘솔 프로젝트다.
 
 ```powershell

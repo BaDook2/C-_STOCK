@@ -2,6 +2,8 @@
 
 이 파일 → TASKS.md → HANDOFF.md → docs/MIGRATION.md 순으로 읽는다. 원본 sibling STOCK의 WPF 소스를 유지한다. 사용자 조건부 교체·게시 요청은 Windows v0.1.16의 CI/공개 다운로드·실제 실행 검증 후 이행 완료했다. 이전 EXE는 백업했다. 이후 추가 수정은 새 명시 요청 전까지 태그/Release하지 않는다. 실제 Mac/실제 증권사 검증은 Windows 검증과 구분한다.
 
+Apple Silicon Mac 앱 추가 요청도 macos-v0.1.16-r3으로 이행했다. Mac ARM64 CI에서 앱/ZIP/DMG 시작·공개 차트·더미 Keychain을 검증하고 공개 파일 해시를 대조했다. 사용자 Mac의 DPI·트랙패드·권한 승인과 정식 Apple Developer ID/공증은 별도다. 추가 Mac 태그·릴리즈는 새 사용자 요청이 필요하다. MACOS_APPLE_SILICON.md가 설치·검증 정본이다.
+
 - 사용자 예산(2026-11-08 최신 답변): 사용량 조건은 무시하고 계속 작업한다. 이전 주간/월간잔여40% 중단 지시는 해제됐다. 과거 TASKS/HANDOFF의40% 중단 기록은 당시 이력이며 현재 작업 중단 조건으로 적용하지 않는다.
 - Core는 검증된 공통 소스85개이며 docs/core-source-manifest.json에 SHA256. 공통 전략/시세/백테스트/주문 로직을 UI별로 중복 구현하지 않는다. 코어 수정은 원본 반영 여부와 양쪽 검사를 기록한다. E1~E4는 COMPLETION_E1_E4_20261108.md, 일봉 가상 원장은 checkpoint v2(거래일 손실 기준 포함)를 사용한다.
 - MVVM/DI/Service/Repository 재사용, 비동기/취소/늦은 응답 방지, UI collection은 Dispatcher. 원본 이벤트·재조회 시세는 메모리만, 설정/관심종목/확인체결/테스트 재현 snapshot은 영속.
