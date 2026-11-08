@@ -12,6 +12,7 @@ TestResults/
 *_wpftmp.csproj
 *.log
 Stock.exe
+Stock.exe.sha256
 
 # Local credentials and account data
 .env
@@ -25,6 +26,7 @@ Stock.exe
 **/order-guards/
 *.db-journal
 Stock.Avalonia.exe
+Stock.Avalonia.exe.sha256
 Stock.Avalonia.app/
 **/*-live-*.json
 appsettings.Local.json

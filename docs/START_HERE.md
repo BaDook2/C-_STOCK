@@ -8,6 +8,7 @@
 
 | 작업 | 우선 읽을 문서 | 핵심 소스 |
 |---|---|---|
+| 현재 Avalonia Windows 배포/개발 | `../README-Avalonia.md`, `avalonia/COMPLETION_E1_E4_20261108.md`, `verification/Avalonia-Release-2026-11-08.md` | `STOCK.Avalonia.sln`, `Stock.Avalonia`, 공통 `Stock.Core`; 아래 WPF 소스는 호환 이력 |
 | 전략 D/범용 당일매매 | `architecture/StrategyD-Plan.md`, `ui/StrategyD.md`, `verification/StrategyD-Progress.md` | `Research/DayTrading`, `DayTradingWorkspace/ViewModel/Dialog/ChartPanel` |
 | ChatGPT 논의용 전략·계산 설명서 | `strategy/과매도_낙주반등_전략_상세설명서.md` | 현재 기본값/선택 snapshot61개·수식·진입/청산·검증/논의사항 |
 | 메모리 시세·모드 재사용·가격/스크롤바 | `verification/MemoryMode-2026-11-07.md` | `SessionMarketData`, `ConnectionLifetime`, `DisplayNumber`, `TossInspired.xaml` |
