@@ -7,6 +7,14 @@ on:
         description: "New Apple Silicon build tag (for example macos-v0.1.17-r1)"
         required: true
         type: string
+      runner_image:
+        description: "Standard ARM64 macOS image"
+        required: true
+        default: macos-15
+        type: choice
+        options:
+          - macos-15
+          - macos-26
   push:
     tags:
       - "macos-v*-r*"
@@ -16,7 +24,7 @@ permissions:
 
 jobs:
   macos:
-    runs-on: macos-15
+    runs-on: ${{ inputs.runner_image || 'macos-15' }}
     timeout-minutes: 35
     env:
       DOTNET_CLI_TELEMETRY_OPTOUT: "1"

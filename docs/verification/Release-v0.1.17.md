@@ -27,3 +27,9 @@ Windows Git-only 전체 검사·게시, Mac ARM64 CI·게시, 최종 공개 다�
 CI42838779384는 복원·Release 빌드 및 대부분 기존 회귀 후 ProgressiveScreeningTests의 완료 기록 포함 검사에서 실패했다. 로그시각2026-11-10T15:11Z는 한국11월11일00:11이다. 기록은KST 날짜로 필터하지만 기본 조회To가 호스트DateTime.Today(UTC11월10일)여서 새 기록이 범위 밖이었다. WPF·Avalonia 기록 기본From/To를 기존KoreaClock.Today로 통일했다. WPF 검사도 완료상태·조회5회·기록 포함으로 나눠 실패 이유를 각각 표시하고 기본KST범위를 확인한다. 조건을 생략하거나 테스트 호스트 시간대를 바꿔 우회하지 않았다.
 
 새 Avalonia 검사4개는 UTC 환경에서 기본 기간, 한국 자정의 포함·이전/다음날 제외, 표시 날짜, 편집기 재생성 후 저장 기록을 확인한다. UTC 전용4개·로컬 Core192/Avalonia633/디자인18과 양 솔루션0/0 성공. Windows에는 --progressive-screening 전용 CLI 검사 단계를 전체 회귀 앞에 추가했다. 전체 검사는 그대로 수행한다. 첫 실패에서 태그·릴리즈는 생성되지 않았다.
+
+## Windows 게시 완료·Mac 실행기 대기 전환
+
+Windows42842992293가 모든 검사를 통과했다: 기록선행11/WPF1655/D13/Core192/Avalonia631/디자인18. 배포 EXE와 공개 EXE를 각각 실행했고 공개 파일·빌드·체크섬·GitHub digest가 일치한다. Stock.exe107543358bytes, SHA25643a5673c21f78c1ba82381a0d424daa3bea133cd15c3c211ee403bf2c053a1b2. Win 태그/앱 소스 d067be25553d502a3a1c16316164115bbd8e7cbc.
+
+Mac42846537829는 macos-15 실행기가 할당되지 않은 queued 상태가 지속되어 취소했다. 공식 GitHub 실행기 표의 macos-26 ARM64를 선택할 수 있게 수동 입력을 추가해 동일 앱 소스로 재시도한다. 기존 태그 push의 macos-15 기본값과 모든 검사·서명·공개 다운로드 확인은 유지한다. 자료: https://docs.github.com/en/actions/reference/runners/github-hosted-runners. 앱 코드 변경이 아니므로 Windows 전체 검사를 반복하지 않는다. Mac 게시/검증은 아직 완료 전이다.

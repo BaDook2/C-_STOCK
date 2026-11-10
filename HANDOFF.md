@@ -1,4 +1,6 @@
-# 현재 — Windows v0.1.16 및 Apple Silicon macOS 앱 게시 완료
+# 현재 — v0.1.17 Windows 게시 완료 / Mac 게시 진행
+
+Windows CI42842992293가 기록선행11/WPF1655/D13/Core192/Avalonia631/디자인18 및 배포·공개 EXE 재다운로드/시작까지 통과했다. v0.1.17 태그/앱 소스 d067be25553d502a3a1c16316164115bbd8e7cbc, Stock.exe107543358bytes SHA25643a5673c21f78c1ba82381a0d424daa3bea133cd15c3c211ee403bf2c053a1b2. GitHub release v0.1.17 Windows 공개 완료. Mac42846537829는 실행기 미할당 queued가 지속되어 취소하고 macos-26 ARM64에서 재시도한다. workflow_dispatch의 runner_image 선택지를 추가하며 태그 push의 기본macos-15와 기존 앱 소스/검사/서명·게시 guard는 유지한다. 아직 Mac 파일 게시·완료로 보고하지 않는다. 현재 설치 앱/개인 DB/키/실제 주문 변경 없음.
 
 ## 진행 — v0.1.17 Windows·Mac 릴리즈 요청 (2026-11-10)
 
