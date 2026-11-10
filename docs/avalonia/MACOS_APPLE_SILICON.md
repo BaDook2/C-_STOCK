@@ -1,6 +1,6 @@
 # Apple Silicon Mac 배포
 
-현재 배포: v0.1.16과 같은 앱 소스를 Apple Silicon(M1 이후)용 self-contained Stock.app으로 빌드했다. macOS 14 이상을 대상으로 하며 별도 .NET 설치는 필요 없다. DMG/ZIP은 Mac에서 생성해 실행 권한과 번들 구조를 보존한다. Intel용은 이번 게시 범위에 포함하지 않는다.
+현재 배포: v0.1.17 Windows와 같은 앱 소스를 Apple Silicon(M1 이후)용 self-contained Stock.app으로 빌드했다. macOS 14 이상을 대상으로 하며 별도 .NET 설치는 필요 없다. DMG/ZIP은 Mac에서 생성해 실행 권한과 번들 구조를 보존한다. Intel용은 이번 게시 범위에 포함하지 않는다.
 
 ## 설치
 
@@ -11,7 +11,7 @@ ad-hoc 서명은 무결성 확인용이며 Apple Developer ID 서명·공증을 
 ## 빌드/검사 흐름
 
 - 일반 main push로 배포하지 않는다. 사용자가 Mac 게시를 요청한 경우에만 새 macos-v버전-r번호 태그를 생성한다. 기존 Windows v태그/자산은 덮어쓰지 않는다.
-- macos-release.yml은 macos-15 ARM64 호스트 여부, 기존 Windows 릴리즈 존재 및 Stock.Core/Stock.Avalonia 소스 일치를 먼저 검사한다.
+- macos-release.yml은 선택한 macOS ARM64 호스트 여부(기본macos-15, 수동macos-26 지원), 기존 Windows 릴리즈 존재 및 Stock.Core/Stock.Avalonia 소스 일치를 먼저 검사한다.
 - Core/화면/디자인 및 고유 테스트 서비스의 더미 Keychain 저장·복원·갱신·삭제를 검사한다. 사용자 계좌 키는 읽지 않는다.
 - 앱호스트·런타임·SQLite/Skia/Avalonia native ARM64 파일과 실행 권한, JIT entitlement, 코드 서명 무결성을 확인한다.
 - LaunchServices로 실제 Stock.app을 실행한다. 원본 번들, ZIP 재추출, DMG 읽기 전용 마운트에서 시작하고 실제 공개자료 삼성전자/SK하이닉스/애플 차트를 검사한다.
@@ -23,7 +23,18 @@ ad-hoc 서명은 무결성 확인용이며 Apple Developer ID 서명·공증을 
 
 [GitHub ARM64 macOS runner](https://docs.github.com/en/actions/reference/runners/github-hosted-runners), [.NET macOS 지원](https://learn.microsoft.com/en-us/dotnet/core/install/macos), [.NET macOS 서명/JIT](https://learn.microsoft.com/en-us/dotnet/core/deploying/macos), [Avalonia 앱 번들 배포](https://docs.avaloniaui.net/docs/deployment/macos/).
 
-## 현재 결과
+## 현재 v0.1.17 결과
+
+[DMG 다운로드](https://github.com/BaDook2/C-_STOCK/releases/download/v0.1.17/Stock-AppleSilicon-v0.1.17-r1.dmg) · [ZIP 다운로드](https://github.com/BaDook2/C-_STOCK/releases/download/v0.1.17/Stock-AppleSilicon-v0.1.17-r1.zip) · [성공한 Mac CI](https://github.com/BaDook2/C-_STOCK/actions/runs/42848351841) · [전체 릴리즈 검증](../verification/Release-v0.1.17.md).
+
+- macos-v0.1.17-r1 / 빌드17a297b67ac5cfca0de2d07a19237fb8221e01bf. Windows v0.1.17(d067be2)과 앱 소스 동일.
+- macOS26.7.2 ARM64, .NET10.0.14. 빌드0/0, Core192/UI633/디자인18 및 더미 Keychain 통과.
+- 원본·ZIP·DMG와 공개 재다운로드 앱 모두 네이티브 시작601봉/2quote 성공. 공개 앱 삼성전자1500/SK하이닉스1500/애플2513봉 차트 성공. 실제 돈 주문0.
+- 공개 파일·체크섬·GitHub digest·빌드 SHA256 일치. 기존 Windows/이전 릴리즈 자산 유지. ad-hoc 서명 무결성 검증이며 Developer ID/공증은 없음.
+- DMG53,145,790bytes / SHA256 `18d34f3cc2da104e2928e19e298a747bce03219c552a243a449bad120f45984d`.
+- ZIP46,839,840bytes / SHA256 `087f8e70d152ed503d8d05e71aba8629c3afc5294b403687615a2d4e87eff32c`.
+
+## 이전 v0.1.16 결과
 
 [DMG 다운로드](https://github.com/BaDook2/C-_STOCK/releases/download/v0.1.16/Stock-AppleSilicon-v0.1.16-r3.dmg) · [ZIP 다운로드](https://github.com/BaDook2/C-_STOCK/releases/download/v0.1.16/Stock-AppleSilicon-v0.1.16-r3.zip) · [성공한 Mac CI](https://github.com/BaDook2/C-_STOCK/actions/runs/42487371788).
 

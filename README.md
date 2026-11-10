@@ -1,5 +1,7 @@
 > 새 Windows/Mac UI는 **Avalonia**이며 개발/지원 범위는 [README-Avalonia.md](README-Avalonia.md)를 먼저 읽으세요. 원본 WPF 소스는 보존합니다. 아래 WPF 사용 설명/옛 검사 기록은 새 UI의 지원·검증 완료를 뜻하지 않습니다. 개발 재개는 [HANDOFF.md](HANDOFF.md), [TASKS.md](TASKS.md)와 [Avalonia 작업 기록](docs/avalonia/HANDOFF.md)을 확인하세요.
 
+현재 [v0.1.17 릴리즈](https://github.com/BaDook2/C-_STOCK/releases/tag/v0.1.17): [Windows EXE](https://github.com/BaDook2/C-_STOCK/releases/download/v0.1.17/Stock.exe) · [Apple Silicon Mac DMG](https://github.com/BaDook2/C-_STOCK/releases/download/v0.1.17/Stock-AppleSilicon-v0.1.17-r1.dmg). 양OS 공개 파일 실행·해시 검증 완료. [Mac 설치 안내](docs/avalonia/MACOS_APPLE_SILICON.md) · [검증 기록](docs/verification/Release-v0.1.17.md).
+
 # STOCK — 오프라인 / 온라인
 
 Windows x64용 `Stock.exe`를 실행하세요. .NET과 SQLite가 포함되어 별도 설치가 필요 없습니다.

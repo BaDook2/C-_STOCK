@@ -1,4 +1,8 @@
-# 현재 — Windows v0.1.16 및 Apple Silicon macOS 앱 게시 완료
+# 현재 v0.1.17 완료
+
+현재 상태 정본은 [루트 HANDOFF.md](../../HANDOFF.md), [v0.1.17 릴리즈 검증](../verification/Release-v0.1.17.md)이다. 아래는 v0.1.16의 이전 완료 기록이다.
+
+# 이전 — Windows v0.1.16 및 Apple Silicon macOS 앱 게시 완료
 
 ## Apple Silicon 앱 — 최신 완료
 

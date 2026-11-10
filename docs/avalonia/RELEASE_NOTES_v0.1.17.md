@@ -5,7 +5,7 @@
 ## 다운로드
 
 - [Windows x64 · Stock.exe](https://github.com/BaDook2/C-_STOCK/releases/download/v0.1.17/Stock.exe): 실행 파일 하나이며 .NET을 포함합니다.
-- [Apple Silicon Mac · DMG](https://github.com/BaDook2/C-_STOCK/releases/download/v0.1.17/Stock-AppleSilicon-v0.1.17-r1.dmg) / [ZIP](https://github.com/BaDook2/C-_STOCK/releases/download/v0.1.17/Stock-AppleSilicon-v0.1.17-r1.zip): M1 이후·macOS14 이상, Stock.app을 응용 프로그램으로 옮겨 실행합니다. Mac 자산은 Windows 게시 후 Mac 검사가 모두 통과하면 추가됩니다.
+- [Apple Silicon Mac · DMG](https://github.com/BaDook2/C-_STOCK/releases/download/v0.1.17/Stock-AppleSilicon-v0.1.17-r1.dmg) / [ZIP](https://github.com/BaDook2/C-_STOCK/releases/download/v0.1.17/Stock-AppleSilicon-v0.1.17-r1.zip): M1 이후·macOS14 이상, Stock.app을 응용 프로그램으로 옮겨 실행합니다.
 - 각 실행 파일·압축 파일의 `.sha256`은 다운로드 무결성 확인용입니다. 프로그램에 .NET 별도 설치가 필요하지 않습니다.
 
 ## 변경 사항
@@ -22,8 +22,8 @@
 
 ## 검증과 지원 범위
 
-로컬 Mac에서 Release 빌드0경고·0오류, Core192개·Avalonia633개·디자인18개, 그중 JSON 관련303개를 확인했습니다. 배포 CI는 추가로 Windows WPF 회귀와 배포 EXE 시작, Mac 원본 앱·ZIP·DMG 시작·공개 차트·격리 더미 Keychain 검사를 통과한 뒤 각 자산을 공개하며, 공개 파일 재다운로드의 해시·실행 검사를 수행합니다.
+[Windows CI](https://github.com/BaDook2/C-_STOCK/actions/runs/42842992293)에서 WPF1655개·D13개·기록선행11개·Core192개·Avalonia631개·디자인18개, [Mac ARM64 CI](https://github.com/BaDook2/C-_STOCK/actions/runs/42848351841)에서 Core192개·Avalonia633개·디자인18개와 더미 Keychain 검사를 통과했습니다. JSON 관련303개는 Avalonia 전체에 포함됩니다. 양OS의 배포본과 공개 재다운로드 파일을 실제로 실행했고, Mac은 앱·ZIP·DMG 시작과 삼성전자·SK하이닉스·애플 공개 차트도 확인했습니다. 파일의 SHA256은 빌드·체크섬·GitHub digest와 일치합니다. [최종 검증 기록](https://github.com/BaDook2/C-_STOCK/blob/main/docs/verification/Release-v0.1.17.md).
 
-Mac은 ad-hoc 서명 무결성을 검사하며 Apple Developer ID 서명·Apple 공증은 포함하지 않습니다. 최초 실행 안내는 [Mac 설치 문서](https://github.com/BaDook2/C-_STOCK/blob/v0.1.17/docs/avalonia/MACOS_APPLE_SILICON.md)를 참고하세요. 사용자 Mac의 물리 입력·권한 승인과 실제 증권사 API는 자동 검사와 별개입니다.
+Mac은 ad-hoc 서명 무결성을 검사하며 Apple Developer ID 서명·Apple 공증은 포함하지 않습니다. 최초 실행 안내는 [Mac 설치 문서](https://github.com/BaDook2/C-_STOCK/blob/main/docs/avalonia/MACOS_APPLE_SILICON.md)를 참고하세요. 사용자 Mac의 물리 입력·권한 승인과 실제 증권사 API는 자동 검사와 별개입니다.
 
 급락 판단 전략 D의 실계좌 자동 주문은 지원하지 않습니다. D 당일 운용을 일봉만으로 재현할 수 없으며 자료·시각 조건에 따라 거래가0건일 수 있습니다. 실제 계좌·API 키·개인 DB를 배포 파일에 포함하지 않고 실제 돈 주문을 검사하지 않습니다.
