@@ -58,6 +58,7 @@ public sealed class StrategyDDataEngine
     private readonly Queue<StrategyBar> approximateRolling=[];
     private DateTimeOffset? previousApproximateClose,approximateCaptureStart;
     private readonly TimeframeSpec maFrame,profileFrame;
+    private int lastClosedAnalysisVersion=-1;
     private int seedIndex,maVersion=-1,profileVersion=-1;
     private DateOnly? day;
     private decimal sessionHigh;
@@ -118,7 +119,7 @@ public sealed class StrategyDDataEngine
         bool closed=false;StrategyBar? closedAnalysis=null;LatestClosedAnalysis=null;
         foreach(var (spec,builder) in builders)
         foreach(var bar in builder.Add(e,session,input.Coverage)){series[spec].Add(bar,e.ExchangeTime);closed=true;if(spec==policy.SimpleTimeframe)closedAnalysis=bar;}
-        var rollingFrom=e.ExchangeTime-policy.Crash.RollingWindow.Duration!.Value;
+        var rollingFrom=RollingStart(e.ExchangeTime);
         while(rolling.Count>0&&rolling.Peek().ExchangeTime<rollingFrom)
         {var old=rolling.Dequeue();if(rollingMax.First?.Value==old)rollingMax.RemoveFirst();}
         if(closedAnalysis!=null&&policy.SimpleTimeframe.Unit!=TimeframeUnit.Trade)
@@ -136,6 +137,14 @@ public sealed class StrategyDDataEngine
         if(closedAnalysis!=null&&policy.SimpleTimeframe.Unit==TimeframeUnit.Trade)LatestClosedAnalysis=Latest;
         return Latest.Feed;
     }
+    public void SupplyFrames(IEnumerable<KnownStrategyBar> input,DateTimeOffset asOf)
+    {
+        foreach(var seed in input.Where(b=>b.KnownAt<=asOf).OrderBy(b=>b.KnownAt))
+        {
+            if(seed.KnownAt<seed.Bar.ClosedAt||!seed.Bar.Price.IsComplete)throw new InvalidOperationException("미확정 전략 봉은 사용할 수 없습니다.");
+            if(series.TryGetValue(seed.Timeframe,out var existing))existing.Add(seed.Bar,seed.KnownAt);
+        }
+    }
     public DailyMarketSession ValidateClosedBar(StrategyBar bar)
     {
         bar.Price.Validate();
@@ -151,10 +160,11 @@ public sealed class StrategyDDataEngine
         if(day!=session.Date){day=session.Date;sessionHigh=0;approximateRolling.Clear();approximateCaptureStart=bar.OpenTime;}
         if(gap){approximateRolling.Clear();approximateCaptureStart=bar.OpenTime;}
         previousApproximateClose=bar.ClosedAt;
+        var beforeAnalysis=lastClosedAnalysisVersion;
         while(seedIndex<seeds.Length&&seeds[seedIndex].KnownAt<=bar.ClosedAt)
         {var seed=seeds[seedIndex++];if(series.TryGetValue(seed.Timeframe,out var existing))existing.Add(seed.Bar,seed.KnownAt);}
-        series[policy.SimpleTimeframe].Add(bar,bar.ClosedAt);sessionHigh=Math.Max(sessionHigh,bar.Price.High);
-        var cutoff=bar.ClosedAt-policy.Crash.RollingWindow.Duration!.Value;
+        if(policy.SimpleTimeframe.Unit==TimeframeUnit.TradingDay||policy.SimpleTimeframe.Duration==bar.ClosedAt-bar.OpenTime)series[policy.SimpleTimeframe].Add(bar,bar.ClosedAt);sessionHigh=Math.Max(sessionHigh,bar.Price.High);
+        var cutoff=RollingStart(bar.ClosedAt);
         while(approximateRolling.Count>0&&approximateRolling.Peek().ClosedAt<=cutoff)approximateRolling.Dequeue();
         approximateRolling.Enqueue(bar);
         var overflow=approximateRolling.Count>policy.Quality.MaximumBufferedEvents;
@@ -162,12 +172,12 @@ public sealed class StrategyDDataEngine
         if(overflow)approximateCaptureStart=approximateRolling.Peek().OpenTime;
         decimal? rollingDrop=approximateCaptureStart<=cutoff?(bar.Price.Close/approximateRolling.Max(b=>b.Price.High)-1)*100:null;
         var feed=new FeedObservation(FeedDecision.Accepted,!gap&&!overflow,overflow?"봉 메모리 한도 · 연속 구간 재확보 필요":"완성봉 종가 근사 · 장중 틱 순서 미재현",session){Approximate=true,Discontinuity=gap||overflow};
-        Latest=Calculate(bar.ClosedAt,bar.Sequence,bar.Price.Close,feed,session,true,rollingDrop,true);LatestClosedAnalysis=Latest;
+        Latest=Calculate(bar.ClosedAt,bar.Sequence,bar.Price.Close,feed,session,true,rollingDrop,true);LatestClosedAnalysis=series[policy.SimpleTimeframe].Version>beforeAnalysis?Latest:null;lastClosedAnalysisVersion=series[policy.SimpleTimeframe].Version;
         return Latest.Feed;
     }
     private StrategyDObservation Calculate(DateTimeOffset asOf,long sequence,decimal price,FeedObservation admitted,DailyMarketSession session,bool closed,decimal? approximateRolling=null,bool approximateMode=false)
     {
-        var rollingFrom=asOf-policy.Crash.RollingWindow.Duration!.Value;
+        var rollingFrom=RollingStart(asOf);
         var profileFrom=ProfileStart(asOf,session);
         if(dailyVersion!=series[Daily].Version||cachedDailyDate!=session.Date)
         {
@@ -179,6 +189,9 @@ public sealed class StrategyDDataEngine
         decimal? Draw(int n,decimal priorHigh)=>priorDailyCount>=n-1?(price/Math.Max(sessionHigh,priorHigh)-1)*100:null;
         var medium=Draw(shared.CrashLookbackDays,mediumPriorHigh);var shortTerm=Draw(shared.ShortCrashLookbackDays,shortPriorHigh);
         var sessionDrop=(price/sessionHigh-1)*100;var rollingDrop=approximateMode?approximateRolling:captureStart<=rollingFrom&&rollingMax.First is {} max?(price/max.Value.TradePrice!.Value-1)*100:(decimal?)null;
+        var independent=new ConfiguredIndicators(shared,facts).Apply(new(medium??0,shortTerm??0,null,null,""),asOf);
+        if(shared.ParameterTimeframes.ContainsKey(nameof(shared.CrashLookbackDays)))medium=independent.MediumDrawdown;
+        if(shared.ParameterTimeframes.ContainsKey(nameof(shared.ShortCrashLookbackDays)))shortTerm=independent.ShortDrawdown;
         var dailyPassed=Combine(policy.Crash.DailyCombination,(policy.Crash.MediumEnabled,medium.HasValue?medium<=shared.MinimumDrawdownPercent:null),(policy.Crash.ShortEnabled,shortTerm.HasValue?shortTerm<=shared.ShortCrashPercent:null));
         var intradayPassed=Combine(policy.Crash.IntradayCombination,(policy.Crash.SessionHighEnabled,sessionDrop<=policy.Crash.SessionDrawdownPercent),(policy.Crash.RollingHighEnabled,rollingDrop.HasValue?rollingDrop<=policy.Crash.RollingDrawdownPercent:null));
         var passed=Combine(policy.Crash.DailyIntradayCombination,(policy.Crash.DailyEnabled,dailyPassed),(policy.Crash.IntradayEnabled,intradayPassed));
@@ -214,6 +227,14 @@ public sealed class StrategyDDataEngine
         if(dataReason.Contains("한도"))admitted=admitted with{CanEnter=false,Reason=dataReason};
         return new(asOf,sequence,price,session,admitted,new(medium,shortTerm,sessionDrop,rollingDrop,passed,string.Join("+",kinds)),supports,series[Indicator(IndicatorKind.Rsi)].Rsi,series[Indicator(IndicatorKind.Volume)].VolumeRatio,averageValue,security,risk,policy.Support.IncludeActiveMovingAverageBar,closed,dataReason){AnalysisBarOrdinal=series[policy.SimpleTimeframe].Version};
     }
+    private DateTimeOffset RollingStart(DateTimeOffset now)
+    {
+        var window=policy.Crash.RollingWindow;
+        if(window.Duration is {} duration)return now-duration;
+        if(window.Unit==TimeframeUnit.Week)return now.AddDays(-7*window.Size);
+        if(window.Unit==TimeframeUnit.Month)return now.AddMonths(-window.Size);
+        return facts.Sessions.Where(s=>s.Open<=now).TakeLast(window.Size).FirstOrDefault()?.Open??now.AddDays(-window.Size);
+    }
     private DateTimeOffset ProfileStart(DateTimeOffset now,DailyMarketSession current)
     {
         var spec=profileFrame;
@@ -221,6 +242,7 @@ public sealed class StrategyDDataEngine
         {var ticks=(decimal)duration.Ticks*shared.VolumeZoneLookbackDays;return ticks>=(now-DateTimeOffset.MinValue).Ticks?DateTimeOffset.MinValue:now-TimeSpan.FromTicks((long)ticks);}
         if(spec.Unit==TimeframeUnit.TradingDay)
         {var sessions=facts.Sessions.Where(s=>s.Open<=now).TakeLast(shared.VolumeZoneLookbackDays).ToArray();return sessions.Length==shared.VolumeZoneLookbackDays?sessions[0].Open:DateTimeOffset.MinValue;}
+        if(spec.Unit is TimeframeUnit.Week or TimeframeUnit.Month)return spec.Unit==TimeframeUnit.Week?now.AddDays(-7L*spec.Size*shared.VolumeZoneLookbackDays):now.AddMonths(-Math.Min(120000,spec.Size*shared.VolumeZoneLookbackDays));
         // A trade-count profile needs the complete requested count, not an elapsed-time substitute.
         return captureStart;
     }

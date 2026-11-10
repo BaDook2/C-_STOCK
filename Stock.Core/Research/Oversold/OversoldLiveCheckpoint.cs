@@ -31,6 +31,6 @@ public sealed partial class OversoldLiveStrategy
         if(!publicPaper)throw new InvalidOperationException("실계좌 세션을 공개시세 가정으로 확장할 수 없습니다.");
         var next=updated.Snapshot();
         if(sessions.Any(old=>!next.Sessions.Contains(old))||next.Sessions.Any(s=>!sessions.Contains(s)&&sessions.Length>0&&s.Date<=sessions[^1].Date))throw new InvalidOperationException("이미 판단한 시장 세션은 변경할 수 없습니다.");
-        facts.Source=next.Source;facts.MarketSessions=next.MarketSessions;facts.StatusRecords=next.StatusRecords;facts.RiskRecords=next.RiskRecords;facts.TradingValues=next.TradingValues;facts.Validate();sessions=facts.Sessions.OrderBy(s=>s.Open).ToArray();
+        facts.StrategyFrames=next.StrategyFrames;facts.Source=next.Source;facts.MarketSessions=next.MarketSessions;facts.StatusRecords=next.StatusRecords;facts.RiskRecords=next.RiskRecords;facts.TradingValues=next.TradingValues;facts.Validate();sessions=facts.Sessions.OrderBy(s=>s.Open).ToArray();
     }
 }

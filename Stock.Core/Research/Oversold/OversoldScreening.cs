@@ -58,7 +58,7 @@ public sealed partial class OversoldScreeningEngine
         var bars=input.Where(b=>b.Price.IsComplete&&b.ClosedAt<=asOf&&(to==null||DailyDates.Of(b.Price)<=to)).OrderBy(b=>b.ClosedAt).ThenBy(b=>b.Sequence).ToArray();
         if(bars.Length==0)return ScreeningObservation.Missing(stock,"자료 부족 · 완성봉 없음");
         if(bars.GroupBy(b=>(b.ClosedAt,b.Sequence)).Any(g=>g.Count()>1))return ScreeningObservation.Missing(stock,"자료 부족 · 봉 순서 중복");
-        var cache=new OversoldIndicatorCache(c,true);var detector=new OversoldEntryDetector();ISupportProvider[] providers=[new MovingAverageSupportProvider(),new ConfirmedPivotHighProvider(true),new ApproximateVolumeZoneProvider()];
+        var cache=new OversoldIndicatorCache(c,true,facts);var detector=new OversoldEntryDetector();IReadOnlyList<ISupportProvider> providers=ConfiguredIndicators.Providers(c,facts,true);
         var sessions=facts.Sessions.OrderBy(s=>s.Open).ToArray();EntryEvaluation? evaluation=null,lastMatchedEvaluation=null;StrategyBar? last=null,lastMatched=null;var values=new List<decimal?>();var matched=new List<DateOnly>();
         foreach(var bar in bars)
         {
@@ -85,7 +85,7 @@ public sealed partial class OversoldScreeningEngine
         var bars=input.Where(b=>b.Price.IsComplete&&b.ClosedAt<=asOf&&(to==null||DailyDates.Of(b.Price)<=to)).OrderBy(b=>b.ClosedAt).ThenBy(b=>b.Sequence).ToArray();
         if(bars.Length==0)return ScreeningObservation.Missing(stock,"자료 부족 · 완성봉 없음");
         if(bars.GroupBy(b=>(b.ClosedAt,b.Sequence)).Any(g=>g.Count()>1))return ScreeningObservation.Missing(stock,"자료 부족 · 봉 순서 중복");
-        var cache=new OversoldIndicatorCache(c,true);var detector=new OversoldEntryDetector();ISupportProvider[] providers=[new MovingAverageSupportProvider(),new ConfirmedPivotHighProvider(true),new ApproximateVolumeZoneProvider()];
+        var cache=new OversoldIndicatorCache(c,true,facts);var detector=new OversoldEntryDetector();IReadOnlyList<ISupportProvider> providers=ConfiguredIndicators.Providers(c,facts,true);
         var sessions=facts.Sessions.OrderBy(s=>s.Open).ToArray();EntryEvaluation? evaluation=null,lastMatchedEvaluation=null;StrategyBar? last=null,lastMatched=null;var values=new List<decimal?>();var matched=new List<DateOnly>();
         foreach(var bar in bars)
         {

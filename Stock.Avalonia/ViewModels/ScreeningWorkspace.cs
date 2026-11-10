@@ -117,7 +117,7 @@ public sealed class ScreeningWorkspace:Bindable
                 {
                     var data=await history.Get(stock,config,facts,specification,first,last,token);var now=DateTimeOffset.UtcNow;
                     var bars=data.Bars??data.Dataset.CompletedBars.Select((b,index)=>new StrategyBar(b,b.Time,b.Time,index,facts.TradingValue(stock.Symbol,DailyDates.Of(b),b.Time),data.Dataset.Source)).ToArray();
-                    var engine=new OversoldScreeningEngine();var result=await Task.Run(()=>specification==null?engine.EvaluateCurrent(stock,bars,config,data.Facts,now,token:token,from:first,to:last):engine.EvaluateObserved(stock,bars,config,data.Facts,now,token:token,from:first,to:last),token);
+                    var engine=new OversoldScreeningEngine();var result=await Task.Run(()=>config.UseCrashStrategy?Stock.Core.Research.DayTrading.SelectedStrategy.Screen(stock,config,data.Facts,Stock.Core.Research.DayTrading.SelectedStrategy.DailyBars(data.Dataset,data.Facts),data.Bars??Stock.Core.Research.DayTrading.SelectedStrategy.DailyBars(data.Dataset,data.Facts),first,last,data.Specification==null,token):data.Specification==null?engine.EvaluateCurrent(stock,bars,config,data.Facts,now,token:token,from:first,to:last):engine.EvaluateObserved(stock,bars,config,data.Facts,now,token:token,from:first,to:last),token);
                     return(result,data);
                 }
                 catch(OperationCanceledException) when(token.IsCancellationRequested){throw;}catch(StorageException){throw;}
@@ -158,7 +158,7 @@ public sealed class ScreeningWorkspace:Bindable
             var targets=Rows.Select(r=>r.Observation.Stock).ToArray();var browser=new ResearchBrowserViewModel(targets,async (stock,token)=>
             {
                 var data=services.Store.State<PreparedResearchData>("desktop-screen-data:"+snapshot.Id+":"+stock.Key)??throw new InvalidOperationException(stock.Name+": 완료한 종목의 당시 자료를 찾을 수 없습니다.");
-                var first=snapshot.From!.Value;var last=snapshot.To!.Value;var result=await services.Backtests.RunAsync(new(data.Dataset,snapshot.Configuration,first,last,data.Facts,snapshot.BarSpecification,data.Bars),token);
+                var first=snapshot.From!.Value;var last=snapshot.To!.Value;var result=await services.Backtests.RunAsync(new(data.Dataset,snapshot.Configuration,first,last,data.Facts,data.Specification,data.Bars),token);
                 var prices=(data.Bars?.Select(b=>b.Price with{Time=b.OpenTime})??data.Dataset.CompletedBars).Where(b=>DailyDates.Of(b)>=first&&DailyDates.Of(b)<=last).ToArray();return new(result,prices);
             },"스크리닝 당시 설정 사용 · "+snapshot.StrategyName+" · "+(snapshot.BarSpecification?.ToString()??"일봉")+" · "+snapshot.From+" ~ "+snapshot.To);browser.Initialize();browser.Notice+=message=>Notice?.Invoke(message);BrowserRequested?.Invoke(browser);await browser.Go(Array.FindIndex(targets,s=>s.Key==row.Observation.Stock.Key));
         }

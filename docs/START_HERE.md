@@ -10,7 +10,7 @@
 |---|---|---|
 | 현재 Avalonia Windows 배포/개발 | `../README-Avalonia.md`, `avalonia/COMPLETION_E1_E4_20261108.md`, `verification/Avalonia-Release-2026-11-08.md` | `STOCK.Avalonia.sln`, `Stock.Avalonia`, 공통 `Stock.Core`; 아래 WPF 소스는 호환 이력 |
 | 전략 D/범용 당일매매 | `architecture/StrategyD-Plan.md`, `ui/StrategyD.md`, `verification/StrategyD-Progress.md` | `Research/DayTrading`, `DayTradingWorkspace/ViewModel/Dialog/ChartPanel` |
-| ChatGPT 논의용 전략·계산 설명서 | `strategy/과매도_낙주반등_전략_상세설명서.md` | 현재 기본값/선택 snapshot61개·수식·진입/청산·검증/논의사항 |
+| ChatGPT 논의용 현재 전략·JSON 설명서 | `strategy/현재_전략_상세설명_및_JSON_가이드_2026-11-10.md`, `verification/Strategy-JSON-2026-11-10.md` | 기존61개·D 기술값/정책60개·ON/OFF·수식·전체 JSON·불러오기 검사. 개인 선택값이 아닌 코드 기본값 |
 | 메모리 시세·모드 재사용·가격/스크롤바 | `verification/MemoryMode-2026-11-07.md` | `SessionMarketData`, `ConnectionLifetime`, `DisplayNumber`, `TossInspired.xaml` |
 | DB 오류/백업/재시작 | [저장소 운영](maintenance/Storage.md) | `TradingStore`, `StorageDiagnostics`, `StorageWorkspace`, `App` |
 | 전체 기능 점검 | [기능 점검표](verification/FeatureAudit-2026-11-06.md) | `Stock.Tests/Program.cs`, `ButtonAuditTests` |

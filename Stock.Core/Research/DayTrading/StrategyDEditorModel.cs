@@ -23,6 +23,8 @@ public sealed class DayTradingParameter:INotifyPropertyChanged
     public bool IsBool=>Type==typeof(bool);
     public bool IsChoice=>Type.IsEnum;
     public bool IsText=>!IsBool&&!IsChoice;
+    public DayTradingParameter? TimeframeField {get;internal set;}
+    public bool HasTimeframe=>TimeframeField!=null;
     public DayTradingChoice[] Choices {get;}
     public string Text {get=>text;set{if(text==value)return;text=value;Changed(nameof(Text));Changed(nameof(BoolValue));}}
     public bool BoolValue {get=>bool.TryParse(Text,out var value)&&value;set=>Text=value.ToString();}
@@ -32,7 +34,7 @@ public sealed class DayTradingParameter:INotifyPropertyChanged
     {
         Path=path;Type=type;Label=label;Group=group;Unit=unit;Help=help+"\n"+path;Advanced=advanced;
         text=type.IsEnum?Convert.ToInt32(value).ToString(CultureInfo.InvariantCulture):Convert.ToString(value,CultureInfo.InvariantCulture)??"";
-        Choices=type.IsEnum?Enum.GetValues(type).Cast<object>().Select(v=>new DayTradingChoice(Convert.ToInt32(v).ToString(CultureInfo.InvariantCulture),EnumLabel(v))).ToArray():[];
+        Choices=type.IsEnum?Enum.GetValues(type).Cast<object>().Where(v=>type!=typeof(TimeframeUnit)||v is TimeframeUnit.Minute or TimeframeUnit.Hour or TimeframeUnit.TradingDay or TimeframeUnit.Week or TimeframeUnit.Month).Select(v=>new DayTradingChoice(Convert.ToInt32(v).ToString(CultureInfo.InvariantCulture),EnumLabel(v))).ToArray():[];
     }
     internal JsonNode? Parse()
     {
@@ -48,7 +50,7 @@ public sealed class DayTradingParameter:INotifyPropertyChanged
     }
     private static string EnumLabel(object value)=>value.ToString() switch
     {
-        "Trade"=>"체결 수 (원본 필요)","Second"=>"초 (원본 필요)","Minute"=>"분","Hour"=>"시간","TradingDay"=>"거래일",
+        "Trade"=>"체결 수 (원본 필요)","Second"=>"초 (원본 필요)","Minute"=>"분","Hour"=>"시간","TradingDay"=>"일봉","Week"=>"주봉","Month"=>"월봉",
         "OnTick"=>"새 체결마다","OnActiveBarUpdate"=>"진행봉 갱신마다","OnBarClosed"=>"봉 마감 때",
         "Any"=>"하나 이상 (OR)","All"=>"모두 (AND)","Approximate"=>"OHLCV 근사 매물대","TradeBased"=>"실제 체결 매물대 (원본 필요)",
         "NewLowerZoneOnly"=>"더 낮은 새 구간만","SameZoneWithFreshSignal"=>"같은 구간 새 반등 허용","NewZoneAnyDirection"=>"새 구간 허용","Disabled"=>"재진입 안 함",
@@ -86,14 +88,31 @@ public sealed class StrategyDEditorModel
                 result.Add(new(key,type,value,name,group,unit,HelpFor(key),advanced));
             }
         }
-        Walk(original.DayTrading!,"DayTrading");Parameters=result;
+        Walk(original.DayTrading!,"DayTrading");
+        foreach(var property in ParameterCatalog.Properties(original.Configuration).Where(p=>ParameterCatalog.For(p).Unit=="봉"&&activeLegacy.Contains(p.Name)))
+        {
+            var frame=original.Configuration.ParameterTimeframes.GetValueOrDefault(property.Name)??new TimeframeSpec(1,TimeframeUnit.TradingDay);
+            var unit=new DayTradingParameter("Configuration.ParameterTimeframes."+property.Name+".Unit",typeof(TimeframeUnit),frame.Unit,"단위","공통 전략 수치","","지표별 판단 봉 기준입니다.",false);
+            result.First(p=>p.Path=="Configuration."+property.Name).TimeframeField=unit;result.Add(unit);
+        }
+        foreach(var field in result.Where(p=>p.Path.EndsWith(".Size")||p.Path.EndsWith(".Value")))
+            field.TimeframeField=result.FirstOrDefault(p=>p.Path==field.Path[..field.Path.LastIndexOf('.')]+".Unit");
+        var ma=result.FirstOrDefault(p=>p.Path=="Configuration.MovingAveragePeriods");
+        if(ma!=null)ma.TimeframeField=result.FirstOrDefault(p=>p.Path=="DayTrading.Support.MovingAverageTimeframe.Unit");
+        Parameters=result;
     }
     public StrategyDefinition Apply(string name)
     {
         var root=JsonSerializer.SerializeToNode(original,Serialization.Json)!;
         foreach(var field in Parameters)
         {
-            var parts=field.Path.Split('.');var node=root;foreach(var part in parts[..^1])node=node[part]!;node[parts[^1]]=field.Parse();
+            var parts=field.Path.Split('.');var node=root;
+            foreach(var part in parts[..^1]){if(node[part]==null)node[part]=new JsonObject();node=node[part]!;}
+            var parsed=field.Parse();
+            // The unit-only UI must preserve an imported 3-hour/5-minute frame.
+            // A newly selected unit starts at one, including calendar units.
+            if(field.Path.Contains(".ParameterTimeframes.")&&(node["Size"]==null||!JsonNode.DeepEquals(node[parts[^1]],parsed)))node["Size"]=1;
+            node[parts[^1]]=parsed;
         }
         root[nameof(StrategyDefinition.Preset)]=name.Trim();root[nameof(StrategyDefinition.ExportedAt)]=DateTimeOffset.UtcNow;
         var result=root.Deserialize<StrategyDefinition>(Serialization.Json)!;result.Validate();return result.Snapshot();

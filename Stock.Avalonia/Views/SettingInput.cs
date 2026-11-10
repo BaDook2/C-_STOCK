@@ -23,8 +23,17 @@ public sealed class SettingInput:ContentControl
         }
         else
         {
-            TextBox box=DataContext is LegacyParameter{IsDecimal:true} number?new StrategyNumberBox(number.Scale):new TextBox();box.Bind(TextBox.TextProperty,new Binding("Text"){Mode=BindingMode.TwoWay});editor=box;
+            TextBox box=new TextBox();box.Bind(TextBox.TextProperty,new Binding("Text"){Mode=BindingMode.TwoWay});editor=box;
         }
-        editor.Height=32;editor.Margin=new(0);if(editor is Avalonia.Controls.Primitives.TemplatedControl input)input.Padding=new(8,4);editor.DataContext=DataContext;Content=editor;
+        editor.Height=32;editor.Margin=new(0);if(editor is Avalonia.Controls.Primitives.TemplatedControl input)input.Padding=new(8,4);editor.DataContext=DataContext;
+        if(DataContext is DayTradingParameter{TimeframeField:{} unit})
+        {
+            editor.Width=120;
+            var choices=unit.Choices.Where(c=>DataContext is not DayTradingParameter{Path:"Configuration.MovingAveragePeriods"}||c.Label is "일봉" or "주봉" or "월봉").ToArray();
+            var combo=new ComboBox{Width=120,Height=32,ItemsSource=choices,DisplayMemberBinding=new Binding("Label"),SelectedValueBinding=new Binding("Value"),DataContext=unit};
+            combo.Bind(SelectingItemsControl.SelectedValueProperty,new Binding("Text"){Mode=BindingMode.TwoWay});
+            Content=new StackPanel{Orientation=Avalonia.Layout.Orientation.Horizontal,Spacing=4,Children={editor,combo}};
+        }
+        else Content=editor;
     }
 }

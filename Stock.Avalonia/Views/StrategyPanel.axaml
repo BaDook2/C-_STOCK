@@ -1,8 +1,68 @@
 <UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="clr-namespace:Stock.Desktop" x:Class="Stock.Desktop.StrategyPanel">
+
+    <UserControl.Resources>
+        <DataTemplate x:Key="UsageSectionTemplate">
+            <Border BorderBrush="#E5E8EB" BorderThickness="1" CornerRadius="12" Padding="12" Margin="0,0,0,12">
+                <Expander FontSize="17" FontWeight="SemiBold" IsExpanded="True" HorizontalAlignment="Stretch">
+                    <Expander.Header><WrapPanel><TextBlock Text="{Binding Name}" FontSize="17" FontWeight="SemiBold" /><TextBlock Text="{Binding Count,StringFormat=' · {0:N0}개'}" Foreground="#8B95A1" FontSize="14" VerticalAlignment="Center" /></WrapPanel></Expander.Header>
+                    <StackPanel>
+                        <TextBlock Text="{Binding Description}" FontSize="13" FontWeight="Normal" Foreground="#333D4B" TextWrapping="Wrap" Margin="0,0,0,8" />
+                        <Border Background="#F2F7FF" CornerRadius="8" Padding="12" Margin="0,0,0,8">
+                            <TextBlock Text="{Binding Status}" FontSize="13" FontWeight="Normal" Foreground="#46658B" TextWrapping="Wrap" />
+                        </Border>
+                        <ItemsControl ItemsSource="{Binding Groups}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Expander FontSize="13" FontWeight="Normal" Header="{Binding Name}" IsExpanded="False" HorizontalAlignment="Stretch" Margin="0,8">
+                                        <ItemsControl ItemsSource="{Binding Rows}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <ItemsControl ItemsSource="{Binding Cells}">
+                                                        <ItemsControl.ItemsPanel>
+                                                            <ItemsPanelTemplate>
+                                                                <UniformGrid Columns="3" />
+                                                            </ItemsPanelTemplate>
+                                                        </ItemsControl.ItemsPanel>
+                                                        <ItemsControl.ItemTemplate>
+                                                            <DataTemplate>
+                                                                <Border Background="#F7F9FC" CornerRadius="10" Padding="10,8" Margin="0,0,8,8" IsVisible="{Binding Present}">
+                                                                    <StackPanel DataContext="{Binding Field}" Spacing="6">
+                                                                        <DockPanel>
+                                                                            <Button DockPanel.Dock="Right" Content="?" Classes="secondary" Width="25" Height="25" Padding="0" ToolTip.Tip="{Binding Help}" Click="HelpClick" />
+                                                                            <TextBlock Text="{Binding Metadata.DisplayName}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                                                        </DockPanel>
+                                                                        <StackPanel Orientation="Horizontal" Spacing="4">
+                                                                            <local:SettingInput Width="120" />
+                                                                            <ComboBox Width="120" IsVisible="{Binding HasTimeframe}" ItemsSource="{Binding TimeframeChoices}" SelectedValueBinding="{Binding Value}" DisplayMemberBinding="{Binding Label}" SelectedValue="{Binding Timeframe,Mode=TwoWay}" />
+                                                                        </StackPanel>
+                                                                    </StackPanel>
+                                                                </Border>
+
+        </DataTemplate>
+                                                                        </ItemsControl.ItemTemplate>
+                                                                    </ItemsControl>
+                                                                </DataTemplate>
+                                                            </ItemsControl.ItemTemplate>
+                                                        </ItemsControl>
+                                                    </Expander>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                </Expander>
+                            </Border>
+
+        </DataTemplate>
+    </UserControl.Resources>
+    <UserControl.Styles>
+        <!-- Only this header contains an interactive child. Other expander hit areas stay unchanged. -->
+        <Style Selector="Expander.strategy-toggle /template/ ToggleButton#PART_ToggleButton /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="IsHitTestVisible" Value="True" />
+        </Style>
+    </UserControl.Styles>
     <DockPanel>
         <StackPanel DockPanel.Dock="Top">
             <TextBlock Text="전략 설정" FontSize="28" FontWeight="Bold" />
-            <Button Content="전략 D · 간편/고급 설정" Command="{Binding $parent[Window].DataContext.OpenDayTradingSettings}" HorizontalAlignment="Left" Margin="0,10,0,0" />
             <TextBlock Text="저장한 전략을 선택해 백테스트·스크리닝·검증된 실시간 실행에 사용할 조건을 관리합니다." Foreground="#6B7684" Margin="0,12" />
             <WrapPanel>
                 <ComboBox ItemsSource="{Binding Names}" SelectedItem="{Binding Selected,Mode=TwoWay}" IsEditable="True" Text="{Binding Name,Mode=TwoWay}" Width="250" />
@@ -18,63 +78,40 @@
         <ScrollViewer VerticalScrollBarVisibility="Auto">
             <StackPanel Margin="0,14,0,20">
                 <TextBlock Text="{Binding Message}" Foreground="#6B7684" FontSize="12" TextWrapping="Wrap" Margin="0,8" />
-                <Expander Header="시점별 검증 자료 (고급)" Margin="0,8,0,12">
-                    <TextBox Text="{Binding $parent[Window].DataContext.Research.FactsJson,Mode=TwoWay}" AcceptsReturn="True" Height="160" TextWrapping="Wrap" />
-                </Expander>
-                <ItemsControl ItemsSource="{Binding UsageGroups}">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <Border BorderBrush="#E5E8EB" BorderThickness="1" CornerRadius="12" Padding="12" Margin="0,0,0,12">
-                                <Expander FontSize="17" FontWeight="SemiBold" IsExpanded="True" HorizontalAlignment="Stretch">
-                                    <Expander.Header><WrapPanel><TextBlock Text="{Binding Name}" FontSize="17" FontWeight="SemiBold" /><TextBlock Text="{Binding Count,StringFormat=' · {0:N0}개'}" Foreground="#8B95A1" FontSize="14" VerticalAlignment="Center" /></WrapPanel></Expander.Header>
-                                    <StackPanel>
-                                        <TextBlock Text="{Binding Description}" FontSize="13" FontWeight="Normal" Foreground="#333D4B" TextWrapping="Wrap" Margin="0,0,0,8" />
-                                        <Border Background="#F2F7FF" CornerRadius="8" Padding="12" Margin="0,0,0,8">
-                                            <TextBlock Text="{Binding Status}" FontSize="13" FontWeight="Normal" Foreground="#46658B" TextWrapping="Wrap" />
-                                        </Border>
-                                        <ItemsControl ItemsSource="{Binding Groups}">
-                                            <ItemsControl.ItemTemplate>
-                                                <DataTemplate>
-                                                    <Expander FontSize="13" FontWeight="Normal" Header="{Binding Name}" IsExpanded="False" HorizontalAlignment="Stretch" Margin="0,8">
-                                                        <ItemsControl ItemsSource="{Binding Rows}">
-                                                            <ItemsControl.ItemTemplate>
-                                                                <DataTemplate>
-                                                                    <ItemsControl ItemsSource="{Binding Cells}">
-                                                                        <ItemsControl.ItemsPanel>
-                                                                            <ItemsPanelTemplate>
-                                                                                <UniformGrid Columns="3" />
-                                                                            </ItemsPanelTemplate>
-                                                                        </ItemsControl.ItemsPanel>
-                                                                        <ItemsControl.ItemTemplate>
-                                                                            <DataTemplate>
-                                                                                <Border Background="#F7F9FC" CornerRadius="10" Padding="10,8" Margin="0,0,8,8" IsVisible="{Binding Present}">
-                                                                                    <StackPanel DataContext="{Binding Field}" Spacing="6">
-                                                                                        <DockPanel>
-                                                                                            <Button DockPanel.Dock="Right" Content="?" Classes="secondary" Width="25" Height="25" Padding="0" ToolTip.Tip="{Binding Help}" Click="HelpClick" />
-                                                                                            <TextBlock Text="{Binding Metadata.DisplayName}" FontWeight="SemiBold" VerticalAlignment="Center" />
-                                                                                        </DockPanel>
-                                                                                        <Grid ColumnDefinitions="150,*">
-                                                                                            <local:SettingInput />
-                                                                                            <TextBlock Grid.Column="1" Text="{Binding Hint}" Classes="muted" FontSize="11" VerticalAlignment="Center" Margin="10,0,0,0" TextWrapping="Wrap" />
-                                                                                        </Grid>
-                                                                                    </StackPanel>
-                                                                                </Border>
-                                                                            </DataTemplate>
-                                                                        </ItemsControl.ItemTemplate>
-                                                                    </ItemsControl>
-                                                                </DataTemplate>
-                                                            </ItemsControl.ItemTemplate>
-                                                        </ItemsControl>
-                                                    </Expander>
-                                                </DataTemplate>
-                                            </ItemsControl.ItemTemplate>
-                                        </ItemsControl>
-                                    </StackPanel>
-                                </Expander>
-                            </Border>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
+                <ItemsControl x:Name="BacktestSections" ItemsSource="{Binding BacktestUsageGroups}" ItemTemplate="{StaticResource UsageSectionTemplate}" />
+                <Border x:Name="CrashSection" BorderBrush="#E5E8EB" BorderThickness="1" CornerRadius="12" Padding="12" Margin="0,0,0,12">
+                    <Expander x:Name="CrashStrategyExpander" Classes="strategy-toggle" FontSize="17" FontWeight="SemiBold" IsExpanded="False" HorizontalAlignment="Stretch">
+                        <Expander.Header>
+                            <StackPanel Orientation="Horizontal" Spacing="14">
+                                <TextBlock Text="급락 판단 전략" FontSize="17" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                <CheckBox x:Name="CrashStrategyUse" Content="사용" IsChecked="{Binding UseCrashStrategy,Mode=TwoWay}" FontSize="13" FontWeight="Normal" Margin="0" ToolTip.Tip="켜면 전략 D 전체 진입·청산 규칙을 적용합니다. 끄면 기존 전략을 사용합니다." />
+                            </StackPanel>
+                        </Expander.Header>
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="사용을 켜면 이 전략의 전체 진입·청산 조건을 적용합니다. 총 투자금과 비용은 아래 기존 전략 설정의 값을 공통으로 사용합니다." Classes="muted" FontSize="13" FontWeight="Normal" TextWrapping="Wrap" />
+                            <ItemsControl ItemsSource="{Binding CrashGroups}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Expander Header="{Binding Name}" FontSize="13" FontWeight="Normal" IsExpanded="False" HorizontalAlignment="Stretch" Margin="0,8">
+                                            <ItemsControl ItemsSource="{Binding Fields}" IsEnabled="{Binding $parent[local:StrategyPanel].DataContext.UseCrashStrategy}">
+                                                <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Border Background="#F7F9FC" CornerRadius="8" Width="290" Padding="10" Margin="0,4,8,4" ToolTip.Tip="{Binding Help}">
+                                                            <StackPanel Spacing="6"><TextBlock Text="{Binding Label}" FontWeight="SemiBold" /><local:SettingInput /></StackPanel>
+                                                        </Border>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </Expander>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Expander>
+                </Border>
+                <ItemsControl x:Name="CommonSections" ItemsSource="{Binding StrategyUsageGroups}" ItemTemplate="{StaticResource UsageSectionTemplate}" />
+                <TextBlock Text="오프라인 백테스트·스크리닝은 데이터 기준을 일봉으로 진행합니다. 온라인에서는 화면의 데이터 기준과 관계없이 각 전략 설정의 봉 단위로 판단합니다." TextWrapping="Wrap" Foreground="#6B7684" Margin="0,12" />
             </StackPanel>
         </ScrollViewer>
     </DockPanel>

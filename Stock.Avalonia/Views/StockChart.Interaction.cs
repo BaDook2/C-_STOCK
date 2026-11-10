@@ -59,6 +59,9 @@ public partial class StockChart
         if(Bars is not {Length:>0} bars||viewport.End<=viewport.Start)return;
         decimal low=decimal.MaxValue,high=decimal.MinValue,maxVolume=1;
         for(var i=viewport.Start;i<viewport.End;i++){low=Math.Min(low,bars[i].Low);high=Math.Max(high,bars[i].High);maxVolume=Math.Max(maxVolume,bars[i].Volume);}
+        foreach(var point in indicatorExtents.Where(p=>p.X>=viewport.Start&&p.X<viewport.End)){low=Math.Min(low,point.Y);high=Math.Max(high,point.Y);}
+        foreach(var point in (Zones??[]).Where(z=>z.CrashPoint)){low=Math.Min(low,point.Lower);high=Math.Max(high,point.Lower);}
+        foreach(var point in (Markers??[]).Where(m=>m.CrashJudgmentLow.HasValue)){low=Math.Min(low,point.CrashJudgmentLow!.Value);high=Math.Max(high,point.CrashJudgmentLow.Value);}
         var pad=(high-low)*.07m;if(pad==0)pad=Math.Max(.01m,high*.01m);
         PricePlot.Plot.Axes.SetLimits(viewport.Start-.5,viewport.End-.5,(double)(low-pad),(double)(high+pad));
         VolumePlot.Plot.Axes.SetLimits(viewport.Start-.5,viewport.End-.5,0,(double)maxVolume*1.12);

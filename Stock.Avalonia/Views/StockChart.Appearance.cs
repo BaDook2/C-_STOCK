@@ -24,11 +24,19 @@ public partial class StockChart
   // Chart warm-up never modifies the strategy input or a stored backtest snapshot.
   var history=IndicatorBars is {Length:>0} warm&&warm[0].Time<=visible[0].Time?warm:visible;
   var index=history.Select((b,i)=>(b.Time,i)).ToDictionary(x=>x.Time,x=>x.i);
-  if(ShowMovingAverages)foreach(var (period,hex) in new[]{(5,"FFA132"),(20,"8E5EEF"),(60,"22A68C"),(120,"E45D83")})
+  RenderedMa240=false;indicatorExtents.Clear();
+  if(ShowMovingAverages)foreach(var (period,hex) in new[]{(5,"FFA132"),(20,"8E5EEF"),(60,"22A68C"),(120,"E45D83"),(240,"000000")})
   {
+   if(period==240&&DailyBars is not {Length:>0}&&Period!="일봉")continue;
+   var indicatorHistory=period==240&&DailyBars is {Length:>0}?DailyBars:history;
    var values=new Dictionary<DateTimeOffset,double>();decimal sum=0;
-   for(var i=0;i<history.Length;i++){sum+=history[i].Close;if(i>=period)sum-=history[i-period].Close;if(i>=period-1)values[history[i].Time]=(double)(sum/period);}
-   var bars=visible.Where(b=>values.ContainsKey(b.Time)).ToArray();if(bars.Length<2)continue;var series=PricePlot.Plot.Add.SignalXY(bars.Select(b=>TimeCoordinate(b.Time)).ToArray(),bars.Select(b=>values[b.Time]).ToArray());series.Color=Color.FromHex(hex);series.LineWidth=1;
+   for(var i=0;i<indicatorHistory.Length;i++){sum+=indicatorHistory[i].Close;if(i>=period)sum-=indicatorHistory[i-period].Close;if(i>=period-1)values[indicatorHistory[i].Time]=(double)(sum/period);}
+   if(period==240&&DailyBars is {Length:>0})
+   {
+       var dailyValues=values.OrderBy(v=>v.Key).ToArray();values=new();var cursor=0;double? prior=null;
+       foreach(var bar in visible){while(cursor<dailyValues.Length&&(ChartPeriods.Intraday(Period)?dailyValues[cursor].Key.Date<bar.Time.Date:dailyValues[cursor].Key.Date<=bar.Time.Date)){prior=dailyValues[cursor++].Value;}if(prior.HasValue)values[bar.Time]=prior.Value;}
+   }
+   var bars=visible.Where(b=>values.ContainsKey(b.Time)).ToArray();if(bars.Length<2)continue;var series=PricePlot.Plot.Add.SignalXY(bars.Select(b=>TimeCoordinate(b.Time)).ToArray(),bars.Select(b=>values[b.Time]).ToArray());series.Color=Color.FromHex(hex);series.LineWidth=period==240?1.5f:1;if(period==240){RenderedMa240=true;indicatorExtents.AddRange(bars.Select(b=>(TimeCoordinate(b.Time),(decimal)values[b.Time])));}
   }
   if(!ShowCloud)return;
   double? Mid(int end,int length)=>end+1<length?null:(double)(history.Skip(end-length+1).Take(length).Max(b=>b.High)+history.Skip(end-length+1).Take(length).Min(b=>b.Low))/2;

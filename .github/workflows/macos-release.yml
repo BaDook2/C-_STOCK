@@ -1,6 +1,12 @@
 name: Apple Silicon macOS release assets
 
 on:
+  workflow_dispatch:
+    inputs:
+      build_tag:
+        description: "New Apple Silicon build tag (for example macos-v0.1.17-r1)"
+        required: true
+        type: string
   push:
     tags:
       - "macos-v*-r*"
@@ -31,10 +37,13 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
+          REQUESTED_BUILD_TAG: ${{ inputs.build_tag }}
         run: |
           set -euo pipefail
           [[ "$(uname -s)" == Darwin && "$(uname -m)" == arm64 ]]
-          [[ "$GITHUB_REF_NAME" =~ ^macos-(v[0-9]+\.[0-9]+\.[0-9]+)-r[0-9]+$ ]]
+          MACOS_BUILD_TAG="$GITHUB_REF_NAME"
+          if [[ "$GITHUB_EVENT_NAME" == workflow_dispatch ]]; then MACOS_BUILD_TAG="$REQUESTED_BUILD_TAG"; fi
+          [[ "$MACOS_BUILD_TAG" =~ ^macos-(v[0-9]+\.[0-9]+\.[0-9]+)-r[0-9]+$ ]]
           RELEASE_TAG="${BASH_REMATCH[1]}"
           git fetch --no-tags origin "refs/tags/$RELEASE_TAG:refs/tags/$RELEASE_TAG"
           SOURCE_COMMIT="$(git rev-parse "$RELEASE_TAG^{commit}")"
@@ -46,7 +55,7 @@ jobs:
           assert not release["draft"] and not release["prerelease"]
           assert any(a["name"]=="Stock.exe" and a.get("digest") for a in release["assets"])
           PY
-          printf '%s\n' "RELEASE_TAG=$RELEASE_TAG" "STOCK_SOURCE_REVISION=$SOURCE_COMMIT" >> "$GITHUB_ENV"
+          printf '%s\n' "RELEASE_TAG=$RELEASE_TAG" "STOCK_SOURCE_REVISION=$SOURCE_COMMIT" "MACOS_BUILD_TAG=$MACOS_BUILD_TAG" >> "$GITHUB_ENV"
           dotnet --info
 
       - name: Build and verify Mac core, UI, design and isolated Keychain
@@ -62,7 +71,7 @@ jobs:
       - name: Create signed app bundle, DMG and ZIP
         shell: bash
         run: |
-          bash avalonia-scripts/package-macos-release.sh "$RUNNER_TEMP/stock-macos-release" "$RELEASE_TAG" "$GITHUB_REF_NAME"
+          bash avalonia-scripts/package-macos-release.sh "$RUNNER_TEMP/stock-macos-release" "$RELEASE_TAG" "$MACOS_BUILD_TAG"
 
       - name: Execute native app and verify unpacked ZIP and mounted DMG
         shell: bash
@@ -92,7 +101,34 @@ jobs:
           for suffix in [".dmg",".zip",".dmg.sha256",".zip.sha256"]:
               assert sys.argv[3]+suffix not in now, "Existing assets are never overwritten"
           PY
+          if [[ "$GITHUB_EVENT_NAME" == workflow_dispatch ]]; then
+            gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" -f "ref=refs/tags/$MACOS_BUILD_TAG" -f "sha=$GITHUB_SHA"
+          fi
           gh release upload "$RELEASE_TAG" "$MACOS_OUTPUT/$MACOS_NAME.dmg" "$MACOS_OUTPUT/$MACOS_NAME.zip" "$MACOS_OUTPUT/$MACOS_NAME.dmg.sha256" "$MACOS_OUTPUT/$MACOS_NAME.zip.sha256"
+
+      - name: Verify public Mac archives and execute the downloaded app
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          PUBLIC_OUTPUT="$RUNNER_TEMP/public-macos-release"
+          mkdir -p "$PUBLIC_OUTPUT/publish"
+          gh release download "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --pattern "$MACOS_NAME.*" --dir "$PUBLIC_OUTPUT"
+          gh api "repos/$GITHUB_REPOSITORY/releases/tags/$RELEASE_TAG" > "$PUBLIC_OUTPUT/release.json"
+          python3 - "$PUBLIC_OUTPUT" "$MACOS_OUTPUT" "$MACOS_NAME" <<'PY'
+          import hashlib,json,sys
+          from pathlib import Path
+          public,built=map(Path,sys.argv[1:3]);name=sys.argv[3]
+          assets={a['name']:a for a in json.loads((public/'release.json').read_text())['assets']}
+          for suffix in ['.dmg','.zip','.dmg.sha256','.zip.sha256']:
+              filename=name+suffix
+              actual=hashlib.sha256((public/filename).read_bytes()).hexdigest()
+              assert actual==hashlib.sha256((built/filename).read_bytes()).hexdigest()
+              assert assets[filename]['digest']=='sha256:'+actual
+          PY
+          ditto -xk "$PUBLIC_OUTPUT/$MACOS_NAME.zip" "$PUBLIC_OUTPUT/publish"
+          python3 avalonia-scripts/verify-macos-release.py "$PUBLIC_OUTPUT" "$RELEASE_TAG" "$MACOS_NAME"
 
       - name: Preserve verification evidence
         if: always()
@@ -103,4 +139,6 @@ jobs:
             ${{ runner.temp }}/stock-macos-release/audit
             ${{ runner.temp }}/mac-ui
             ${{ runner.temp }}/mac-design
+            ${{ runner.temp }}/public-macos-release/audit
+            ${{ runner.temp }}/public-macos-release/release.json
           if-no-files-found: warn

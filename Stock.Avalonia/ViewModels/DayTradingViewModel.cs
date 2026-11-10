@@ -47,6 +47,7 @@ public sealed class DayTradingViewModel:Bindable,IAsyncDisposable
     public ObservableCollection<DayTradingRowSnapshot> LiveRows {get;}=[];
     public ObservableCollection<IntradayFillRow> VisibleFills {get;}=[];
     public PriceBar[] ChartBars {get;private set;}=[];
+    public PriceBar[] DailyBars {get;private set;}=[];
     public TradeMarker[] Markers {get;private set;}=[];
     public ChartSupportZone[] Zones {get;private set;}=[];
     public string ChartPeriod {get;private set;}="일봉";
@@ -134,7 +135,7 @@ public sealed class DayTradingViewModel:Bindable,IAsyncDisposable
                 var state=result.Signals.Length>0?"매수 신호 관측":result.Account.Rows.FirstOrDefault()?.State??"신호 없음";
                 Results.Add(new(item.Stock,result,state,""));
                 // Reproduction stores bar/signal/fill snapshots, never the original trade-event stream.
-                store.State("daytrading-result:"+result.Id,result);store.State("daytrading-result-bars:"+result.Id,item.Bars.Select(b=>b.Price with{Time=b.OpenTime}).ToArray());store.State("daytrading-result-definition:"+result.Id,definition);
+                store.State("daytrading-result-daily:"+result.Id,item.Item.Seed.Bars.Where(s=>s.Timeframe==new TimeframeSpec(1,TimeframeUnit.TradingDay)).Select(s=>s.Bar.Price).ToArray());store.State("daytrading-result:"+result.Id,result);store.State("daytrading-result-bars:"+result.Id,item.Bars.Select(b=>b.Price with{Time=b.OpenTime}).ToArray());store.State("daytrading-result-definition:"+result.Id,definition);
                 var history=new DayTradingHistoryRecord("daytrading-history:"+Guid.NewGuid().ToString("N"),DateTimeOffset.UtcNow,result.Id,definition.Preset+" · "+item.Stock.Name,$"{from} ~ {to} · {Period(definition)}");store.State(history.Id,history);ResearchCompleted?.Invoke(history);
                 if(SelectedResearch==null||!screening)SelectedResearch=Results.Last();
             }
@@ -146,8 +147,8 @@ public sealed class DayTradingViewModel:Bindable,IAsyncDisposable
     }
     public void ShowResult(IntradayReplayResult result)
     {
-        Latest=result;ChartPeriod=Period(store.State<StrategyDefinition>("daytrading-result-definition:"+result.Id)??working);ChartBars=store.State<PriceBar[]>("daytrading-result-bars:"+result.Id)??[];VisibleFills.Clear();foreach(var fill in result.Fills)VisibleFills.Add(new(fill));
-        Markers=MakeMarkers(result.Fills,result.Trades);Zones=MakeZones(result.Signals,result.To);Detail=string.Join("\n",result.Notices)+$"\n완결거래 {result.Performance.Trades} · 실현손익 {DisplayNumber.SignedPrice(result.Trades.Sum(t=>t.RealizedProfit))} · MDD {result.Performance.MaxDrawdown:N2}%\n공통 성과지표: "+Serialization.Pack(result.Performance);
+        DailyBars=store.State<PriceBar[]>("daytrading-result-daily:"+result.Id)??[];Latest=result;ChartPeriod=Period(store.State<StrategyDefinition>("daytrading-result-definition:"+result.Id)??working);ChartBars=store.State<PriceBar[]>("daytrading-result-bars:"+result.Id)??[];VisibleFills.Clear();foreach(var fill in result.Fills)VisibleFills.Add(new(fill));
+        Markers=MakeMarkers(result.Fills,result.Trades);Zones=[..MakeZones(result.Signals,result.To),..ResearchResultViewModel.CrashPoints(result,result.To)];Detail=string.Join("\n",result.Notices)+$"\n완결거래 {result.Performance.Trades} · 실현손익 {DisplayNumber.SignedPrice(result.Trades.Sum(t=>t.RealizedProfit))} · MDD {result.Performance.MaxDrawdown:N2}%\n공통 성과지표: "+Serialization.Pack(result.Performance);
         Changed(nameof(Latest));NotifyChart();Changed(nameof(Detail));
     }
     public void SelectFill(Fill fill)
@@ -186,14 +187,41 @@ public sealed class DayTradingViewModel:Bindable,IAsyncDisposable
             var key=TradingStore.Hash(Serialization.Pack(fill));if(persistedFills.Contains(key))continue;
             var signal=session.EntryEvidence(fill);
             store.State("daytrading-paper-fill:"+key,new{Fill=fill,Entry=signal});
-            store.State("trade-marker:D:"+key,new TradeMarker(key,fill.Instrument.Key,fill.Time,fill.Buy,fill.Quantity,fill.Price,"전략 D 모의매매",Reason:fill.Reason,RealizedPnl:fill.Buy?null:fill.RealizedPnl));
+            store.State("trade-marker:D:"+key,new TradeMarker(key,fill.Instrument.Key,fill.Time,fill.Buy,fill.Quantity,fill.Price,"전략 D 모의매매",Reason:fill.Reason,RealizedPnl:fill.Buy?null:fill.RealizedPnl,CrashJudgmentLow:ResearchResultViewModel.CrashLow(signal)));
             persistedFills.Add(key);updated=true;
         }
         if(updated&&notify)PaperFillsChanged?.Invoke();
     }
-    private void NotifyChart(){Changed(nameof(ChartBars));Changed(nameof(Markers));Changed(nameof(Zones));Changed(nameof(ChartPeriod));}
+    private void NotifyChart(){Changed(nameof(ChartBars));Changed(nameof(DailyBars));Changed(nameof(Markers));Changed(nameof(Zones));Changed(nameof(ChartPeriod));}
     public static string FillKey(Fill fill)=>fill.OrderId+"|"+fill.Time.UtcTicks+"|"+fill.Quantity;
     private static TradeMarker[] MakeMarkers(IEnumerable<Fill> fills,IntradayRoundTrip[] trades)=>fills.Select(f=>new TradeMarker(FillKey(f),f.Instrument.Key,f.Time,f.Buy,f.Quantity,f.Price,"전략 D 가상/연구",TradeNumber:trades.FirstOrDefault(t=>t.Fills.Contains(f))?.Number,Reason:f.Reason,RealizedPnl:f.Buy?null:f.RealizedPnl)).ToArray();
     private static ChartSupportZone[] MakeZones(IEnumerable<IntradayEntrySignal> signals,DateTimeOffset end)=>signals.Where(s=>s.ZoneLow.HasValue&&s.ZoneHigh.HasValue).Select(s=>new ChartSupportZone(s.Time,end,s.ZoneLow!.Value,s.ZoneHigh!.Value,true,s.Reason+" · 진입 당시 MA+매물대")).ToArray();
+    public async Task StartConfigured(RealtimeRequest request)
+    {
+        if(Busy||Running||HasUnsettled)throw new InvalidOperationException("기존 급락 판단 전략 준비/실행/보유를 먼저 확인하세요.");
+        var plans=request.ItemConfigurations??request.Stocks.Select(s=>new RealtimeItemRequest(s,request.Name,request.Configuration,request.Configuration.PlannedInvestment)).ToArray();
+        if(plans.Any(p=>!p.Configuration.UseCrashStrategy))throw new InvalidOperationException("기존 전략과 급락 판단 전략은 실행 방식이 달라 각각 시작하세요.");
+        if(plans.Sum(p=>p.Budget)>request.TotalBudget)throw new InvalidOperationException("종목 예산의 합계가 전체 한도를 초과합니다.");
+        using var cancel=new CancellationTokenSource(TimeSpan.FromMinutes(2));operation=cancel;Busy=true;
+        try
+        {
+        var now=clock();var today=DailyQuoteMerger.Date(now,Exchange.KRX);var runtimes=new List<StrategyDRuntime>();StrategyDefinition? first=null;
+        foreach(var plan in plans)
+        {
+            var definition=SelectedStrategy.Definition(plan.Configuration,plan.Name);first??=definition;
+            if(definition.Configuration.CommissionPercent!=first.Configuration.CommissionPercent||definition.Configuration.TaxPercent!=first.Configuration.TaxPercent||definition.Configuration.SlippagePercent!=first.Configuration.SlippagePercent)throw new InvalidOperationException("같은 가상 계좌의 비용 가정을 일치시키세요.");
+            definition.DayTrading!.Risk.MaxConcurrentExposure=Math.Min(definition.DayTrading.Risk.MaxConcurrentExposure,plan.Budget);
+            definition.DayTrading.Risk.MaxOrderCash=Math.Min(definition.DayTrading.Risk.MaxOrderCash,plan.Budget);
+            var input=await prepare([plan.Stock],definition,today,today,request.Facts,false,cancel.Token);
+            if(!input[0].Item.Seed.Facts.Sessions.Any(s=>now>=s.Open&&now<s.Close))throw new InvalidOperationException("오늘의 확인된 시장 세션이 필요합니다.");
+            DailyBars=input[0].Item.Seed.Bars.Where(s=>s.Timeframe==new TimeframeSpec(1,TimeframeUnit.TradingDay)).Select(s=>s.Bar.Price).ToArray();
+            runtimes.Add(new(new(plan.Stock.Symbol,plan.Stock.Exchange),definition,input[0].Item.Seed,plan.Name));
+        }
+        var limits=Serialization.Unpack<AccountRiskPolicy>(Serialization.Pack(first!.DayTrading!.Risk));limits.MaxConcurrentExposure=request.TotalBudget;limits.MaxDailyLoss=request.DailyLossLimit;
+        cancel.Token.ThrowIfCancellationRequested();var market=feed(request.Stocks);try{session.Start(market,runtimes.ToArray(),request.TotalBudget,Costs(first),limits,runtimes.Min(r=>r.Profile.Quality.MaximumQueuedEvents),clock);}catch{await market.DisposeAsync();throw;}
+        session.SetEntriesEnabled(true,now);automatic=true;Message="급락 판단 전략 가상 실행 · 원본 체결 기준 · 실제 주문 없음";RefreshLive();
+        }
+        finally{operation=null;Busy=false;}
+    }
     public async ValueTask DisposeAsync(){operation?.Cancel();await session.DisposeAsync().ConfigureAwait(false);PersistPaperFills(false);}
 }

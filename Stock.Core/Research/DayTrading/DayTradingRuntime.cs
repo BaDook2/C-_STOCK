@@ -21,6 +21,7 @@ public interface IDayTradingSignalRuntime
     int TradingDayOrdinal=>0;
     int TradingDayOrdinalAt(DateTimeOffset at)=>TradingDayOrdinal;
     bool ResearchOnly=>false;
+    bool CalendarCloseResearch=>false;
     Stock.Core.Research.PriceBar? ClosedBarEnvelope=>null;
     string State {get;}
     FeedObservation OnMarket(MarketEvent market,DateTimeOffset now);
@@ -54,6 +55,7 @@ public sealed class StrategyDRuntime:IClosedBarSignalRuntime
     public int TradingDayOrdinal=>CurrentSession is {} current?Array.FindIndex(sessions,s=>s.Date==current.Date):0;
     public int TradingDayOrdinalAt(DateTimeOffset at)=>Array.FindIndex(sessions,s=>at>=s.Open&&at<=s.Close);
     public bool ResearchOnly {get;}
+    public bool CalendarCloseResearch=>ResearchOnly&&definition.DayTrading!.SimpleTimeframe.Unit is TimeframeUnit.TradingDay or TimeframeUnit.Week or TimeframeUnit.Month;
     public Stock.Core.Research.PriceBar? ClosedBarEnvelope {get;private set;}
     public string State=>signals.State.Stage+" · "+signals.State.Reason;
     public StrategyDSignalState SignalState=>signals.State;
@@ -62,7 +64,7 @@ public sealed class StrategyDRuntime:IClosedBarSignalRuntime
     public Stock.Core.Research.PriceBar[] AnalysisPrices()=>data.AnalysisPrices();
     public StrategyDRuntime(Instrument instrument,StrategyDefinition definition,StrategyDDataSeed seed,string instance,bool closedBarResearch=false)
     {
-        this.definition=definition.Snapshot();ResearchOnly=closedBarResearch;Instrument=instrument;sessions=seed.Facts.Sessions.OrderBy(s=>s.Open).ToArray();data=new(instrument,this.definition,seed,closedBarResearch);signals=new(instrument,this.definition,seed.Facts.Sessions,instance);
+        this.definition=definition.Snapshot();ResearchOnly=closedBarResearch;Instrument=instrument;sessions=seed.Facts.Sessions.OrderBy(s=>s.Open).ToArray();data=new(instrument,this.definition,seed,closedBarResearch);signals=new(instrument,this.definition,seed.Facts.Sessions,instance,CalendarCloseResearch);
         var p=this.definition.DayTrading!;Profile=new(instance,this.definition.Configuration,p.Exit,p.Session,p.Risk,p.Reentry,p.Quality);
     }
     public FeedObservation OnMarket(MarketEvent e,DateTimeOffset now)
@@ -71,6 +73,7 @@ public sealed class StrategyDRuntime:IClosedBarSignalRuntime
         if(!observation.Accepted&&observation.Decision!=FeedDecision.Duplicate)signals.Invalidate(observation.Reason);
         return observation;
     }
+    public void SupplyFrames(IEnumerable<KnownStrategyBar> frames,DateTimeOffset asOf)=>data.SupplyFrames(frames,asOf);
     public DailyMarketSession ValidateClosedBar(StrategyBar bar)=>data.ValidateClosedBar(bar);
     public void PrepareBarOpening(StrategyBar bar)=>clockSession=data.ValidateClosedBar(bar);
     public FeedObservation OnClosedBar(StrategyBar bar)

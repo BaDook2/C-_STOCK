@@ -17,6 +17,10 @@ public partial class StockChart:UserControl
     public static readonly StyledProperty<string> PeriodProperty=AvaloniaProperty.Register<StockChart,string>(nameof(Period),"일봉");
     public static readonly StyledProperty<bool> ShowMovingAveragesProperty=AvaloniaProperty.Register<StockChart,bool>(nameof(ShowMovingAverages),true);
     public static readonly StyledProperty<bool> ShowCloudProperty=AvaloniaProperty.Register<StockChart,bool>(nameof(ShowCloud));
+    public static readonly StyledProperty<PriceBar[]?> DailyBarsProperty=AvaloniaProperty.Register<StockChart,PriceBar[]?>(nameof(DailyBars));
+    public PriceBar[]? DailyBars {get=>GetValue(DailyBarsProperty);set=>SetValue(DailyBarsProperty,value);}
+    public int RenderedCrashLines {get;private set;}
+    public bool RenderedMa240 {get;private set;}
     public static readonly StyledProperty<PriceBar[]?> IndicatorBarsProperty=AvaloniaProperty.Register<StockChart,PriceBar[]?>(nameof(IndicatorBars));
     public static readonly StyledProperty<bool> OverviewNavigationProperty=AvaloniaProperty.Register<StockChart,bool>(nameof(OverviewNavigation));
     public static readonly StyledProperty<int> DisplayBarCountProperty=AvaloniaProperty.Register<StockChart,int>(nameof(DisplayBarCount));
@@ -40,6 +44,7 @@ public partial class StockChart:UserControl
     private bool rendered;
     private int renderedRevision;
     private readonly List<IPlottable> annotations=[];
+    private readonly List<(double X,decimal Y)> indicatorExtents=[];
     private readonly List<(Rect Bounds,TradeMarker Trade)> tradeLabelHits=[];
     private bool annotationQueued;
     private bool redrawQueued,resetView;
@@ -56,7 +61,7 @@ public partial class StockChart:UserControl
         // Live updates may increase DisplayBarCount. Only an explicit Revision
         // or navigation-mode change should discard the user's pan/zoom state.
         if(change.Property==OverviewNavigationProperty)resetView=true;
-        if(change.Property==BarsProperty||change.Property==MarkersProperty||change.Property==ZonesProperty||change.Property==RevisionProperty||change.Property==PeriodProperty||change.Property==ShowMovingAveragesProperty||change.Property==OverviewNavigationProperty||change.Property==ShowCloudProperty||change.Property==IndicatorBarsProperty||change.Property==DisplayBarCountProperty)QueueRedraw();
+        if(change.Property==BarsProperty||change.Property==MarkersProperty||change.Property==ZonesProperty||change.Property==RevisionProperty||change.Property==PeriodProperty||change.Property==ShowMovingAveragesProperty||change.Property==OverviewNavigationProperty||change.Property==ShowCloudProperty||change.Property==IndicatorBarsProperty||change.Property==DailyBarsProperty||change.Property==DisplayBarCountProperty)QueueRedraw();
     }
     private void QueueRedraw(){if(redrawQueued)return;redrawQueued=true;Dispatcher.UIThread.Post(()=>{redrawQueued=false;Redraw();},DispatcherPriority.Normal);}
     private static double X(DateTimeOffset time)=>time.ToOffset(TimeSpan.FromHours(9)).DateTime.ToOADate();
@@ -70,8 +75,10 @@ public partial class StockChart:UserControl
         var candles=plot.Add.Candlestick(source.Select(b=>new OHLC((double)b.Open,(double)b.High,(double)b.Low,(double)b.Close,b.Time.ToOffset(TimeSpan.FromHours(9)).DateTime,span)).ToArray());
         candles.Sequential=true;candles.SymbolWidth=.58;candles.RisingColor=Color.FromHex("F04452");candles.FallingColor=Color.FromHex("3182F6");
         AddIndicators(source);
-        foreach(var zone in Zones??[])
+        RenderedCrashLines=0;
+        foreach(var zone in (Zones??[]).Concat((Markers??[]).Where(m=>m.CrashJudgmentLow.HasValue).Select(m=>new ChartSupportZone(m.Time,m.Time,m.CrashJudgmentLow!.Value,m.CrashJudgmentLow.Value,true,"급락 판단 지점",true))).DistinctBy(z=>(z.CrashPoint,z.From,z.Lower)))
         {
+            if(zone.CrashPoint){var line=plot.Add.HorizontalLine((double)zone.Lower);line.Color=Color.FromHex("9333EA");line.LineWidth=1.5f;RenderedCrashLines++;continue;}
             var box=plot.Add.Rectangle(TimeCoordinate(zone.From),TimeCoordinate(zone.To),(double)zone.Lower,(double)zone.Upper);box.FillColor=Colors.Blue.WithAlpha(zone.UsedForEntry?.13:.04);box.LineWidth=zone.UsedForEntry?1:0;box.LineColor=Colors.Blue;
         }
         VolumePlot.Plot.Add.Bars(source.Select((b,i)=>new ScottPlot.Bar{Position=i,Value=(double)b.Volume,Size=gap*.58,FillColor=(b.Close>=b.Open?Color.FromHex("F04452"):Color.FromHex("3182F6")).WithAlpha(.25),LineWidth=0}).ToArray());
@@ -110,6 +117,11 @@ public partial class StockChart:UserControl
                 if(free==null){fits=false;break;}placements.Add((group,badge,free.Value));
             }
             if(fits||groups.Length==0)break;density*=.65;
+        }
+        foreach(var price in (Zones??[]).Where(z=>z.CrashPoint).Select(z=>z.Lower).Concat((Markers??[]).Where(m=>m.CrashJudgmentLow.HasValue).Select(m=>m.CrashJudgmentLow!.Value)).Distinct())
+        {
+            var label=new Border{Background=Avalonia.Media.Brushes.White,Padding=new Thickness(4,2),Child=new TextBlock{Text="급락 판단 지점",Foreground=Avalonia.Media.Brush.Parse("#9333EA"),FontSize=12}};
+            var y=plot.GetPixel(new Coordinates(limits.Left,(double)price)).Y/RenderScale;Canvas.SetLeft(label,12);Canvas.SetTop(label,Math.Clamp(y-24,4,Math.Max(4,PricePlot.Bounds.Height-28)));TradeLayer.Children.Add(label);
         }
         RenderedMarkers=placements.Sum(p=>p.Group.Trades.Length);RenderedMarkerGroups=placements.Count;
         foreach(var (group,badge,bounds) in placements)

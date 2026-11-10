@@ -1,6 +1,12 @@
 name: Windows Avalonia single-file release
 
 on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "New version tag (for example v0.1.17); publishes only after verification"
+        required: true
+        type: string
   push:
     tags:
       - "v*"
@@ -17,10 +23,25 @@ jobs:
       - name: Checkout source
         uses: actions/checkout@v7
 
+      - name: Validate explicitly requested release
+        shell: pwsh
+        env:
+          REQUESTED_TAG: ${{ inputs.release_tag }}
+        run: |
+          $tag = if ($env:GITHUB_EVENT_NAME -eq 'workflow_dispatch') { $env:REQUESTED_TAG } else { $env:GITHUB_REF_NAME }
+          if ($tag -notmatch '^v\d+\.\d+\.\d+$') { throw 'A new vMAJOR.MINOR.PATCH tag is required.' }
+          "RELEASE_TAG=$tag" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
       - name: Install .NET 10 SDK
         uses: actions/setup-dotnet@v6
         with:
           dotnet-version: "10.0.x"
+
+      - name: Check application version matches the release
+        shell: pwsh
+        run: |
+          $version = (dotnet msbuild Stock.Avalonia/Stock.Avalonia.csproj -nologo -getProperty:Version).Trim()
+          if ($LASTEXITCODE -ne 0 -or "v$version" -ne $env:RELEASE_TAG) { throw 'Project and requested release versions must match.' }
 
       - name: Restore
         run: dotnet restore Stock.sln
@@ -64,7 +85,7 @@ jobs:
       - name: Publish self-contained Avalonia Stock.exe
         shell: pwsh
         run: |
-          $version = $env:GITHUB_REF_NAME -replace '^v', ''
+          $version = $env:RELEASE_TAG -replace '^v', ''
           if ($version -notmatch '^\d+\.\d+\.\d+$') { throw "A new vMAJOR.MINOR.PATCH tag is required." }
           dotnet publish Stock.Avalonia/Stock.Avalonia.csproj -c Release -r win-x64 --self-contained true -p:UseAppHost=true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:PublishTrimmed=false -p:DebugType=None -p:UseSharedCompilation=false "-p:Version=$version" -o release
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
@@ -99,11 +120,61 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $tag = "${{ github.ref_name }}"
+          $tag = $env:RELEASE_TAG
           gh release view $tag *> $null
           if ($LASTEXITCODE -eq 0) {
             throw "This release already exists. Existing assets are never overwritten; use a new version tag."
           }
           $notes = Join-Path "docs/avalonia" "RELEASE_NOTES_$tag.md"
           if (!(Test-Path -LiteralPath $notes)) { throw "Write the reviewed release notes before publishing a new version." }
+          # A manual run creates its tag only after all tests and published EXE checks pass.
+          $ref = "repos/$env:GITHUB_REPOSITORY/git/refs/tags/$tag"
+          $tagJson = gh api $ref 2>$null
+          if ($LASTEXITCODE -eq 0) {
+            $tagCommit = ($tagJson | ConvertFrom-Json).object.sha
+            if ($tagCommit -ne $env:GITHUB_SHA) { throw 'The release tag points at a different commit.' }
+          } else {
+            if ($env:GITHUB_EVENT_NAME -ne 'workflow_dispatch') { throw 'The pushed tag was not found.' }
+            gh api --method POST "repos/$env:GITHUB_REPOSITORY/git/refs" -f "ref=refs/tags/$tag" -f "sha=$env:GITHUB_SHA"
+            if ($LASTEXITCODE -ne 0) { throw 'Could not create the verified release tag.' }
+          }
           gh release create $tag "release/Stock.exe" "release/Stock.exe.sha256" --verify-tag --notes-file $notes --title "Stock $tag · Avalonia"
+          if ($LASTEXITCODE -ne 0) { throw 'Release publication failed.' }
+
+      - name: Verify the public Windows download and run it
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $audit = Join-Path $env:RUNNER_TEMP 'public-windows-release'
+          New-Item -ItemType Directory -Path $audit | Out-Null
+          gh release download $env:RELEASE_TAG --repo $env:GITHUB_REPOSITORY --pattern 'Stock.exe' --pattern 'Stock.exe.sha256' --dir $audit
+          if ($LASTEXITCODE -ne 0) { throw 'Public release download failed.' }
+          $exe = Join-Path $audit 'Stock.exe'
+          $actual = (Get-FileHash $exe -Algorithm SHA256).Hash.ToLowerInvariant()
+          $built = (Get-FileHash 'release/Stock.exe' -Algorithm SHA256).Hash.ToLowerInvariant()
+          $expected = ([IO.File]::ReadAllText((Join-Path $audit 'Stock.exe.sha256')).Trim() -split '\s+')[0]
+          $release = gh api "repos/$env:GITHUB_REPOSITORY/releases/tags/$env:RELEASE_TAG" | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0) { throw 'Release metadata read failed.' }
+          $asset = @($release.assets | Where-Object name -eq 'Stock.exe')
+          if ($asset.Count -ne 1 -or $actual -ne $built -or $actual -ne $expected -or $asset[0].digest -ne "sha256:$actual") { throw 'Public download hash mismatch.' }
+          if ((Get-Item $exe).VersionInfo.FileVersion -ne ($env:RELEASE_TAG.Substring(1)+'.0')) { throw 'Public EXE version mismatch.' }
+          $smoke = Join-Path $audit 'startup-smoke'
+          $process = Start-Process -FilePath $exe -ArgumentList @('--startup-smoke', ('"'+$smoke+'"')) -WindowStyle Hidden -PassThru
+          if (!$process.WaitForExit(45000) -or $process.ExitCode -ne 0) { throw 'Public EXE startup failed.' }
+          $result = Get-Content (Join-Path $smoke 'result.json') -Raw | ConvertFrom-Json
+          if (!$result.Success -or !$result.NoBrokerCalls) { throw 'Public EXE startup did not pass the isolated probe.' }
+          @{Tag=$env:RELEASE_TAG;SourceCommit=$env:GITHUB_SHA;Sha256=$actual;Bytes=(Get-Item $exe).Length;StartupSuccess=$true;NoBrokerCalls=$true} | ConvertTo-Json | Set-Content (Join-Path $audit 'verification.json')
+
+      - name: Preserve Windows verification evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: Windows-${{ github.run_id }}-verification
+          path: |
+            ${{ runner.temp }}/public-windows-release/verification.json
+            ${{ runner.temp }}/public-windows-release/startup-smoke
+            ${{ runner.temp }}/stock-release-smoke
+            ${{ runner.temp }}/avalonia-workflows
+            ${{ runner.temp }}/avalonia-design
+          if-no-files-found: warn

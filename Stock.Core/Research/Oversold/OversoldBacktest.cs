@@ -19,7 +19,7 @@ public sealed partial class OversoldBacktest
         if(derived.Length>0)result.Notices.Add($"실제 완성 일봉 {derived.Length:N0}개의 날짜로 거래 세션을 구성했습니다. 평일이나 없는 봉은 임의 생성하지 않았습니다.");
         if(sessions.Length==0){result.Notices.Add("선택 기간에 완성 일봉과 검증된 거래 세션이 없습니다.");result.Performance=PerformanceCalculator.Calculate(c.InitialCapital,[],[],c.AnnualRiskFreePercent,c.AnnualTradingDays);return result;}
         if(c.UsePriceOnlyBacktest)result.Notices.Add("가격자료 검증 모드: 누락된 과거 종목상태·위험은 일반주식·거래가능·위험없음으로 가정합니다. 실제 주문과 투자 성과 검증에는 사용할 수 없습니다.");
-        var cache=new OversoldIndicatorCache(c);var providers=supportProviders??[new MovingAverageSupportProvider(),new ConfirmedPivotHighProvider(),new ApproximateVolumeZoneProvider()];var pos=new PositionState();Pending? pending=null;OversoldState state=OversoldState.Idle;var entryDetector=new OversoldEntryDetector();int lastExit=-1;decimal? previousCenter=null;int cursor=0;decimal lastClose=0;
+        var cache=new OversoldIndicatorCache(c,facts:facts);var providers=supportProviders??ConfiguredIndicators.Providers(c,facts);var pos=new PositionState();Pending? pending=null;OversoldState state=OversoldState.Idle;var entryDetector=new OversoldEntryDetector();int lastExit=-1;decimal? previousCenter=null;int cursor=0;decimal lastClose=0;
         IReadOnlyList<SupportCandidate> candidates=[];PositionRuleEvaluation? positionRules=null;AdditionalEntryEvaluation? additionalEntry=null;
         void Append(PriceBar b){cache.Append(b);candidates=providers.SelectMany(p=>p.Get(cache.History,c)).ToArray();lastClose=b.Close;}
         while(cursor<bars.Length&&DailyDates.Of(bars[cursor])<from)Append(bars[cursor++]);

@@ -29,6 +29,7 @@ public sealed class LiveChartViewModel(RealtimeScreeningChartData data,Func<Trad
     public string Key=>data.Stock.Key;
     public string Title=>data.Stock.Name+" · "+data.StrategyName+" · "+data.Specification;
     public string Period=>data.Specification.Unit==BarUnit.Day?"일봉":data.Specification.Value+(data.Specification.Unit==BarUnit.Hour?"시":"분");
+    public PriceBar[] DailyBars {get;private set;}=data.Facts.StrategyFrames.Where(s=>s.Timeframe==new Stock.Core.Research.DayTrading.TimeframeSpec(1,Stock.Core.Research.DayTrading.TimeframeUnit.TradingDay)).Select(s=>s.Bar.Price).ToArray();
     public PriceBar[] Bars {get;private set;}=data.Bars.Select(b=>b.Price with{Time=b.OpenTime}).ToArray();
     public TradeMarker[] Markers {get;private set;}=[];
     public LiveFillRow[] Trades {get;private set;}=[];
@@ -39,7 +40,7 @@ public sealed class LiveChartViewModel(RealtimeScreeningChartData data,Func<Trad
     public string Detail=>Selected==null?"체결을 선택하면 당시 시간·가격·사유를 표시합니다.":$"{Selected.Side}\n{Selected.Time}\n가격 {Selected.Price} · {Selected.Quantity}주\n{Selected.Profit}\n{Selected.Reason}\n"+(evidence?.Invoke(Selected.Marker) is {} snapshot?Stock.Core.Research.DayTrading.IntradayPresentation.PrettyJson(Serialization.Pack(snapshot)):"당시 판단 snapshot을 확인하지 못했습니다. 현재 지지를 재계산해 붙이지 않습니다.");
     public void Update(RealtimeScreeningChartData current,RealtimeScreeningStatusRow? quote,TradeMarker[] fills)
     {
-        Bars=current.Bars.Select(b=>b.Price with{Time=b.OpenTime}).ToArray();var markers=fills.Where(f=>f.StockKey==Key).OrderBy(f=>f.Time).ToArray();if(!markers.SequenceEqual(Markers)){var previous=Selected?.Marker.Id;Markers=markers;Trades=markers.Select(m=>new LiveFillRow(m)).ToArray();Selected=Trades.FirstOrDefault(r=>r.Marker.Id==previous);Changed(nameof(Markers));Changed(nameof(Trades));}Summary=$"현재가 {(quote?.Price is {} price?DisplayNumber.Price(price):"—")} · {quote?.ChangePercent:+0.00;-0.00;0.00}% · {quote?.DataState} · 관측모형 가상 체결 {Trades.Length:N0}건";
+        DailyBars=current.Facts.StrategyFrames.Where(s=>s.Timeframe==new Stock.Core.Research.DayTrading.TimeframeSpec(1,Stock.Core.Research.DayTrading.TimeframeUnit.TradingDay)).Select(s=>s.Bar.Price).ToArray();Changed(nameof(DailyBars));Bars=current.Bars.Select(b=>b.Price with{Time=b.OpenTime}).ToArray();var markers=fills.Where(f=>f.StockKey==Key).OrderBy(f=>f.Time).ToArray();if(!markers.SequenceEqual(Markers)){var previous=Selected?.Marker.Id;Markers=markers;Trades=markers.Select(m=>new LiveFillRow(m)).ToArray();Selected=Trades.FirstOrDefault(r=>r.Marker.Id==previous);Changed(nameof(Markers));Changed(nameof(Trades));}Summary=$"현재가 {(quote?.Price is {} price?DisplayNumber.Price(price):"—")} · {quote?.ChangePercent:+0.00;-0.00;0.00}% · {quote?.DataState} · 관측모형 가상 체결 {Trades.Length:N0}건";
         var end=current.Bars.LastOrDefault()?.ClosedAt;var zones=Markers.Where(m=>m.Buy).Select(m=>evidence?.Invoke(m)).Where(s=>s!=null).SelectMany(s=>s!.Clusters.Select(c=>new ChartSupportZone(s.SignalTime,end??s.SignalTime,c.Lower,c.Upper,c.UsedForEntry,string.Join(", ",c.Supports.Select(p=>p.Id))))).ToArray();if(!zones.SequenceEqual(Zones)){Zones=zones;Changed(nameof(Zones));}Changed(nameof(Detail));Changed(nameof(Bars));Changed(nameof(Summary));
     }
 }

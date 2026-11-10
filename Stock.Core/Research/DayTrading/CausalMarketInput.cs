@@ -83,6 +83,7 @@ public sealed class CausalBarBuilder
         if(e.Kind!=EventKind.Trade)throw new InvalidOperationException("봉 생성에는 개별 체결이 필요합니다.");
         e.Validate();if(e.ExchangeTime<session.Open||e.ExchangeTime>=session.Close)throw new InvalidOperationException("세션 밖 봉 입력입니다.");
         if(e.ExchangeTime<lastTradeTime)throw new InvalidOperationException("봉 입력은 시간순이어야 합니다.");
+        if(spec.Unit is TimeframeUnit.Week or TimeframeUnit.Month)return AddCalendar(e,session,coverage);
         var closed=new List<StrategyBar>();
         var bucketOpen=spec.Unit==TimeframeUnit.Trade?e.ExchangeTime:spec.Unit==TimeframeUnit.TradingDay?session.Open:
             session.Open.AddTicks((e.ExchangeTime-session.Open).Ticks/spec.Duration!.Value.Ticks*spec.Duration.Value.Ticks);
@@ -111,8 +112,18 @@ public sealed class CausalBarBuilder
     /// <summary>A feed watermark proves that an idle bucket ended. No watermark means no fabricated close.</summary>
     public StrategyBar? CloseThrough(DateTimeOffset watermark,DailyMarketSession session,BarCoverage? coverage)
     {
-        if(spec.Unit==TimeframeUnit.Trade||count==0||end>watermark||end>session.Close||!completeCoverage||coverage is not {Complete:true} c||c.From>open||c.To<end)return null;
+        if(spec.Unit is TimeframeUnit.Trade or TimeframeUnit.Week or TimeframeUnit.Month||count==0||end>watermark||end>session.Close||!completeCoverage||coverage is not {Complete:true} c||c.From>open||c.To<end)return null;
         var result=Build(true,end);Reset();return result;
+    }
+    private StrategyBar[] AddCalendar(MarketEvent e,DailyMarketSession session,BarCoverage? coverage)
+    {
+        var date=session.Open.Date;var start=spec.Unit==TimeframeUnit.Month?new DateTime(date.Year,date.Month,1):date.AddDays(-((int)date.DayOfWeek+6)%7);
+        var boundary=new DateTimeOffset(start,session.Open.Offset);var output=new List<StrategyBar>();
+        if(count>0&&boundary>open){if(coverage is {Complete:true} full&&full.From<=open&&full.To>=end)output.Add(Build(true,lastTradeTime));Reset();}
+        if(count==0){open=boundary;end=spec.Unit==TimeframeUnit.Month?boundary.AddMonths(1):boundary.AddDays(7);first=high=low=e.TradePrice!.Value;source=e.Source;}
+        var price=e.TradePrice!.Value;high=Math.Max(high,price);low=Math.Min(low,price);last=price;volume+=e.TradeSize!.Value;notional+=price*e.TradeSize.Value;count++;lastTradeTime=e.ExchangeTime;
+        if(count>maximumEvents){Overflowed=true;Reset();return [];}
+        return output.ToArray();
     }
     private StrategyBar Build(bool closed,DateTimeOffset time)=>new(new(time,first,high,low,last,volume,closed),open,closed?time:end,closed?++sequence:sequence,notional,source);
     private void Reset(){count=0;volume=notional=0;completeCoverage=false;}

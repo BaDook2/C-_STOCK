@@ -98,11 +98,12 @@ public sealed partial class MainViewModel:IDisposable
         ChartBars=visibleBacktest!=null?source.Where(b=>DailyDates.Of(b)<=visibleBacktest.Result.To).ToArray():source;
         ChartDisplayCount=ChartBars.Count(b=>visibleBacktest!=null?DailyDates.Of(b)>=visibleBacktest.Result.From:SelectedRange.Months<0?DailyQuoteMerger.Date(b.Time,dataset.Stock.Exchange)==DailyQuoteMerger.Date(last,dataset.Stock.Exchange):DailyQuoteMerger.Date(b.Time,dataset.Stock.Exchange)>=cutoff);
         Changed(nameof(ChartDisplayCount));
-        ChartIndicatorBars=source;Changed(nameof(ChartIndicatorBars));Changed(nameof(ChartBars));if(reset){ChartRevision++;Changed(nameof(ChartRevision));}
+        ChartIndicatorBars=source;Changed(nameof(ChartDailyBars));Changed(nameof(ChartIndicatorBars));Changed(nameof(ChartBars));if(reset){ChartRevision++;Changed(nameof(ChartRevision));}
     }
+    public PriceBar[] ChartDailyBars=>displayDaily;
     public int ChartRevision {get;private set;}
     public int ChartDisplayCount {get;private set;}
     private void ResetBacktestDisplay(){visibleBacktest=null;showBacktest=false;ChartMarkers=[];ChartZones=[];Changed(nameof(ShowBacktest));Changed(nameof(ChartMarkers));Changed(nameof(ChartZones));}
     public void Dispose(){if(disposed)return;disposed=true;AsyncCommand.Failed-=CommandFailed;operation?.Cancel();Research.Stop();Recurring.Stop();Screening.Stop();Realtime.DisposeAsync().AsTask().GetAwaiter().GetResult();ActualTrading.DisposeAsync().AsTask().GetAwaiter().GetResult();dayTimer?.Stop();DayTrading.DisposeAsync().AsTask().GetAwaiter().GetResult();quotePump?.Dispose();Accounts.Dispose();}
 }
-public sealed record ChartSupportZone(DateTimeOffset From,DateTimeOffset To,decimal Lower,decimal Upper,bool UsedForEntry,string Label);
+public sealed record ChartSupportZone(DateTimeOffset From,DateTimeOffset To,decimal Lower,decimal Upper,bool UsedForEntry,string Label,bool CrashPoint=false);

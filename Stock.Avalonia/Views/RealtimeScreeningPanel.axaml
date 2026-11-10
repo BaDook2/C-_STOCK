@@ -16,7 +16,7 @@
                 <TextBox Text="{Binding DailyLossLimit,Mode=TwoWay}" Width="160" />
             </WrapPanel>
             <CheckBox Content="가상모형에서 미확인 종목 분류·악재를 일반주식·악재 없음으로 가정" IsChecked="{Binding PaperAssumptions,Mode=TwoWay}" ToolTip.Tip="기본 꺼짐. 실제 확인값을 덮어쓰지 않으며 실계좌 주문에 적용되지 않습니다." />
-            <TextBlock Text="접근도는 확률이 아닙니다. 실제 전략 조건이 충족된 새 신호만 가상 엔진으로 전달합니다. 관측시세 모형이며 실제 원본 체결은 전략 D 화면에서 별도로 검증합니다." Classes="muted" TextWrapping="Wrap" />
+            <TextBlock Text="접근도는 확률이 아닙니다. 실제 전략 조건이 충족된 새 신호만 가상 엔진으로 전달합니다. 관측시세 모형이며 급락 판단 전략의 원본 체결 가상 실행은 가상 계좌 전략 실행에서 시작합니다." Classes="muted" TextWrapping="Wrap" />
             <TextBlock Text="{Binding Status}" TextWrapping="Wrap" Classes="muted" />
             <ProgressBar IsIndeterminate="True" IsVisible="{Binding Busy}" Height="3" />
         </StackPanel>

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Stock.Core.Research.Oversold;
 using Stock.Core.Trading;
 
@@ -23,6 +24,13 @@ public sealed record StrategyDefinition(int SchemaVersion,string StrategyId,stri
 public static class StrategyDefinitionJson
 {
     private static readonly JsonSerializerOptions Options=new(Serialization.Json){PropertyNamingPolicy=JsonNamingPolicy.CamelCase,WriteIndented=true,DefaultIgnoreCondition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull};
+    private static readonly JsonSerializerOptions ImportOptions=CreateImportOptions();
+    private static JsonSerializerOptions CreateImportOptions()
+    {
+        var result=new JsonSerializerOptions(Options){UnmappedMemberHandling=JsonUnmappedMemberHandling.Disallow};
+        // Keep numeric exports backward compatible; accept English enum names on import too.
+        result.Converters.Add(new JsonStringEnumConverter());return result;
+    }
     public static string Export(StrategyDefinition definition){definition.Validate();return JsonSerializer.Serialize(definition,Options);}
     public static StrategyDefinition Import(string json)
     {
@@ -30,14 +38,44 @@ public static class StrategyDefinitionJson
         {
             using var document=JsonDocument.Parse(json);
             if(document.RootElement.ValueKind!=JsonValueKind.Object)throw new InvalidOperationException("전략 JSON 객체가 필요합니다.");
+            ValidateUniqueProperties(document.RootElement,"$");
             var properties=document.RootElement.EnumerateObject().ToArray();
-            if(properties.GroupBy(p=>p.Name,StringComparer.OrdinalIgnoreCase).Any(g=>g.Count()>1))throw new InvalidOperationException("중복된 전략 JSON 항목입니다.");
             foreach(var key in new[]{"schemaVersion","strategyId","configuration"})
                 if(!properties.Any(p=>string.Equals(p.Name,key,StringComparison.OrdinalIgnoreCase)&&p.Value.ValueKind!=JsonValueKind.Null))throw new InvalidOperationException("전략 JSON 필수 항목이 없습니다: "+key);
-            var definition=JsonSerializer.Deserialize<StrategyDefinition>(json,Options)??throw new InvalidOperationException("빈 전략 JSON입니다.");
+            var definition=JsonSerializer.Deserialize<StrategyDefinition>(json,ImportOptions)??throw new InvalidOperationException("빈 전략 JSON입니다.");
+            NormalizeTimeframeKeys(definition.Configuration);
             definition.Validate();return definition.Snapshot();
         }
-        catch(JsonException ex){throw new InvalidOperationException("전략 JSON 형식/값을 확인하세요.",ex);}
+        catch(JsonException ex){throw new InvalidOperationException("전략 JSON 항목 이름·형식·값을 확인하세요: "+(ex.Path??"$"),ex);}
+    }
+    private static void ValidateUniqueProperties(JsonElement value,string path)
+    {
+        if(value.ValueKind==JsonValueKind.Object)
+        {
+            var names=new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach(var property in value.EnumerateObject())
+            {
+                if(!names.Add(property.Name))throw new InvalidOperationException("중복된 전략 JSON 항목입니다: "+path+"."+property.Name);
+                ValidateUniqueProperties(property.Value,path+"."+property.Name);
+            }
+        }
+        else if(value.ValueKind==JsonValueKind.Array){var i=0;foreach(var child in value.EnumerateArray())ValidateUniqueProperties(child,path+"["+(i++)+"]");}
+    }
+    private static void NormalizeTimeframeKeys(OversoldConfig? configuration)
+    {
+        if(configuration==null)return;
+        if(configuration.ParameterTimeframes!=null)
+        {
+            var keys=ParameterCatalog.Properties(configuration).Where(p=>ParameterCatalog.For(p).Unit=="봉"||p.Name==nameof(OversoldConfig.MovingAveragePeriods)).Select(p=>p.Name).ToDictionary(k=>k,k=>k,StringComparer.OrdinalIgnoreCase);
+            var normalized=new Dictionary<string,TimeframeSpec>();
+            foreach(var (key,frame) in configuration.ParameterTimeframes)
+            {
+                if(!keys.TryGetValue(key,out var canonical))throw new InvalidOperationException("알 수 없는 전략 봉 항목입니다: parameterTimeframes."+key);
+                normalized.Add(canonical,frame);
+            }
+            configuration.ParameterTimeframes=normalized;
+        }
+        if(configuration.CrashStrategy!=null)NormalizeTimeframeKeys(configuration.CrashStrategy.Configuration);
     }
 }
 public static class StrategyDDefaults

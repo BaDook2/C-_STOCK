@@ -34,9 +34,16 @@ public sealed class OversoldBacktestService:IOversoldBacktestService
         return Task.Run(()=>
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var result=request.BarSpecification is {} specification
+            var daily=Stock.Core.Research.DayTrading.SelectedStrategy.DailyBars(request.Dataset,request.Facts);
+            var facts=request.Facts.Snapshot();
+            if(facts.MarketSessions.Length==0){facts.MarketSessions=daily.Select(b=>new DailyMarketSession(DailyDates.Of(b.Price),b.OpenTime,b.ClosedAt)).ToArray();facts.Source="확정 일봉 날짜의 연구 세션";facts.Validate();}
+            var result=request.Configuration.UseCrashStrategy
+                ?Stock.Core.Research.DayTrading.SelectedStrategy.Backtest(request.Dataset.Stock,request.Configuration,facts,daily,request.StrategyBars??daily,request.From,request.To,request.BarSpecification==null,cancellationToken)
+                :request.BarSpecification is {} specification
                 ?new OversoldBacktest().Run(request.Dataset.Stock,request.StrategyBars!,specification,request.Configuration,request.From,request.To,request.Facts,cancellationToken)
                 :new OversoldBacktest().Run(request.Dataset,request.Configuration,request.From,request.To,request.Facts,cancellationToken);
+            if(request.Configuration.UseCrashStrategy)result.BarSpecification=request.BarSpecification;
+            result.IndicatorHistory=request.StrategyBars?.Select(b=>b.Price with{Time=b.OpenTime}).ToArray()??request.Dataset.CompletedBars;result.DailyIndicatorHistory=request.Dataset.CompletedBars;
             cache[key]=Serialization.Unpack<OversoldResult>(Serialization.Pack(result));
             return result;
         },cancellationToken);

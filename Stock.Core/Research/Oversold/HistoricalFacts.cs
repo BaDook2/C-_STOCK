@@ -17,6 +17,7 @@ public interface IDailySessionProvider { IReadOnlyList<DailyMarketSession> Sessi
 public sealed class HistoricalFacts:IHistoricalUniverseProvider,IFundamentalRiskProvider,IDailySessionProvider
 {
     public string Source {get;set;}="";
+    public Stock.Core.Research.DayTrading.KnownStrategyBar[] StrategyFrames {get;set;}=[];
     public DailySecurityStatus[] StatusRecords {get;set;}=[];
     public DailyTradingValue[] TradingValues {get;set;}=[];
     public FundamentalRiskRecord[] RiskRecords {get;set;}=[];
@@ -28,6 +29,8 @@ public sealed class HistoricalFacts:IHistoricalUniverseProvider,IFundamentalRisk
     public HistoricalFacts Snapshot(){var copy=Serialization.Unpack<HistoricalFacts>(Serialization.Pack(this));copy.Validate();return copy;}
     public void Validate()
     {
+        if(StrategyFrames==null)throw new InvalidOperationException("전략별 봉 자료는 null일 수 없습니다.");
+        foreach(var frame in StrategyFrames){frame.Timeframe.Validate();frame.Bar.Price.Validate();if(frame.KnownAt<frame.Bar.ClosedAt||frame.Bar.OpenTime>=frame.Bar.ClosedAt||!frame.Bar.Price.IsComplete)throw new InvalidOperationException("전략별 봉의 확정·사용 가능 시각을 확인하세요.");}
         if(StatusRecords==null||TradingValues==null||RiskRecords==null||MarketSessions==null||StatusRecords.Any(r=>r==null)||TradingValues.Any(r=>r==null)||RiskRecords.Any(r=>r==null)||MarketSessions.Any(r=>r==null))throw new InvalidOperationException("시점별 입력 목록은 null일 수 없습니다.");
         if(MarketSessions.Length>0&&string.IsNullOrWhiteSpace(Source))throw new InvalidOperationException("시장 거래일·시점별 입력의 출처를 입력하세요.");
         if(MarketSessions.Select(s=>s.Date).Distinct().Count()!=MarketSessions.Length||MarketSessions.Any(s=>s.Open>=s.Close||DateOnly.FromDateTime(s.Open.DateTime)!=s.Date||DateOnly.FromDateTime(s.Close.DateTime)!=s.Date))throw new InvalidOperationException("시장 거래일은 중복 없이 같은 거래소 현지 날짜의 시가·종가 시각 순서여야 합니다.");

@@ -91,10 +91,11 @@ public static class SupportClustering
         return groups.Select(g=>new SupportCluster(g.Min(s=>s.Lower),g.Average(s=>s.Center),g.Max(s=>s.Upper),g.ToArray())).ToArray();
     }
 }
-public sealed record DailyIndicators(decimal MediumDrawdown,decimal ShortDrawdown,decimal? Rsi,decimal? VolumeRatio,string Trigger);
+public sealed record DailyIndicators(decimal MediumDrawdown,decimal ShortDrawdown,decimal? Rsi,decimal? VolumeRatio,string Trigger) {public decimal?[]? IndependentTradingValues {get;init;}}
 /// <summary>Per-symbol sequential cache; append only, never computes from later bars.</summary>
-public sealed class OversoldIndicatorCache(OversoldConfig c,bool allowEqualTime=false)
+public sealed class OversoldIndicatorCache(OversoldConfig c,bool allowEqualTime=false,HistoricalFacts? facts=null)
 {
+    private readonly ConfiguredIndicators configured=new(c,facts);
     private readonly List<PriceBar> history=[];private decimal gain,loss;private int changes;
     public IReadOnlyList<PriceBar> History=>history;public DailyIndicators Current {get;private set;}=new(0,0,null,null,"");
     public DailyIndicators Append(PriceBar bar)
@@ -104,6 +105,6 @@ public sealed class OversoldIndicatorCache(OversoldConfig c,bool allowEqualTime=
         decimal? ratio=null;if(history.Count>=c.VolumeLookbackDays){var avg=history.TakeLast(c.VolumeLookbackDays).Average(b=>b.Volume);if(avg>0)ratio=bar.Volume/avg;}
         history.Add(bar);var medium=(bar.Close/history.TakeLast(c.CrashLookbackDays).Max(b=>b.High)-1)*100;var shortDrop=(bar.Close/history.TakeLast(c.ShortCrashLookbackDays).Max(b=>b.High)-1)*100;
         bool m=history.Count>=c.CrashLookbackDays&&medium<=c.MinimumDrawdownPercent,s=history.Count>=c.ShortCrashLookbackDays&&shortDrop<=c.ShortCrashPercent;
-        return Current=new(medium,shortDrop,rsi,ratio,m&&s?"Medium+Short":m?"Medium":s?"Short":"");
+        return Current=configured.Apply(new(medium,shortDrop,rsi,ratio,m&&s?"Medium+Short":m?"Medium":s?"Short":""),bar.Time);
     }
 }

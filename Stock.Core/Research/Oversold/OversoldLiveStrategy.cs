@@ -14,6 +14,7 @@ public sealed partial class OversoldLiveStrategy:ITradingStrategy
     private int quantity,entries,peakQuantity,harvestBasis,firstDay,lastExit=-1;private decimal average,lastEntry,peak;private decimal? priorCenter;private bool tp1,tp2,harvest;
     private DateTimeOffset lastBarTime,bucketStart,bucketEnd,segmentStart,observedAt;private long lastBarSequence,liveSequence;private OversoldSignal? pendingSignal,readySignal;private MarketEvent? latest;private EntryEvaluation? latestEntryEvaluation;private string error="";
     private readonly bool publicPaper;
+    private readonly Stock.Core.Research.DayTrading.StrategyDRuntime? crashRuntime;
     private readonly List<StrategyBar> completedBars=[];
     public StrategyBar[] CompletedBars=>completedBars.ToArray();
     public string Name=>"국내 과매도·낙주 반등";
@@ -27,7 +28,14 @@ public sealed partial class OversoldLiveStrategy:ITradingStrategy
     public string Stage=>pendingSignal?.Reason??"감시";
     public OversoldLiveStrategy(Instrument instrument,OversoldLiveConfiguration requested,CancellationToken cancellationToken=default)
     {
-        this.instrument=instrument;config=requested.Configuration.Clone();config.Validate();spec=requested.BarSpecification;spec.Validate();facts=requested.Facts.Snapshot();requestedResearchOnly=requested.ResearchOnly;sessions=facts.Sessions.OrderBy(s=>s.Open).ToArray();cache=new(config,true);
+        this.instrument=instrument;config=requested.Configuration.Clone();config.Validate();spec=requested.BarSpecification;spec.Validate();facts=requested.Facts.Snapshot();requestedResearchOnly=requested.ResearchOnly;sessions=facts.Sessions.OrderBy(s=>s.Open).ToArray();cache=new(config,true,facts);providers=ConfiguredIndicators.Providers(config,facts,true).ToArray();
+        publicPaper=requested.PublicPaper;
+        if(config.UseCrashStrategy)
+        {
+            if(!publicPaper)throw new InvalidOperationException("급락 판단 전략은 원본 체결용 공통 D 실행기를 사용해야 합니다.");
+            var definition=Stock.Core.Research.DayTrading.SelectedStrategy.Definition(config,dailyResearch:spec.Unit==BarUnit.Day);
+            crashRuntime=new(instrument,definition,new(facts.StrategyFrames,facts),definition.Preset,true);
+        }
         foreach(var bar in requested.Warmup.OrderBy(b=>b.ClosedAt).ThenBy(b=>b.Sequence)){cancellationToken.ThrowIfCancellationRequested();EvaluateBar(bar,false);}
         pendingSignal=null;publicPaper=requested.PublicPaper;
     }
@@ -103,6 +111,19 @@ public sealed partial class OversoldLiveStrategy:ITradingStrategy
         if(day<0){error="검증된 시장 세션 자료 없음";return;}
         if(cache.History.Count>0&&bar.ClosedAt<lastBarTime)return;
         completedBars.Add(bar);if(completedBars.Count>20000)completedBars.RemoveAt(0);
+        if((config.ParameterTimeframes.Count>0||crashRuntime!=null)&&facts.StrategyFrames.Length>0)
+        {
+            var minute=completedBars.Concat(facts.StrategyFrames.Where(f=>f.Timeframe==new Stock.Core.Research.DayTrading.TimeframeSpec(1,Stock.Core.Research.DayTrading.TimeframeUnit.Minute)).Select(f=>f.Bar)).DistinctBy(b=>b.OpenTime).OrderBy(b=>b.OpenTime).ToArray();
+            var fresh=config.ParameterTimeframes.Values.Concat(facts.StrategyFrames.Select(f=>f.Timeframe)).Distinct().SelectMany(frame=>Stock.Core.Research.DayTrading.StrategyFrameSeries.Aggregate(minute,frame,bar.ClosedAt));
+            facts.StrategyFrames=facts.StrategyFrames.Concat(fresh).DistinctBy(f=>(f.Timeframe,f.Bar.OpenTime)).ToArray();
+        }
+        if(crashRuntime!=null)
+        {
+            crashRuntime.SupplyFrames(facts.StrategyFrames,bar.ClosedAt);crashRuntime.OnClosedBar(bar);var signal=crashRuntime.Evaluate(new(false,false,0,0,0,null,"",null,0));
+            latestEntryEvaluation=Stock.Core.Research.DayTrading.SelectedStrategy.Evaluation(crashRuntime,signal);lastBarTime=bar.ClosedAt;lastBarSequence=bar.Sequence;
+            if(trading)pendingSignal=signal==null?null:new(bar.ClosedAt,"Buy",signal.Reason,latestEntryEvaluation.Indicators,latestEntryEvaluation.Selected,OversoldState.Entry1);
+            return;
+        }
         var indicators=cache.Append(bar.Price);candidates=providers.SelectMany(p=>p.Get(cache.History,config)).ToArray();lastBarTime=bar.ClosedAt;lastBarSequence=bar.Sequence;
         var valid=HistoricalFacts.Tradable(facts.Status(instrument.Symbol,sessions[day].Date,bar.ClosedAt))&&facts.Risk(instrument.Symbol,sessions[day].Date,bar.ClosedAt)==false;
         string? reason=null;bool buy=false;SupportCluster? selected=null;AdditionalEntryEvaluation? additional=null;PositionRuleEvaluation? rules=null;

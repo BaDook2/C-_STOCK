@@ -27,7 +27,6 @@
             <Button Content="목록 · 분야 불러오기" Command="{Binding LoadCatalog}" Classes="secondary" Height="40" Margin="0,0,8,0" />
             <TextBlock Text="전략" VerticalAlignment="Center" Margin="0,0,8,0" />
             <ComboBox ItemsSource="{Binding Strategies.Names}" SelectedItem="{Binding Strategies.Selected,Mode=TwoWay}" Width="210" Height="40" Margin="0,0,10,0" />
-            <Button Content="전략 D 스크리닝·가상" Command="{Binding $parent[Window].DataContext.OpenDayTradingScreen}" Classes="secondary" Height="40" Margin="0,0,10,0" />
             <TextBlock Text="데이터 기준" VerticalAlignment="Center" Margin="0,0,8,0" />
             <RadioButton Content="일봉" IsChecked="{Binding Daily,Mode=TwoWay}" Margin="0" />
             <StackPanel Orientation="Horizontal" IsVisible="{Binding $parent[Window].DataContext.Online}" IsEnabled="{Binding CanCustom}">

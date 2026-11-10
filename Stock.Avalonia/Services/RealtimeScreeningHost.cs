@@ -52,7 +52,7 @@ public sealed class RealtimeScreeningHost(AppServices services,MarketHistoryServ
                 var facts=PrepareFacts(stock,data,request.Facts,request.PaperAssumptions,today);var bars=ToBars(data,facts,now);
                 if(bars.Length==0)throw new InvalidOperationException(stock.Name+": 완성된 준비 봉이 없습니다.");
                 if(bars.Length>20000)throw new InvalidOperationException(stock.Name+": 준비 봉이20,000개를 넘습니다. 더 큰 봉 기준을 선택하세요.");
-                var budget=requested?.Budget??config.PlannedInvestment;var settings=PaperSettings(config,budget);return(Item:(LiveBatchItem?)new LiveBatchItem(stock,requested?.Name??request.Name,settings,budget){Oversold=new(config.Clone(),request.Specification,bars,facts,ResearchOnly:true,PublicPaper:true)},Stock:stock,Error:"");
+                var budget=requested?.Budget??config.PlannedInvestment;var settings=PaperSettings(config,budget);return(Item:(LiveBatchItem?)new LiveBatchItem(stock,requested?.Name??request.Name,settings,budget){Oversold=new(config.Clone(),data.Specification??new(1,BarUnit.Day),bars,facts,ResearchOnly:true,PublicPaper:true)},Stock:stock,Error:"");
             }
             catch(OperationCanceledException) when(token.IsCancellationRequested){throw;}catch(StorageException){throw;}
             catch(Exception ex) when(ex is not OutOfMemoryException){return(Item:(LiveBatchItem?)null,Stock:stock,Error:ex is OperationCanceledException or TimeoutException?OperationError.ResponseTimeout:ex is InvalidOperationException?ex.Message:"과거 자료 준비 실패");}
@@ -68,7 +68,8 @@ public sealed class RealtimeScreeningHost(AppServices services,MarketHistoryServ
     {
         if(enabled)
         {
-            if(!research.Running||request==null)throw new InvalidOperationException("먼저 실시간 스크리닝을 시작하세요.");
+            if(prepared.Any(i=>i.Oversold?.Configuration.UseCrashStrategy==true))throw new InvalidOperationException("급락 판단 전략의 가상 실행은 가상 계좌 전략 실행에서 시작하세요. 원본 체결 피드로 동일한 D 진입·청산 규칙을 사용합니다.");
+                if(!research.Running||request==null)throw new InvalidOperationException("먼저 실시간 스크리닝을 시작하세요.");
             if(!paperStarted)
             {
                 if(prepared.Length>20)throw new InvalidOperationException("기존 가상 체결 엔진의 동시 실행 한도는20종목입니다. 감시는100종목까지 가능하며 자동매매는 대상을 줄여 시작하세요.");
@@ -114,7 +115,7 @@ public sealed class RealtimeScreeningHost(AppServices services,MarketHistoryServ
         {
             while(!token.IsCancellationRequested&&(research.Running||paperStarted&&paper.Snapshot().Running||HasProtectedPositions))
             {
-                var now=services.Clock();var changed=false;if(DailyQuoteMerger.Date(now,Exchange.KRX)!=date){if(plan.Specification.Unit!=BarUnit.Day){research.FeedFault("거래일 변경 · 자료를 다시 준비하세요.");paper.FeedFault("거래일 변경 · 상태 확인 필요");break;}if(!LiveBatchSupport.RegularSession(now)){research.SetConnectionState("장 외 대기 · 일봉 상태 유지");await Task.Delay(1000,token);continue;}var opening=await quotes.Current(plan.Stocks[0],token);if(opening.Quote.State!="OPEN"){research.SetConnectionState("장중 시세 확인 대기 · 새 주문 차단");await Task.Delay(1000,token);continue;}date=DailyQuoteMerger.Date(now,Exchange.KRX);await RollPublicDay(date,token);nextQuotes=DateTimeOffset.MinValue;nextBars=now;quoteTimes.Clear();}
+                var now=services.Clock();var changed=false;if(DailyQuoteMerger.Date(now,Exchange.KRX)!=date){if(prepared.Any(i=>i.Oversold!.BarSpecification.Unit!=BarUnit.Day)){research.FeedFault("거래일 변경 · 자료를 다시 준비하세요.");paper.FeedFault("거래일 변경 · 상태 확인 필요");break;}if(!LiveBatchSupport.RegularSession(now)){research.SetConnectionState("장 외 대기 · 일봉 상태 유지");await Task.Delay(1000,token);continue;}var opening=await quotes.Current(plan.Stocks[0],token);if(opening.Quote.State!="OPEN"){research.SetConnectionState("장중 시세 확인 대기 · 새 주문 차단");await Task.Delay(1000,token);continue;}date=DailyQuoteMerger.Date(now,Exchange.KRX);await RollPublicDay(date,token);nextQuotes=DateTimeOffset.MinValue;nextBars=now;quoteTimes.Clear();}
                 if(now>=nextQuotes)
                 {
                     var intervals=new List<TimeSpan>();var successes=0;
@@ -139,7 +140,7 @@ public sealed class RealtimeScreeningHost(AppServices services,MarketHistoryServ
                     {
                         token.ThrowIfCancellationRequested();try
                         {
-                            PreparedResearchData data;if(plan.Specification.Unit==BarUnit.Day){var daily=await services.MarketData.History(item.Stock,token);services.Store.State("bars:"+item.Stock.Key,daily);data=new(daily,null,null,item.Oversold!.Facts);}else data=await history.Get(item.Stock,item.Oversold!.Configuration,item.Oversold.Facts,plan.Specification,date,date,token);
+                            PreparedResearchData data;if(item.Oversold!.BarSpecification.Unit==BarUnit.Day){var daily=await services.MarketData.History(item.Stock,token);services.Store.State("bars:"+item.Stock.Key,daily);data=new(daily,null,null,item.Oversold!.Facts);}else data=await history.Get(item.Stock,item.Oversold!.Configuration,item.Oversold.Facts,item.Oversold.BarSpecification,date,date,token);
                             foreach(var bar in ToBars(data,item.Oversold!.Facts,now).Where(b=>b.ClosedAt>barTimes[item.Stock.Key])){research.OnPublicBar(item.Stock.Key,bar);if(paperStarted)paper.OnPublicBar(item.Stock.Key,bar);barTimes[item.Stock.Key]=bar.ClosedAt;changed=true;}
                         }
                         catch(OperationCanceledException) when(token.IsCancellationRequested){throw;}catch(Exception ex) when(ex is not OutOfMemoryException){error=item.Stock.Name+": "+OperationError.Describe(ex);}
@@ -159,7 +160,7 @@ public sealed class RealtimeScreeningHost(AppServices services,MarketHistoryServ
     }
     private static HistoricalFacts PrepareFacts(StockItem stock,PreparedResearchData data,HistoricalFacts source,bool assumptions,DateOnly today)
     {
-        var result=source.Snapshot();var dates=data.Dataset.CompletedBars.Select(DailyDates.Of).Append(today).Distinct().ToArray();var sessions=result.Sessions.ToDictionary(s=>s.Date);foreach(var day in dates)if(!sessions.ContainsKey(day))sessions[day]=ResearchMarketSession.For(day,stock.Exchange);result.MarketSessions=sessions.Values.OrderBy(s=>s.Open).ToArray();
+        var result=source.Snapshot();result.StrategyFrames=data.Facts.StrategyFrames;var dates=data.Dataset.CompletedBars.Select(DailyDates.Of).Append(today).Distinct().ToArray();var sessions=result.Sessions.ToDictionary(s=>s.Date);foreach(var day in dates)if(!sessions.ContainsKey(day))sessions[day]=ResearchMarketSession.For(day,stock.Exchange);result.MarketSessions=sessions.Values.OrderBy(s=>s.Open).ToArray();
         if(assumptions)
         {
             result.StatusRecords=[..result.StatusRecords,..dates.Where(d=>!result.StatusRecords.Any(r=>r.Symbol==stock.Symbol&&r.Date==d)).Select(d=>new DailySecurityStatus(stock.Symbol,d,sessions[d].Open,stock.Board=="KOSDAQ"?HistoricalBoard.Kosdaq:HistoricalBoard.Kospi,HistoricalSecurityKind.Common,false,false))];

@@ -28,6 +28,7 @@ public sealed class OversoldEntryDetector
     }
     public EntryEvaluation Evaluate(PriceBar bar,int sessionIndex,DateOnly date,OversoldConfig c,DailyIndicators indicator,IReadOnlyList<SupportCandidate> candidates,DailySecurityStatus? status,bool? fundamentalRisk,IReadOnlyList<decimal?> priorTradingValues,int lastExit=-1,decimal? previousCenter=null,int historyCount=int.MaxValue,bool currentResearch=false,bool allowPriceOnlyBacktest=false)
     {
+        priorTradingValues=indicator.IndependentTradingValues??priorTradingValues;
         var all=SupportClustering.Build(candidates,c.SupportClusterRangePercent);
         var eligible=all.Where(z=>z.Count>=c.MinimumSupportCount&&z.Approached(bar.Close,c.SupportDistancePercent)).OrderBy(z=>Math.Abs(z.Center/bar.Close-1)).ThenBy(z=>z.Center).ToArray();
         SupportCluster? selected=null;OversoldState state=lastExit>=0?OversoldState.Cooldown:OversoldState.Idle;

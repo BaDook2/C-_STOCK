@@ -16,6 +16,8 @@ public sealed class ResearchResultViewModel:Bindable
 {
     public OversoldResult Result {get;}
     public PriceBar[] Bars {get;}
+    public PriceBar[] IndicatorBars=>Result.IndicatorHistory;
+    public PriceBar[] DailyBars=>Result.DailyIndicatorHistory;
     public TradeMarker[] Markers {get;}
     public ChartSupportZone[] Zones {get;}
     public ResearchTradeRow[] Trades {get;}
@@ -32,8 +34,15 @@ public sealed class ResearchResultViewModel:Bindable
         Trades=result.Trades.SelectMany((trade,index)=>trade.Executions.Select(fill=>new ResearchTradeRow(index+1,fill))).ToArray();
         Markers=Trades.Select((t,index)=>new TradeMarker(result.Id+":"+index,result.Stock.Key,t.Fill.ExecutionTime,t.Fill.Buy,t.Quantity,t.Fill.Price,"백테스트",TradeNumber:t.Number,Reason:t.Fill.Reason,RealizedPnl:t.Fill.Buy?null:t.Fill.RealizedPnl)).ToArray();
         var last=bars.LastOrDefault()?.Time??DateTimeOffset.UtcNow;
-        Zones=result.Trades.SelectMany(t=>t.Executions.Where(e=>e.Buy&&e.Snapshot!=null).SelectMany(e=>e.Snapshot!.Clusters.Select(z=>new ChartSupportZone(e.SignalTime,t.LastExecutionDate??last,z.Lower,z.Upper,z.UsedForEntry,string.Join(", ",z.Supports.Select(s=>s.Id)))))).ToArray();
+        Zones=result.Trades.SelectMany(t=>t.Executions.Where(e=>e.Buy&&e.Snapshot!=null).SelectMany(e=>e.Snapshot!.Clusters.Select(z=>new ChartSupportZone(e.SignalTime,t.LastExecutionDate??last,z.Lower,z.Upper,z.UsedForEntry,string.Join(", ",z.Supports.Select(s=>s.Id)))))).Concat(CrashPoints(result.StrategyDResult,last)).ToArray();
     }
+    public static decimal? CrashLow(Stock.Core.Research.DayTrading.IntradayEntrySignal? signal)
+    {
+        if(signal==null)return null;using var json=System.Text.Json.JsonDocument.Parse(signal.EvidenceJson);
+        return json.RootElement.TryGetProperty("ReboundLow",out var low)&&low.TryGetDecimal(out var value)&&value>0?value:null;
+    }
+    public static ChartSupportZone[] CrashPoints(Stock.Core.Research.DayTrading.IntradayReplayResult? result,DateTimeOffset end)
+    =>result?.Trades.Where(t=>t.Entry!=null&&t.Fills.Any(f=>f.Buy)).Select(t=>Stock.Core.Trading.Serialization.Unpack<Stock.Core.Research.DayTrading.StrategyDSignal>(t.Entry!.EvidenceJson)).Select(s=>new ChartSupportZone(s.Crash.At,end,s.ReboundLow,s.ReboundLow,true,"급락 판단 지점",true)).DistinctBy(z=>z.Lower).ToArray()??[];
     public void SelectMarker(TradeMarker marker)
     {Selected=Trades.FirstOrDefault(t=>t.Fill.ExecutionTime==marker.Time&&t.Fill.Buy==marker.Buy&&t.Fill.Price==marker.Price);}
 }
@@ -83,7 +92,7 @@ public sealed class ResearchWorkspace:Bindable
             var strategyName=strategies.Selected;var configuration=strategies.Current();var facts=Serialization.Unpack<HistoricalFacts>(FactsJson);facts.Validate();var first=DateOnly.FromDateTime(From.Value);var last=DateOnly.FromDateTime(To.Value);
             BarSpecification? specification=Daily?null:new(int.Parse(Value),Unit=="분"?BarUnit.Minute:BarUnit.Hour);
             Status="과거 자료를 준비하고 있습니다…";var data=await history.Get(item,configuration,facts,specification,first,last,token);
-            var calculated=await services.Backtests.RunAsync(new(data.Dataset,configuration,first,last,data.Facts,specification,data.Bars),token);token.ThrowIfCancellationRequested();
+            var calculated=await services.Backtests.RunAsync(new(data.Dataset,configuration,first,last,data.Facts,data.Specification,data.Bars),token);token.ThrowIfCancellationRequested();
             var prices=(data.Bars?.Select(b=>b.Price with{Time=b.OpenTime})??data.Dataset.CompletedBars).Where(b=>DailyDates.Of(b)>=first&&DailyDates.Of(b)<=last).ToArray();
             Result=new(calculated,prices);Status=Result.Summary;if(calculated.Trades.Count==0)Status+=" · "+(calculated.Decisions.LastOrDefault()?.Reason??"선택 기간에 평가 가능한 완성봉이 없습니다.");var archived=new ResearchArchive("desktop-run:"+Guid.NewGuid().ToString("N"),DateTimeOffset.UtcNow,strategyName,calculated,prices);services.Store.State(archived.Id,archived);Completed?.Invoke(archived);
         }

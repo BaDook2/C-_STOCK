@@ -3,7 +3,7 @@ using Stock.Core.Trading;
 
 namespace Stock.Core.Research.DayTrading;
 
-public enum TimeframeUnit { Trade, Second, Minute, Hour, TradingDay }
+public enum TimeframeUnit { Trade, Second, Minute, Hour, TradingDay, Week, Month }
 public enum SignalEvaluationMode { OnTick, OnActiveBarUpdate, OnBarClosed }
 public enum RuleCombination { Any, All }
 public enum VolumeProfileSource { Approximate, TradeBased }
@@ -18,7 +18,7 @@ public sealed record TimeframeSpec(int Size,TimeframeUnit Unit)
 {
     public void Validate()
     {
-        if(Size<=0||Size>1_000_000||!Enum.IsDefined(Unit)||Unit==TimeframeUnit.TradingDay&&Size!=1)
+        if(Size<=0||Size>1_000_000||!Enum.IsDefined(Unit)||Unit is TimeframeUnit.TradingDay or TimeframeUnit.Week or TimeframeUnit.Month&&Size!=1)
             throw new InvalidOperationException("분석 기준은 양의 크기와 체결/초/분/시간/거래일이어야 합니다. 일봉은 1거래일입니다.");
     }
     [System.Text.Json.Serialization.JsonIgnore] public TimeSpan? Duration=>Unit switch
@@ -26,7 +26,7 @@ public sealed record TimeframeSpec(int Size,TimeframeUnit Unit)
         TimeframeUnit.Second=>TimeSpan.FromSeconds(Size),TimeframeUnit.Minute=>TimeSpan.FromMinutes(Size),
         TimeframeUnit.Hour=>TimeSpan.FromHours(Size),_=>null
     };
-    public override string ToString()=>$"{Size} {Unit switch{TimeframeUnit.Trade=>"체결",TimeframeUnit.Second=>"초",TimeframeUnit.Minute=>"분",TimeframeUnit.Hour=>"시간",_=>"거래일"}}";
+    public override string ToString()=>$"{Size} {Unit switch{TimeframeUnit.Trade=>"체결",TimeframeUnit.Second=>"초",TimeframeUnit.Minute=>"분",TimeframeUnit.Hour=>"시간",TimeframeUnit.Week=>"주봉",TimeframeUnit.Month=>"월봉",_=>"일봉"}}";
 }
 public sealed record WaitPeriod(int Value,WaitUnit Unit)
 {
@@ -135,7 +135,7 @@ public sealed class DayTradingPolicy
         Crash.RollingWindow.Validate();Support.MovingAverageTimeframe.Validate();Support.ProfileTimeframe.Validate();
         foreach(var wait in new[]{Crash.CandidateLifetime,Support.ReboundCandidateLifetime,Reentry.MinimumInterval,Reentry.AfterProfitCooldown,Reentry.AfterStopCooldown})wait.Validate();
         if(Crash.CandidateLifetime.Value==0||Support.ReboundCandidateLifetime.Value==0)throw new InvalidOperationException("후보 유지기간은 양수여야 합니다.");
-        if(Crash.RollingWindow.Duration==null)throw new InvalidOperationException("장중 고점 기간은 초/분/시간으로 입력하세요.");
+        if(Crash.RollingWindow.Unit==TimeframeUnit.Trade)throw new InvalidOperationException("장중 고점 기간은 초/분/시간으로 입력하세요.");
         if(!Crash.DailyEnabled&&!Crash.IntradayEnabled||Crash.DailyEnabled&&!Crash.MediumEnabled&&!Crash.ShortEnabled||Crash.IntradayEnabled&&!Crash.SessionHighEnabled&&!Crash.RollingHighEnabled)
             throw new InvalidOperationException("활성 급락 종류에 검사 규칙을 하나 이상 켜세요.");
         Loss(Crash.SessionDrawdownPercent);Loss(Crash.RollingDrawdownPercent);

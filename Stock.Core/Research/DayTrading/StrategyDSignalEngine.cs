@@ -17,6 +17,7 @@ public sealed class StrategyDSignalEngine
 {
     private readonly Instrument instrument;
     private readonly string instance;
+    private readonly bool calendarCloseResearch;
     private readonly OversoldConfig shared;
     private readonly DayTradingPolicy policy;
     private readonly DailyMarketSession[] sessions;
@@ -31,10 +32,10 @@ public sealed class StrategyDSignalEngine
     private (DateTimeOffset,long)? lastObservation;
     public StrategyDSignalState State {get;private set;}=new(StrategyDStage.Idle,"급락 관측 대기",0,null,null,null,null,null);
 
-    public StrategyDSignalEngine(Instrument instrument,StrategyDefinition requested,IReadOnlyList<DailyMarketSession> sessions,string instance)
+    public StrategyDSignalEngine(Instrument instrument,StrategyDefinition requested,IReadOnlyList<DailyMarketSession> sessions,string instance,bool calendarCloseResearch=false)
     {
         var definition=requested.Snapshot();if(!definition.IsStrategyD||string.IsNullOrWhiteSpace(instance))throw new InvalidOperationException("전략 D와 실행 식별자가 필요합니다.");
-        this.instrument=instrument;this.instance=instance;shared=definition.Configuration;policy=definition.DayTrading!;this.sessions=sessions.OrderBy(s=>s.Open).ToArray();
+        this.instrument=instrument;this.instance=instance;this.calendarCloseResearch=calendarCloseResearch;shared=definition.Configuration;policy=definition.DayTrading!;this.sessions=sessions.OrderBy(s=>s.Open).ToArray();
     }
     public void Invalidate(string reason)
     {ClearCandidate();trigger=null;State=new(StrategyDStage.Blocked,reason,episode,null,null,null,null,null);}
@@ -54,7 +55,7 @@ public sealed class StrategyDSignalEngine
         if(policy.Quality.RequireKnownSecurityAndRisk&&(o.SecurityTradable!=true||o.FundamentalRisk!=false))
         {ClearCandidate();return Result(StrategyDStage.Blocked,"당시 일반주식 상태 또는 위험 자료 미확인");}
         var local=TimeZoneInfo.ConvertTimeBySystemTimeZoneId(o.Time,policy.Session.TimeZoneId);
-        if(TimeOnly.FromDateTime(local.DateTime)>=policy.Session.NoNewEntryAfter){ClearCandidate();return Result(StrategyDStage.Blocked,"신규 진입 종료 시각 이후");}
+        if(!(calendarCloseResearch&&!policy.Session.DayOnly)&&TimeOnly.FromDateTime(local.DateTime)>=policy.Session.NoNewEntryAfter){ClearCandidate();return Result(StrategyDStage.Blocked,"신규 진입 종료 시각 이후");}
         if(!CanReenter(position,o,out var reentryReason)){ClearCandidate();return Result(StrategyDStage.Cooldown,reentryReason);}
         if(o.Crash.Passed==true&&(trigger==null||WaitElapsed(policy.Crash.CandidateLifetime,trigger.At,trigger.BarOrdinal,o)))
             trigger=new(o.Time,o.AnalysisBarOrdinal,o.Crash);

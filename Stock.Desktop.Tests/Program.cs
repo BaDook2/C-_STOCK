@@ -19,6 +19,8 @@ internal static partial class Program
         {
             output=Path.GetFullPath(args.FirstOrDefault()??"artifacts/desktop-tests");Directory.CreateDirectory(output);
             AppBuilder.Configure<App>().UseSkia().UseHeadless(new AvaloniaHeadlessPlatformOptions{UseHeadlessDrawing=false}).SetupWithoutStarting();
+            if(args.Contains("--strategy-json")){StrategyJsonChecks();return 0;}
+            if(args.Contains("--strategy-settings")){StrategySettingsChecks();return 0;}
             if(args.Contains("--design")){DesignCapture();return 0;}
             if(args.Contains("--live-public")){LivePublicChecks();return 0;}
             if(args.Contains("--workflow")){WorkflowChecks();Console.WriteLine($"PASS: {passed} extended workflow checks");return 0;}
@@ -34,7 +36,7 @@ internal static partial class Program
             if(args.Contains("--daily-host")){DailyPaperHostChecks();Console.WriteLine($"PASS: {passed} daily host checks; synthetic provider only");return 0;}
             if(args.Contains("--annotations")){ChartAndHistoryChecks();Console.WriteLine($"PASS: {passed} annotation/history UI checks");return 0;}
             if(args.Contains("--outcome-colors")){TradeOutcomeColorChecks();Console.WriteLine($"PASS: {passed} trade outcome color checks");return 0;}
-            MarketChecks();DayTradingDesktopChecks();OnlineDesktopChecks();RealtimeDesktopChecks();WorkflowChecks();ChartAndHistoryChecks();InteractiveStateChecks();ChartInteractionChecks();CalendarInteractionChecks();TradeOutcomeColorChecks();CredentialChecks();AccountOrderChecks();LiveStrategyAdapterChecks();DailyPaperCheckpointChecks();OrderTransmissionGuardChecks();DailyPaperHostChecks();Console.WriteLine($"PASS: {passed} Avalonia headless checks; fixtures only, no real broker calls");return 0;
+            MarketChecks();StrategySettingsChecks();StrategyJsonChecks();DayTradingDesktopChecks();OnlineDesktopChecks();RealtimeDesktopChecks();WorkflowChecks();ChartAndHistoryChecks();InteractiveStateChecks();ChartInteractionChecks();CalendarInteractionChecks();TradeOutcomeColorChecks();CredentialChecks();AccountOrderChecks();LiveStrategyAdapterChecks();DailyPaperCheckpointChecks();OrderTransmissionGuardChecks();DailyPaperHostChecks();Console.WriteLine($"PASS: {passed} Avalonia headless checks; fixtures only, no real broker calls");return 0;
         }
         catch(Exception ex){Console.Error.WriteLine(ex);return 1;}
     }

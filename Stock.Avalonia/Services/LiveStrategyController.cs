@@ -48,6 +48,7 @@ public sealed class LiveStrategyController:Bindable,IAsyncDisposable
         owner=remote;busy=true;stop=new(services.QueryTimeout);var token=stop.Token;Publish("실계좌 준비 봉·현재 상태 확인 중 · 주문 없음");
         try
         {
+            if(request.Configuration.UseCrashStrategy||request.ItemConfigurations?.Any(i=>i.Configuration.UseCrashStrategy)==true)throw new InvalidOperationException("급락 판단 전략은 검증·가상 실행 전용이며 실계좌 주문 연결은 지원하지 않습니다.");
             request.Specification.Validate();var facts=request.Facts.Snapshot();facts.Validate();var now=services.Clock();var today=DailyQuoteMerger.Date(now,Exchange.KRX);
             if(!facts.Sessions.Any(s=>s.Date==today&&now>=s.Open&&now<s.Close))throw new InvalidOperationException("오늘의 검증된 한국 시장 세션이 필요합니다.");
             var items=new List<LiveBatchItem>();
@@ -66,8 +67,9 @@ public sealed class LiveStrategyController:Bindable,IAsyncDisposable
                 if(bars.Any(b=>!b.Price.IsComplete||b.ClosedAt>now||b.OpenTime>=b.ClosedAt)||bars.Zip(bars.Skip(1)).Any(p=>p.First.ClosedAt>=p.Second.ClosedAt))throw new InvalidOperationException(stock.Name+": 준비 봉의 마감 시각·순서가 올바르지 않습니다.");
                 foreach(var bar in bars)bar.Price.Validate();
                 if(bars.Length==0||bars.Any(b=>b.TradingValue==null))throw new InvalidOperationException(stock.Name+": 준비 봉의 시점별 실제 거래대금 자료가 필요합니다. OHLC 추정치를 실계좌 입력으로 사용하지 않습니다.");
+                facts.StrategyFrames=facts.StrategyFrames.Select(s=>s.Bar.Source.Contains("추정")?s with{Bar=s.Bar with{TradingValue=null}}:s).ToArray();
                 var settings=RealtimeScreeningHost.PaperSettings(config,budget,publicPaper:false);settings.Data.Universe=stock.Key;
-                items.Add(new(stock,selection?.Name??request.Name,settings,budget){Oversold=new(config,request.Specification,bars,LiveBatchSupport.WithObservedWarmupSessions(facts,bars))});
+                items.Add(new(stock,selection?.Name??request.Name,settings,budget){Oversold=new(config,prepared.Specification??new(1,BarUnit.Day),bars,LiveBatchSupport.WithObservedWarmupSessions(facts,bars))});
             }
             var plan=new LiveBatchPlan(items.ToArray(),request.TotalBudget,request.DailyLossLimit);
             var details=string.Join("\n",items.Select(i=>$"{i.Stock.Name} / {i.Preset} / 예산 {DisplayNumber.Price(i.Budget)}원"));

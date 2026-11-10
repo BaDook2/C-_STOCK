@@ -24,6 +24,10 @@ cp "$ROOT/packaging/macos/Info.plist" "$APP/Contents/Info.plist"
 /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION" "$APP/Contents/Info.plist"
 plutil -lint "$APP/Contents/Info.plist" "$ROOT/packaging/macos/Stock.entitlements"
 chmod +x "$APP/Contents/MacOS/Stock.Avalonia"
+# Finder metadata may be inherited from local source/NuGet files. These two
+# attributes are forbidden by codesign; remove them from the generated app only.
+xattr -dr com.apple.FinderInfo "$APP" 2>/dev/null || true
+xattr -dr com.apple.ResourceFork "$APP" 2>/dev/null || true
 while IFS= read -r -d '' STOCK_CODE; do
   # In the flat Avalonia bundle, managed DLLs and data are nested code too.
   # Seal every leaf first; signing the CFBundleExecutable can validate the

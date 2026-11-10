@@ -29,6 +29,9 @@ public static class PerformanceCalculator
 }
 public sealed class OversoldResult
 {
+    public PriceBar[] IndicatorHistory {get;set;}=[];
+    public PriceBar[] DailyIndicatorHistory {get;set;}=[];
+    public Stock.Core.Research.DayTrading.IntradayReplayResult? StrategyDResult {get;set;}
     public string Id {get;set;}="oversold-run:"+Guid.NewGuid().ToString("N");public DateTimeOffset At {get;set;}=DateTimeOffset.UtcNow;public StockItem Stock {get;set;}=null!;public DateOnly From {get;set;}public DateOnly To {get;set;}public BarSpecification? BarSpecification {get;set;}public OversoldConfig Configuration {get;set;}=null!;public string DataHash {get;set;}="";public string FactsHash {get;set;}="";public string Source {get;set;}="";
     public List<OversoldTransition> Transitions {get;set;}=[];public List<OversoldTrade> Trades {get;set;}=[];public List<OversoldSignal> Signals {get;set;}=[];public List<OversoldDecision> Decisions {get;set;}=[];public List<BarEquity> Equity {get;set;}=[];public List<string> Notices {get;set;}=[];public PerformanceSummary Performance {get;set;}=null!;public decimal Cash {get;set;}public int Quantity {get;set;}public bool PendingOrderAtEnd {get;set;}
     public string Title=>$"{At.ToOffset(TimeSpan.FromHours(9)):yyyy.MM.dd HH:mm} · {Stock.Name} · {(Stock.Exchange==Exchange.KRX?"국내 과매도·낙주":"미국 일봉 연구")} · {BarSpecification?.ToString()??"일봉"}";

@@ -27,9 +27,16 @@ internal static partial class Program
         model.Commands["불러오기"].Execute(null);Pump(()=>!model.Busy);model.Commands["저장"].Execute(null);Pump(()=>!model.Busy);
         var dialog=new DayTradingDialog(model,0);dialog.Show();Dispatcher.UIThread.RunJobs();AvaloniaHeadlessPlatform.ForceRenderTimerTick();
         using(var settingsImage=dialog.CaptureRenderedFrame())settingsImage!.Save(Path.Combine(output,"avalonia-strategy-d-settings.png"),Avalonia.Media.Imaging.PngBitmapEncoderOptions.Default);
-        Check(dialog.GetVisualDescendants().OfType<TextBox>().Any(t=>t.Text=="0.015"),"Avalonia D settings render the same exact0.015 editor metadata as WPF");
-        dialog.FindControl<TabControl>("Pages")!.SelectedIndex=1;model.Commands["연구"].Execute(null);Pump(()=>!model.Busy,20);Check(notices.Count==0&&model.Latest is {Signals.Length:1,Fills.Length:4},"Avalonia D dialog uses the same replay/runtime and reproduces one signal plus four fills");
-        Check(model.Markers.Length==4&&model.Zones.Length==1,"D Avalonia result maps exact execution timestamps and original frozen support zone");using(var image=dialog.CaptureRenderedFrame())image!.Save(Path.Combine(output,"avalonia-strategy-d.png"),Avalonia.Media.Imaging.PngBitmapEncoderOptions.Default);
+        Check(!dialog.GetVisualDescendants().OfType<TabControl>().Any(),"D history viewer contains results only; settings are integrated in the strategy panel");
+        model.Commands["연구"].Execute(null);Pump(()=>!model.Busy,20);Check(notices.Count==0&&model.Latest is {Signals.Length:1,Fills.Length:4},"Avalonia D dialog uses the same replay/runtime and reproduces one signal plus four fills");
+        Check(model.Markers.Length==4&&model.Zones.Count(z=>!z.CrashPoint)==1&&model.Zones.Count(z=>z.CrashPoint)==1,"D Avalonia result maps exact execution timestamps and original frozen support zone");using(var image=dialog.CaptureRenderedFrame())image!.Save(Path.Combine(output,"avalonia-strategy-d.png"),Avalonia.Media.Imaging.PngBitmapEncoderOptions.Default);
+        var outer=definition.Configuration.Clone();outer.UseCrashStrategy=true;outer.CrashStrategy=definition;
+        facts.StrategyFrames=seeds;
+        var daily=seeds.Select(s=>s.Bar).ToArray();
+        var routed=SelectedStrategy.Backtest(stock,outer,facts,daily,bars,date,date,false,default);
+        Check(routed.StrategyDResult is {Signals.Length:1,Fills.Length:4},"selected strategy switch invokes the full existing D entry and exit engine");
+        var mapped=new ResearchResultViewModel(routed,bars.Select(b=>b.Price).ToArray());
+        Check(mapped.Markers.Length==4&&mapped.Zones.Count(z=>z.CrashPoint)==1,"unified research results preserve actual D fills and the used rebound-low line");
         dialog.Close();model.DisposeAsync().AsTask().GetAwaiter().GetResult();Check(store.State<StrategyDefinition[]>("daytrading-definitions-v2")!.Single().IsStrategyD,"D settings persist only in the separate schema2 namespace");
     }
 }

@@ -60,7 +60,6 @@
                             <TextBlock Text="실행할 전략" Classes="muted" />
                             <ComboBox ItemsSource="{Binding Strategies.Names}" SelectedItem="{Binding Strategies.Selected,Mode=TwoWay}" HorizontalAlignment="Stretch" />
                             <Button Content="백테스트" Command="{Binding Research.Run}" HorizontalAlignment="Stretch" />
-                            <Button Content="전략 D / 당일매매 검증" Command="{Binding OpenDayTradingResearch}" Classes="secondary" HorizontalAlignment="Stretch" />
                         </StackPanel>
                     </Border>
                     <TextBlock Text="{Binding Research.Status}" Classes="muted" TextWrapping="Wrap" />

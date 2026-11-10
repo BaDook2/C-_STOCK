@@ -14,8 +14,8 @@ public sealed partial class OversoldScreeningEngine
         var bars=input.Where(b=>DailyDates.Of(b.Price)<=end&&(b.Price.IsComplete?b.ClosedAt<=asOf:true)).OrderBy(b=>b.Price.Time).ToArray();
         if(bars.Length==0)return ScreeningObservation.Missing(stock,"자료 부족 · 일봉 없음");
         if(bars.Select(b=>DailyDates.Of(b.Price)).Distinct().Count()!=bars.Length)return ScreeningObservation.Missing(stock,"자료 부족 · 일봉 날짜 중복");
-        var cache=new OversoldIndicatorCache(c);var detector=new OversoldEntryDetector();
-        ISupportProvider[] supports=[new MovingAverageSupportProvider(),new ConfirmedPivotHighProvider(),new ApproximateVolumeZoneProvider()];
+        var cache=new OversoldIndicatorCache(c,facts:facts);var detector=new OversoldEntryDetector();
+        IReadOnlyList<ISupportProvider> supports=ConfiguredIndicators.Providers(c,facts);
         EntryEvaluation? result=null;var values=new List<decimal?>();var matches=new List<DateOnly>();StrategyBar? representative=null,lastMatch=null;EntryEvaluation? representativeEvaluation=null,lastMatchEvaluation=null;
         for(int i=0;i<bars.Length;i++)
         {

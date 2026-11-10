@@ -154,7 +154,7 @@ public sealed class DayTradingPortfolioEngine
         if(runtime.CurrentSession is {} session)
         {
             var clock=DayLiquidationPolicy.Evaluate(profile.Session,session,now,p?.Quantity??0,active.Any(o=>o.Buy));
-            entryWindowOpen=!clock.BlockNewEntries;
+            entryWindowOpen=!clock.BlockNewEntries||runtime.CalendarCloseResearch&&!profile.Session.DayOnly&&tradeEvaluation;
             if(clock.UnexpectedOvernight){needsReconciliation=true;row.Error="UnexpectedOvernightPosition · 미청산/재동기화 필요";row.Status="장 종료 · 미청산";Audit(now,key,"미청산",row.Error);return;}
             if(clock.CancelPendingBuys)foreach(var buy in active.Where(o=>o.Buy))execution.Cancel(buy,now);
             if(clock.LiquidateOwned&&row.Owned&&p?.Quantity>0)
