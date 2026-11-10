@@ -5,7 +5,8 @@
 - [x] 현재 변경·원격 main·기존 태그/릴리즈 확인, 앱 버전0.1.17·릴리즈 노트 준비. 계좌/키/DB 제외 및 전체 변경 소스 개인정보 검사.
 - [x] 새 버전 로컬 빌드0/0, Core192/UI629/디자인18 (JSON303 포함) 통과. 확정 커밋만 Git archive로 새 폴더에 추출해 같은 전체 검사 재통과, Windows WPF 호환 교차 빌드도0/0. 실제 Windows 실행은 미확인.
 - [x] Windows 단일 EXE 교차 publish 및 Mac 앱/DMG/ZIP 로컬 생성·서명·원본/ZIP/DMG 시작·공개 차트 검증 성공. Mac Developer ID/공증은 없음.
-- [~] HTTPS/SSH Git 인증 없음, GitHub 연결의 쓰기403 확인. GitHub CLI 설치·공식 기기 인증의 권한 안내 후 사용자의 계속 진행 지시를 받아 승인을 진행했으며 GitHub가 추가 본인 재인증(패스키/인증 앱)을 요청했다. 사용자 본인 확인을 기다리는 중이며 게시/태그 생성 없음. 수동 배포도 전체 검사 뒤에만 새 태그/자산을 만들며 기존 자산을 덮어쓰지 않는다.
+- [x] 사용자가 GitHub 추가 본인 확인을 완료해 BaDook2 CLI 인증(keyring, repo/workflow)과 정상 fast-forward push 가능 여부를 확인했다. 초기 연결 도구 쓰기403은 CLI 인증으로 해결했다.
+- [~] 검증한 소스 업로드와 CI 진행. 수동 배포도 전체 검사 뒤에만 새 태그/자산을 만들며 기존 자산을 덮어쓰지 않는다.
 - [ ] Git-only Windows CI WPF·D·Core·Avalonia·배포 EXE, 공개 EXE 재다운로드·시작 확인.
 - [ ] Mac CI ARM64·Keychain·앱/ZIP/DMG·공개 차트, 공개 Mac 재다운로드·시작 확인.
 - [ ] 최종 소스·CI·자산 해시·다운로드 기록 확정. 실패/미완료는 완료로 보고하지 않는다.
