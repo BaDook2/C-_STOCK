@@ -12,6 +12,10 @@
 - 수동 요청의 Windows 태그는 전체 검사/배포 EXE smoke 통과 후에만 생성한다. Mac 태그는 Windows 릴리즈·동일 앱 소스·Mac 검사 확인 뒤 만든다. 원래 태그 push 진입도 유지하며 일반main push로 릴리즈하지 않는다.
 - Windows 공개 EXE는 빌드 파일/체크섬/GitHub digest/버전 대조 후 Windows에서 다시 실행한다. Mac 공개DMG/ZIP도 원본/체크섬/GitHub digest 대조 후 실제Mac에서 추출·마운트·실행한다.
 
+## Git-only 사전검사 추가
+
+소스 커밋bdf9d38을 git archive로 새 임시 경로에 추출해 Release0/0/Core192/Avalonia629/디자인18을 다시 확인했다. Windows WPF 호환 Stock.sln도 EnableWindowsTargeting=true로0경고0오류 교차 빌드했다. 이 검사는 Windows의 실제 실행·전체 회귀를 대신하지 않는다. 사용자 계속 진행 지시로 GitHub CLI 기기 권한 승인을 진행했으나 GitHub Confirm access의 추가 패스키/인증 앱 본인 확인에서 대기 중이다. 인증 토큰은 아직 발급되지 않았고 원격 소스·태그·릴리즈 변경은 없다.
+
 ## 진행 중
 
 Windows Git-only 전체 검사·게시, Mac ARM64 CI·게시, 최종 공개 다운로드 검증은 아직 완료 전이다. 통과한 CI run과 소스 commit·다운로드 해시를 최종 기록에서 확정한다. 기존 Windows/Mac 자산·태그는 유지한다.

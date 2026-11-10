@@ -2,7 +2,7 @@
 
 ## 진행 — v0.1.17 Windows·Mac 릴리즈 요청 (2026-11-10)
 
-사용자가 현재 버전의 양OS GitHub 릴리즈를 명시 요청했다. 앱Version0.1.17, RELEASE_NOTES_v0.1.17.md, Actions 수동 요청 입력을 준비했다. HTTPS/SSH Git 인증이 없고 GitHub 연결의 쓰기도403이다. Safari에 BaDook2 로그인 확인. GitHub CLI 설치·기기 인증의 repo/workflow 등 권한을 안내했고 사용자 계속 진행 지시로 승인을 진행했다. GitHub가 추가 본인 재인증을 요구해 Safari Confirm access 화면에서 사용자 패스키/인증 앱 확인을 기다리는 중이다. 인증 완료 후 CLI로 소스와 Actions를 진행한다. 아직 게시/태그 생성 없음. 수동 배포는 CI 전체 검사 뒤에 새 Windows/Mac 태그를 만들고 자산을 추가한다(기존 tag/asset 덮어쓰기 없음). 공개 다운로드 재실행 단계·증거 보존을 추가했다. 원격 시작main=d172d5ac079ef3734dbf1dea50c5e3f60976be76, 최신 공개v0.1.16. 로컬 새 버전0/0/Core192/UI629/디자인18 성공. Windows 단일 EXE 교차 생성·Mac 로컬 패키지 서명/원본·ZIP·DMG 시작/공개 차트 성공. Windows 실제 CI·Mac 최종CI·게시/공개 다운로드는 아직 진행 전이며 성공으로 기록하지 않는다. 현재 설치 앱/개인 DB/키/실제 주문 변경 없음.
+사용자가 현재 버전의 양OS GitHub 릴리즈를 명시 요청했다. 앱Version0.1.17, RELEASE_NOTES_v0.1.17.md, Actions 수동 요청 입력을 준비했다. HTTPS/SSH Git 인증이 없고 GitHub 연결의 쓰기도403이다. Safari에 BaDook2 로그인 확인. GitHub CLI 설치·기기 인증의 repo/workflow 등 권한을 안내했고 사용자 계속 진행 지시로 승인을 진행했다. GitHub가 추가 본인 재인증을 요구해 Safari Confirm access 화면에서 사용자 패스키/인증 앱 확인을 기다리는 중이다. 인증 완료 후 CLI로 소스와 Actions를 진행한다. 아직 게시/태그 생성 없음. 수동 배포는 CI 전체 검사 뒤에 새 Windows/Mac 태그를 만들고 자산을 추가한다(기존 tag/asset 덮어쓰기 없음). 공개 다운로드 재실행 단계·증거 보존을 추가했다. 원격 시작main=d172d5ac079ef3734dbf1dea50c5e3f60976be76, 최신 공개v0.1.16. 로컬 새 버전0/0/Core192/UI629/디자인18 성공. 배포 소스 커밋bdf9d38 확정 후 Git-only 추출에서 같은 전체 검사 통과, WPF 호환 교차 빌드0/0. 로그는 ../work/release-0.1.17-git-only.log와 release-0.1.17-wpf-cross-build.log. GitHub 본인 확인 대기는 인증 완료로 취급하지 않는다. Windows 단일 EXE 교차 생성·Mac 로컬 패키지 서명/원본·ZIP·DMG 시작/공개 차트 성공. Windows 실제 CI·Mac 최종CI·게시/공개 다운로드는 아직 진행 전이며 성공으로 기록하지 않는다. 현재 설치 앱/개인 DB/키/실제 주문 변경 없음.
 
 ## 최신 소스 — 전략 JSON 점검·설명서 (2026-11-10)
 
