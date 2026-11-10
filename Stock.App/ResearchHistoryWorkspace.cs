@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using Stock.Core;
 using Stock.Core.Research;
 using Stock.Core.Research.Oversold;
 using Stock.Core.Trading;
@@ -11,7 +12,8 @@ public sealed partial class WorkspaceViewModel
 {
     private readonly Dictionary<string,ResearchHistoryRow> researchRecords=[];
     public ObservableCollection<ResearchHistoryRow> ResearchHistory {get;}=[];
-    private DateTime? researchFrom=DateTime.Today.AddMonths(-1),researchTo=DateTime.Today;
+    // Records are displayed and filtered by Korean date, including on UTC hosts.
+    private DateTime? researchFrom=KoreaClock.Today.ToDateTime(TimeOnly.MinValue).AddMonths(-1),researchTo=KoreaClock.Today.ToDateTime(TimeOnly.MinValue);
     public DateTime? ResearchFrom {get=>researchFrom;set{researchFrom=value;Changed();FilterResearchHistory();}}
     public DateTime? ResearchTo {get=>researchTo;set{researchTo=value;Changed();FilterResearchHistory();}}
     private ResearchHistoryRow? selectedResearchRecord;

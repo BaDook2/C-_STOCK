@@ -7,6 +7,7 @@
 - [x] Windows 단일 EXE 교차 publish 및 Mac 앱/DMG/ZIP 로컬 생성·서명·원본/ZIP/DMG 시작·공개 차트 검증 성공. Mac Developer ID/공증은 없음.
 - [x] 사용자가 GitHub 추가 본인 확인을 완료해 BaDook2 CLI 인증(keyring, repo/workflow)과 정상 fast-forward push 가능 여부를 확인했다. 초기 연결 도구 쓰기403은 CLI 인증으로 해결했다.
 - [~] 검증한 소스 업로드와 CI 진행. 수동 배포도 전체 검사 뒤에만 새 태그/자산을 만들며 기존 자산을 덮어쓰지 않는다.
+- [x] 첫 Windows CI42838779384에서 한국/UTC 날짜 경계에 기록이 기본 조회 범위에서 빠지는 문제를 발견해 WPF/Avalonia 기본 날짜를 KST로 통일. UTC 경계4개·로컬 Core192/UI633/디자인18·양 솔루션 빌드0/0 통과. Windows 선행 전용 검사 추가.
 - [ ] Git-only Windows CI WPF·D·Core·Avalonia·배포 EXE, 공개 EXE 재다운로드·시작 확인.
 - [ ] Mac CI ARM64·Keychain·앱/ZIP/DMG·공개 차트, 공개 Mac 재다운로드·시작 확인.
 - [ ] 최종 소스·CI·자산 해시·다운로드 기록 확정. 실패/미완료는 완료로 보고하지 않는다.

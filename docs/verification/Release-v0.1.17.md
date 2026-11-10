@@ -21,3 +21,9 @@
 Windows Git-only 전체 검사·게시, Mac ARM64 CI·게시, 최종 공개 다운로드 검증은 아직 완료 전이다. 통과한 CI run과 소스 commit·다운로드 해시를 최종 기록에서 확정한다. 기존 Windows/Mac 자산·태그는 유지한다.
 
 실제 계좌·사용자 DB·키를 읽거나 실제 돈 주문을 실행하지 않는다. D 실계좌 adapter 미지원, Mac Developer ID/공증 없음, 물리 입력·개인 Keychain 승인과 자동 검사를 구분한다.
+
+## 첫 Windows CI 실패와 수정
+
+CI42838779384는 복원·Release 빌드 및 대부분 기존 회귀 후 ProgressiveScreeningTests의 완료 기록 포함 검사에서 실패했다. 로그시각2026-11-10T15:11Z는 한국11월11일00:11이다. 기록은KST 날짜로 필터하지만 기본 조회To가 호스트DateTime.Today(UTC11월10일)여서 새 기록이 범위 밖이었다. WPF·Avalonia 기록 기본From/To를 기존KoreaClock.Today로 통일했다. WPF 검사도 완료상태·조회5회·기록 포함으로 나눠 실패 이유를 각각 표시하고 기본KST범위를 확인한다. 조건을 생략하거나 테스트 호스트 시간대를 바꿔 우회하지 않았다.
+
+새 Avalonia 검사4개는 UTC 환경에서 기본 기간, 한국 자정의 포함·이전/다음날 제외, 표시 날짜, 편집기 재생성 후 저장 기록을 확인한다. UTC 전용4개·로컬 Core192/Avalonia633/디자인18과 양 솔루션0/0 성공. Windows에는 --progressive-screening 전용 CLI 검사 단계를 전체 회귀 앞에 추가했다. 전체 검사는 그대로 수행한다. 첫 실패에서 태그·릴리즈는 생성되지 않았다.

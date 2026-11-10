@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using Stock.Core;
 using Stock.Core.Research;
 using Stock.Core.Research.Oversold;
 using Stock.Core.Research.DayTrading;
@@ -20,8 +21,9 @@ public sealed partial class MainViewModel
     public MarketHistoryService HistoryService {get;private set;}=null!;
     public ObservableCollection<HistoryRow> History {get;}=[];
     public HistoryRow? SelectedHistory {get;set;}
-    public DateTime? HistoryFrom {get;set;}=DateTime.Today.AddMonths(-1);
-    public DateTime? HistoryTo {get;set;}=DateTime.Today;
+    // Use the same Korean date as the displayed rows and the filter below.
+    public DateTime? HistoryFrom {get;set;}=KoreaClock.Today.ToDateTime(TimeOnly.MinValue).AddMonths(-1);
+    public DateTime? HistoryTo {get;set;}=KoreaClock.Today.ToDateTime(TimeOnly.MinValue);
     public AsyncCommand LoadHistoryCommand {get;private set;}=null!;
     public AsyncCommand OpenHistoryCommand {get;private set;}=null!;
     public event Action<ResearchResultViewModel>? ResultPopupRequested;

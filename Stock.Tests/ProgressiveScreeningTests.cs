@@ -5,6 +5,7 @@ using System.Windows.Automation.Peers;
 using System.Windows.Automation.Provider;
 using System.Windows.Threading;
 using Stock.App;
+using Stock.Core;
 using Stock.Core.Research;
 using Stock.Core.Research.Oversold;
 using Stock.Core.Trading;
@@ -35,6 +36,8 @@ internal static partial class Program
         using var vm=new WorkspaceViewModel(_=>false,store:store,provider:provider);window.DataContext=vm;vm.ActiveTab=1;vm.ScreenFrom=new(2025,1,3);vm.ScreenTo=new(2025,1,5);
         try
         {
+            var today=KoreaClock.Today.ToDateTime(TimeOnly.MinValue);
+            Check(vm.ResearchFrom==today.AddMonths(-1)&&vm.ResearchTo==today,"history defaults use the Korean dates displayed in the recorded rows, including UTC hosts");
             vm.Actions["스크리닝"].Execute(null);PumpUntil(()=>provider.Waiting==4&&vm.LatestScreening?.Results.Length==1&&vm.Matches.Count==1);window.UpdateLayout();
             Check(vm.Busy&&vm.LatestScreening!.Status=="진행 중"&&provider.Reads==5,"a completed symbol is published while the next queued symbol starts without waiting for slow peers");
             vm.SelectedMatch=vm.Matches[0];window.UpdateLayout();var chartButton=Descendants(window).OfType<Button>().Single(b=>ReferenceEquals(b.Command,vm.Actions["결과열기"])&&b.IsVisible);
@@ -49,7 +52,9 @@ internal static partial class Program
             ((IInvokeProvider)new ButtonAutomationPeer(chartButton)).Invoke();PumpUntil(()=>Application.Current.Windows.OfType<ScreeningChartDialog>().Any());var mainChart=Application.Current.Windows.OfType<ScreeningChartDialog>().Single();Check(vm.Busy&&mainChart.Snapshot.Stock.Key==DailyStock.Key,"main screening chart button bypasses the foreground-operation gate safely");mainChart.Close();
             provider.Release.TrySetResult();PumpUntil(()=>!vm.Busy&&vm.LatestScreening!.Results.Length==5);PumpUntil(()=>symbols.Items.Count==5);
             Check((symbols.SelectedItem as ScreeningObservation)?.Stock.Key==DailyStock.Key,"live result refresh retains the selected stock and its details");
-            Check(vm.LatestScreening!.Status=="완료"&&provider.Reads==5&&vm.ResearchHistory.Any(r=>r.Id==vm.LatestScreening.Id),"reviewing partial results does not duplicate requests and the complete run remains recorded");results.Close();
+            Check(vm.LatestScreening!.Status=="완료","reviewing partial results preserves the completed run status: "+vm.LatestScreening.Status);
+            Check(provider.Reads==5,"reviewing partial results does not duplicate history requests: "+provider.Reads);
+            Check(vm.ResearchHistory.Any(r=>r.Id==vm.LatestScreening.Id),"completed screening remains visible in its Korean execution-date history range");results.Close();
         }
         finally
         {

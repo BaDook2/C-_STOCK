@@ -21,6 +21,18 @@ internal static partial class Program
     [STAThread]public static int Main(string[] args)
     {
         Directory.CreateDirectory(Dir);
+        if(args.Length==2&&args[0]=="--progressive-screening")
+        {
+            try
+            {
+                Directory.CreateDirectory(args[1]);SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(Dispatcher.CurrentDispatcher));
+                var app=new Stock.App.App{ManualWindowStartup=true};app.InitializeComponent();
+                using var db=new TradingStore(Path.Combine(Dir,"progressive-screening-shell.db"));using var vm=new WorkspaceViewModel(_=>false,provider:new FixtureMarketData(),store:db);
+                var window=new MainWindow(vm){ShowActivated=false,Left=-20000,Top=0,WindowStartupLocation=WindowStartupLocation.Manual};window.Show();
+                ProgressiveScreeningTests(window,args[1]);window.Close();app.Shutdown();Console.WriteLine($"PASS: {passed} progressive screening checks; fixtures only");return 0;
+            }
+            catch(Exception ex){Console.Error.WriteLine(ex);return 1;}
+        }
         if(args.Length==2&&args[0]=="--day-trading-ui"){try{DayTradingUiChecks(args[1]);Console.WriteLine($"PASS: {passed} day-trading UI checks; fixtures only");return 0;}catch(Exception ex){Console.Error.WriteLine(ex);return 1;}}
         if(args.Length==2&&args[0]=="--day-trading-perf"){try{DayTradingPerformance(args[1]);return 0;}catch(Exception ex){Console.Error.WriteLine(ex);return 1;}}
         if(args.Contains("--day-trading-checks")){try{DayTradingChecks();Console.WriteLine($"PASS: {passed} day-trading checks; no broker calls");return 0;}catch(Exception ex){Console.Error.WriteLine(ex);return 1;}}

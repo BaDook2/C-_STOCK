@@ -12,3 +12,6 @@
 옛 기록에 차트 원본이 없으면 당시 결과를 현재 가격으로 가장하지 않고 원본 부재와 저장 요약을 안내한다. 새 테스트는 원본도 보관한다. 기존 화면의 자동 미선택 정책 때문에 빈 요약으로 보이던 기록은 새 표에서 바로 확인할 수 있다.
 
 관련: ResearchHistoryWorkspace.cs, MainWindow.xaml(.cs), ScreeningNavigation.cs, OversoldWorkspace.cs. 저장소 운영은 ../maintenance/Storage.md.
+
+
+2026-11-10 릴리즈 점검: WPF/Avalonia 기록 목록의 기본 조회 기간을 표시·필터와 같은 한국 날짜로 통일했다. 호스트가UTC일 때 한국 자정 이후의 새 기록도 기본 목록에 포함된다. 사용자가 지정한 조회 범위와 저장 시각 원본은 유지한다. UTC 경계 검사와 Windows 진행 중 스크리닝 기록 회귀로 확인한다.

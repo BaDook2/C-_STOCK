@@ -49,6 +49,12 @@ jobs:
       - name: Build
         run: dotnet build Stock.sln -c Release --no-restore -p:UseSharedCompilation=false
 
+      - name: Verify Korean history dates and progressive screening
+        shell: pwsh
+        run: |
+          & "Stock.Tests/bin/Release/net10.0-windows10.0.19041.0/Stock.Tests.exe" --progressive-screening (Join-Path $env:RUNNER_TEMP "stock-progressive-screening")
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
       - name: Run complete offline test suite
         shell: pwsh
         run: |
@@ -175,6 +181,8 @@ jobs:
             ${{ runner.temp }}/public-windows-release/verification.json
             ${{ runner.temp }}/public-windows-release/startup-smoke
             ${{ runner.temp }}/stock-release-smoke
+            ${{ runner.temp }}/stock-progressive-screening
+            ${{ runner.temp }}/stock-tests
             ${{ runner.temp }}/avalonia-workflows
             ${{ runner.temp }}/avalonia-design
           if-no-files-found: warn
