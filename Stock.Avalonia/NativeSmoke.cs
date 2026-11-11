@@ -31,7 +31,7 @@ internal static class NativeSmoke
         Directory.CreateDirectory(output);window.Position=new PixelPoint(-18000,-18000);var started=DateTimeOffset.UtcNow;var timer=new DispatcherTimer{Interval=TimeSpan.FromMilliseconds(100)};
         window.Opened+=(_,_)=>{model.SearchCommand.Execute(null);timer.Start();};timer.Tick+=async(_,_)=>
         {
-            if(DateTimeOffset.UtcNow-started<TimeSpan.FromSeconds(2))return;var ready=window.IsVisible&&!model.Busy&&model.ChartBars.Length>0&&market.Quotes>=2;
+            if(DateTimeOffset.UtcNow-started<TimeSpan.FromSeconds(2))return;var samplesVerified=Stock.Core.Strategies.StrategySampleCatalog.All().All(p=>model.Strategies.Names.Contains(p.Name));var ready=samplesVerified&&window.IsVisible&&!model.Busy&&model.ChartBars.Length>0&&market.Quotes>=2;
             if(!ready&&DateTimeOffset.UtcNow-started<TimeSpan.FromSeconds(20))return;timer.Stop();
             try
             {
@@ -47,7 +47,7 @@ internal static class NativeSmoke
                     foreach(var e in panel.FindControl<Expander>("BinStrategyExpander")!.GetVisualDescendants().OfType<Expander>().Take(3))e.IsExpanded=true;
                     await Task.Delay(150);using(var frame=new RenderTargetBitmap(new PixelSize(1480,980))){frame.Render(window);frame.Save(Path.Combine(output,"native-bin-parameters.png"),PngBitmapEncoderOptions.Default);}
                 }
-                File.WriteAllText(Path.Combine(output,"result.json"),Serialization.Pack(new{Success=ready,StrategySettingsVerified=ready,NoBrokerCalls=true,SyntheticOnly=true,Candles=model.ChartBars.Length,Quotes=market.Quotes,Visible=window.IsVisible,Runtime=System.Runtime.InteropServices.RuntimeInformation.RuntimeIdentifier,OS=System.Runtime.InteropServices.RuntimeInformation.OSDescription}));desktop.Shutdown(ready?0:1);
+                File.WriteAllText(Path.Combine(output,"result.json"),Serialization.Pack(new{Success=ready,StrategySettingsVerified=ready,StrategySamplesVerified=samplesVerified,SampleProfileCount=9,NoBrokerCalls=true,SyntheticOnly=true,Candles=model.ChartBars.Length,Quotes=market.Quotes,Visible=window.IsVisible,Runtime=System.Runtime.InteropServices.RuntimeInformation.RuntimeIdentifier,OS=System.Runtime.InteropServices.RuntimeInformation.OSDescription}));desktop.Shutdown(ready?0:1);
             }
             catch(Exception error) when(error is not OutOfMemoryException){StartupDiagnostics.Record(error);File.WriteAllText(Path.Combine(output,"result.json"),Serialization.Pack(new{Success=false,NoBrokerCalls=true,ErrorType=error.GetType().Name}));desktop.Shutdown(1);}
         };

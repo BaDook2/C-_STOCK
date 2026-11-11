@@ -23,3 +23,13 @@ Bin은 이름, 가족 선택, 시장 분류, Stage1, 다섯 진입 패턴, 우�
 JSON 구조는 현 파라미터와 일치한다. 최상위 필수 항목은 schemaVersion/kind/name/selectedSystem/selectedInjeId/injeStrategies/bin/binInitialCashUsd/binInitialCashKrw다. Inje 배열은 독립 알고리즘4개의 commonParameters/strategyParameters/standardParameters/effectiveAdvancedParameters/executionPolicy를 보관한다. Bin은 전체 typed config와 duration/value·unit, 국가별 프로필/날짜별 비용표를 보관한다. 비활성 체계의 값도 함께 저장한다.
 
 `StrategyValueChecks`가 Inje166개·Bin172개 입력값을 각각 변경해 JSON 왕복을 검사하고, 패턴 우선순위·실제 설정 저장·다운로드 파일·불러오기·편집기 재시작까지 검사한다. 이름 중복 접미사와 편집 시각 외의 모든 프로필 leaf를 비교해 비활성/내부 정책 값도 유지됨을 확인한다. 누락 파라미터·잘못된 시간 단위·엉뚱한 알고리즘 필드·동시 사용 선택·사용 체크 불일치·숫자 형식 오류는 저장을 바꾸지 않고 거절한다.
+
+## 샘플 검증 — 2026-11-11 후속
+
+Inje4개/Bin5패턴 샘플9개를 strict JSON 불러오기부터 실제 연구·스크리닝 명령까지 검사했다. 전체 JSON은 기존 한 파일 전략 설명서 마지막에 모았다. 합성 원본 이벤트로만 기능을 검증하며 공개 일봉을 틱으로 만들지 않는다. 프로필만 불러와서는 샘플 이벤트가 사용자 앱에 생성되지 않는다. 결과는 docs/verification/Strategy-Samples-2026-11-11.md다.
+
+후속 사용자 요청으로 실제 설치 앱에도9개를 각각 저장했다. 상단 선택 목록의 `샘플 · Inje · …`4개와 `샘플 · Bin · …`5개를 고를 수 있다. 기존2개를 포함해 총11개이며 기존 선택/파라미터는 보존했다. 사용자 로컬 프로필 추가이며 모든 설치본에 샘플을 자동 생성하는 변경은 아니다.
+
+## v0.1.19 기본 샘플
+
+배포 앱은 StrategySampleCatalog의 임베디드 JSON9개를 최초1회 저장한다. 기존 동일 이름 값과 현재 선택을 덮어쓰지 않고, 이후 사용자가 이름을 바꾼 샘플을 다시 생성하지 않는다. 새 설치는 기본 설정1개+샘플9개, 기존 설치는 기존 프로필에 없는 샘플만 추가한다. 시세·합성 거래 기록은 추가하지 않는다. App 시작 단계에서 수행하며 UI 파라미터나 주문 권한을 자동 변경하지 않는다.

@@ -22,7 +22,8 @@ internal static partial class Program
         var texts=blocks.Select(b=>b.Groups[1].Value).ToArray();
         var definitions=texts.Where(t=>JsonDocument.Parse(t).RootElement.TryGetProperty("familyId",out _)).Select(InjesStrategyJson.Import).ToArray();
         var profiles=texts.Where(t=>JsonDocument.Parse(t).RootElement.TryGetProperty("kind",out _)).Select(global::Stock.Core.Strategies.StrategyProfileJson.Import).ToArray();
-        Check(profiles.Length==1&&profiles[0].InjeStrategies.Length==4&&profiles[0].Bin.StrategyId=="bins-strategy-v1","single guide includes complete strict profile for both systems");
+        Check(profiles.Length==10&&profiles.All(p=>p.InjeStrategies.Length==4&&p.Bin.StrategyId=="bins-strategy-v1"),"single guide includes one default and nine strict complete sample profiles");
+        Check(profiles.Skip(1).Count(p=>p.SelectedSystem==global::Stock.Core.Strategies.StrategySystem.Inje)==4&&profiles.Skip(1).Count(p=>p.SelectedSystem==global::Stock.Core.Strategies.StrategySystem.Bin)==5,"sample guide covers all four Inje algorithms and five Bin entry patterns");
         Check(definitions.Length==5&&definitions.Select(d=>d.StrategyId).Distinct().Count()==4,"single guide contains five valid complete imports for all four strategies");
         Check(definitions.Last().StrategyMode==StrategyMode.Standard&&definitions.Last().EffectiveAdvancedParameters.GetProperty("minRVOL").GetDecimal()==7,"guide Standard example maps strength4 to actual RVOL7 while preserving Advanced");
     }

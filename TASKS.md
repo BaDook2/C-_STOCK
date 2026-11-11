@@ -1,13 +1,12 @@
-# 현재 — v0.1.18 Windows / Apple Silicon 릴리즈 완료
+# 현재 — v0.1.19 Windows/Mac 릴리즈 진행
 
-2026-11-11 사용자 명시 릴리즈 요청을 이행했다. [GitHub 릴리즈](https://github.com/BaDook2/C-_STOCK/releases/tag/v0.1.18). 실제 자동주문·사용자 DB/실제 기록 삭제 없음.
+사용자 명시 요청으로 현재 로컬 전략·표시 수정과 샘플9개를 배포한다. 기존 릴리즈 자산/개인 DB/계좌키/실제 기록은 보존한다.
 
-- [x] 누적 Inje/Bin/UI/StockViewer 가격·도움말/JSON 개선을 소스2c1891c로 commit/push.
-- [x] Git-only 빌드0/0·Inje363/Bin187/UI861/디자인17/manifest104/JSON6개 통과.
-- [x] Windows CI42962568324 성공: WPF338/Inje363/Bin187/UI859·배포 EXE·공개 재다운로드 실행/버전/hash.
-- [x] 동일 소스 Mac CI42963164613 성공: Inje363/Bin187/UI861·Keychain·앱/ZIP/DMG·공개 차트·공개 재다운로드 실행.
-- [x] 공개 EXE/DMG/ZIP과 체크섬6개를 다시 내려받아 크기·SHA256·API digest·CI hash 대조. 이전 v0.1.17 자산6개 보존.
-- [x] 사용자 Mac에서도 공개 ZIP의 버전·서명·격리 시작 확인. 검사 사본 미색인 보관·등록 해제, 기존 설치 앱1개만 검색.
-- [x] 릴리즈 노트/설치 안내/README/검증 문서 갱신.
+- [x] 다음 버전0.1.19/새 Mac 태그r1 및 원격main 확인.
+- [x] 샘플9개를 공개 fixture JSON으로 번들, 최초1회 추가/기존값·선택 보존/재시작 중복 방지 구현.
+- [x] 기본 탑재 및 기존 기능 검증·배포 JSON ZIP/단일 설명서·릴리즈 노트 준비.
+- [x] Git 대상41파일 검토, Avalonia/WPF 빌드0/0, UI1009/Inje363/Bin187/manifest105/JSON15 및 Mac 격리 네이티브 시작 확인.
+- [ ] 검증 소스 commit/push, Windows CI 및 공개 EXE/샘플 검증.
+- [ ] 같은 소스 Mac CI/DMG·ZIP·공개 실행 검증, 최종 자산 해시 대조.
 
-정본: docs/verification/Release-v0.1.18.md. 배포 태그 v0.1.18/macos-v0.1.18-r1은2c1891c를 가리킨다. Bin 실시간 가상 주문/복원은 아직 시작 차단, 실계좌 자동 전략 주문도 잠금 유지. 이번 게시 요청은 이행 완료했으며 다음 추가 릴리즈에는 새 사용자 요청이 필요하다.
+사용량: 시작 주간 잔여23%, 잔여15% 보존 조건 유지. 실계좌 자동주문/실제 기록 삭제 없음. 이전 기록은 docs/history/*before-release-v0.1.19-20261111.md.

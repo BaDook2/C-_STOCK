@@ -1,0 +1,683 @@
+{
+  "schemaVersion": 1,
+  "kind": "stock-strategy-profile",
+  "name": "샘플 · Bin · 하락 반등",
+  "selectedSystem": "Bin",
+  "selectedInjeId": "momentum-pullback",
+  "injeStrategies": [
+    {
+      "schemaVersion": 1,
+      "familyId": "inje",
+      "strategyId": "momentum-pullback",
+      "strategyName": "Inje's Strategy · 급등주 눌림목 매매",
+      "initialCash": 10000,
+      "strategyMode": "Advanced",
+      "commonParameters": {
+        "minPrice": 1,
+        "maxPrice": 5,
+        "maxMarketCap": null,
+        "minDailyTradingValue": 100000,
+        "maxFloat": null,
+        "orderBudget": 500,
+        "takeProfitPercent": 3,
+        "stopLossPercent": 1.5,
+        "maxHoldingSeconds": 60,
+        "reentryCooldownSeconds": 60,
+        "maxDailyLossCash": 100,
+        "maxConcurrentPositions": 3,
+        "maxSpreadPercent": 2,
+        "orderTimeoutMilliseconds": 3000
+      },
+      "strategyParameters": {
+        "minDayGainPercent": 10,
+        "momentumWindowSeconds": 120,
+        "minMomentumPercent": 3,
+        "minRVOL": 5,
+        "rvolLookbackSessions": 20,
+        "reaccelerationVolumeRatio": 1.5,
+        "minPullbackPercent": 3,
+        "lowStabilitySeconds": 60,
+        "minReboundPercent": 0.3,
+        "maxChasePercent": 0.5
+      },
+      "standardParameters": {
+        "dayGain": 3,
+        "momentum": 3,
+        "volume": 3,
+        "pullback": 3,
+        "stability": 3,
+        "reacceleration": 3
+      },
+      "effectiveAdvancedParameters": {
+        "minDayGainPercent": 10,
+        "momentumWindowSeconds": 120,
+        "minMomentumPercent": 3,
+        "minRVOL": 5,
+        "rvolLookbackSessions": 20,
+        "reaccelerationVolumeRatio": 1.5,
+        "minPullbackPercent": 3,
+        "lowStabilitySeconds": 60,
+        "minReboundPercent": 0.3,
+        "maxChasePercent": 0.5
+      },
+      "executionPolicy": {
+        "feePercent": 0.05,
+        "taxPercent": 0,
+        "slippagePercent": 0.02,
+        "conservativeExecutionCost": 0.002,
+        "submissionLatencyMilliseconds": 100,
+        "cancellationLatencyMilliseconds": 100,
+        "participationPercent": 10,
+        "maximumExposureCash": 1500,
+        "riskBudgetCash": null,
+        "maximumDataAgeMilliseconds": 3000,
+        "maximumTradeGapMilliseconds": 3000,
+        "maximumBufferedEvents": 200000,
+        "maximumVolumeBins": 20000,
+        "allowPreMarket": false,
+        "allowAfterHours": false,
+        "liveOrdersEnabled": false
+      },
+      "createdAt": "2026-11-11T07:52:31.379455+00:00",
+      "updatedAt": "2026-11-11T07:52:31.379455+00:00"
+    },
+    {
+      "schemaVersion": 1,
+      "familyId": "inje",
+      "strategyId": "quote-scalping",
+      "strategyName": "Inje's Strategy · 호가 스프레드 틱떼기",
+      "initialCash": 10000,
+      "strategyMode": "Advanced",
+      "commonParameters": {
+        "minPrice": 1,
+        "maxPrice": 5,
+        "maxMarketCap": null,
+        "minDailyTradingValue": 100000,
+        "maxFloat": null,
+        "orderBudget": 500,
+        "takeProfitPercent": 0.5,
+        "stopLossPercent": 0.5,
+        "maxHoldingSeconds": 30,
+        "reentryCooldownSeconds": 60,
+        "maxDailyLossCash": 100,
+        "maxConcurrentPositions": 3,
+        "maxSpreadPercent": 2,
+        "orderTimeoutMilliseconds": 3000
+      },
+      "strategyParameters": {
+        "minTradesPerSecond": 2,
+        "minSharesPerSecond": 100,
+        "volumeLookbackSeconds": 30,
+        "minQuoteChangesPerSecond": 1,
+        "minOrderBookImbalance": 0.2,
+        "minBidSize": 100,
+        "minAskSize": 100,
+        "orderBookDepthLevels": 1,
+        "minSpreadTicks": 2,
+        "buyOffsetTicks": 0,
+        "sellOffsetTicks": 0,
+        "volumeDecayRatio": 0.3
+      },
+      "standardParameters": {
+        "trades": 3,
+        "shares": 3,
+        "quotes": 3,
+        "imbalance": 3,
+        "spread": 3,
+        "decay": 3
+      },
+      "effectiveAdvancedParameters": {
+        "minTradesPerSecond": 2,
+        "minSharesPerSecond": 100,
+        "volumeLookbackSeconds": 30,
+        "minQuoteChangesPerSecond": 1,
+        "minOrderBookImbalance": 0.2,
+        "minBidSize": 100,
+        "minAskSize": 100,
+        "orderBookDepthLevels": 1,
+        "minSpreadTicks": 2,
+        "buyOffsetTicks": 0,
+        "sellOffsetTicks": 0,
+        "volumeDecayRatio": 0.3
+      },
+      "executionPolicy": {
+        "feePercent": 0.05,
+        "taxPercent": 0,
+        "slippagePercent": 0.02,
+        "conservativeExecutionCost": 0.002,
+        "submissionLatencyMilliseconds": 100,
+        "cancellationLatencyMilliseconds": 100,
+        "participationPercent": 10,
+        "maximumExposureCash": 1500,
+        "riskBudgetCash": null,
+        "maximumDataAgeMilliseconds": 3000,
+        "maximumTradeGapMilliseconds": 3000,
+        "maximumBufferedEvents": 200000,
+        "maximumVolumeBins": 20000,
+        "allowPreMarket": false,
+        "allowAfterHours": false,
+        "liveOrdersEnabled": false
+      },
+      "createdAt": "2026-11-11T07:52:31.379594+00:00",
+      "updatedAt": "2026-11-11T07:52:31.379594+00:00"
+    },
+    {
+      "schemaVersion": 1,
+      "familyId": "inje",
+      "strategyId": "crash-rebound",
+      "strategyName": "Inje's Strategy · 폭락주 초단기 반등",
+      "initialCash": 10000,
+      "strategyMode": "Advanced",
+      "commonParameters": {
+        "minPrice": 1,
+        "maxPrice": 5,
+        "maxMarketCap": null,
+        "minDailyTradingValue": 100000,
+        "maxFloat": null,
+        "orderBudget": 500,
+        "takeProfitPercent": 5,
+        "stopLossPercent": 2.5,
+        "maxHoldingSeconds": 60,
+        "reentryCooldownSeconds": 60,
+        "maxDailyLossCash": 100,
+        "maxConcurrentPositions": 3,
+        "maxSpreadPercent": 2,
+        "orderTimeoutMilliseconds": 3000
+      },
+      "strategyParameters": {
+        "crashReferenceMode": "PreviousClose",
+        "minCrashPercent": 50,
+        "crashLookbackSeconds": 300,
+        "minCrashVelocity": 0,
+        "crashVolumeRatio": 2,
+        "lowStabilitySeconds": 60,
+        "lowStabilityTolerancePercent": 0.2,
+        "minReboundPercent": 0.5,
+        "maxChasePercent": 1,
+        "lowInvalidationPercent": 0.5,
+        "requireFundamentalRiskClearance": true
+      },
+      "standardParameters": {
+        "crash": 3,
+        "velocity": 3,
+        "volume": 3,
+        "stability": 3,
+        "rebound": 3,
+        "chase": 3
+      },
+      "effectiveAdvancedParameters": {
+        "crashReferenceMode": "PreviousClose",
+        "minCrashPercent": 50,
+        "crashLookbackSeconds": 300,
+        "minCrashVelocity": 0,
+        "crashVolumeRatio": 2,
+        "lowStabilitySeconds": 60,
+        "lowStabilityTolerancePercent": 0.2,
+        "minReboundPercent": 0.5,
+        "maxChasePercent": 1,
+        "lowInvalidationPercent": 0.5,
+        "requireFundamentalRiskClearance": true
+      },
+      "executionPolicy": {
+        "feePercent": 0.05,
+        "taxPercent": 0,
+        "slippagePercent": 0.02,
+        "conservativeExecutionCost": 0.002,
+        "submissionLatencyMilliseconds": 100,
+        "cancellationLatencyMilliseconds": 100,
+        "participationPercent": 10,
+        "maximumExposureCash": 1500,
+        "riskBudgetCash": null,
+        "maximumDataAgeMilliseconds": 3000,
+        "maximumTradeGapMilliseconds": 3000,
+        "maximumBufferedEvents": 200000,
+        "maximumVolumeBins": 20000,
+        "allowPreMarket": false,
+        "allowAfterHours": false,
+        "liveOrdersEnabled": false
+      },
+      "createdAt": "2026-11-11T07:52:31.379669+00:00",
+      "updatedAt": "2026-11-11T07:52:31.379669+00:00"
+    },
+    {
+      "schemaVersion": 1,
+      "familyId": "inje",
+      "strategyId": "support-zone",
+      "strategyName": "Inje's Strategy · 저유동성 지지구간 매매",
+      "initialCash": 10000,
+      "strategyMode": "Advanced",
+      "commonParameters": {
+        "minPrice": 1,
+        "maxPrice": 5,
+        "maxMarketCap": null,
+        "minDailyTradingValue": 10000,
+        "maxFloat": null,
+        "orderBudget": 500,
+        "takeProfitPercent": 3,
+        "stopLossPercent": 3,
+        "maxHoldingSeconds": 300,
+        "reentryCooldownSeconds": 60,
+        "maxDailyLossCash": 100,
+        "maxConcurrentPositions": 3,
+        "maxSpreadPercent": 2,
+        "orderTimeoutMilliseconds": 3000
+      },
+      "strategyParameters": {
+        "supportSources": "MA,Pivot,VolumeZone",
+        "movingAveragePeriods": "120,240,480,999",
+        "pivotLeftBars": 20,
+        "pivotRightBars": 20,
+        "volumeProfileLookbackBars": 240,
+        "volumeBinSize": 0.01,
+        "supportClusterRangePercent": 5,
+        "minimumSupportCount": 2,
+        "supportDistancePercent": 3,
+        "requireReboundConfirmation": false,
+        "reboundPercent": 3,
+        "maxAverageDailyTradingValue": 2000000,
+        "supportBreakPercent": 3
+      },
+      "standardParameters": {
+        "cluster": 3,
+        "count": 3,
+        "distance": 3,
+        "rebound": 3,
+        "liquidity": 3,
+        "break": 3
+      },
+      "effectiveAdvancedParameters": {
+        "supportSources": "MA,Pivot,VolumeZone",
+        "movingAveragePeriods": "120,240,480,999",
+        "pivotLeftBars": 20,
+        "pivotRightBars": 20,
+        "volumeProfileLookbackBars": 240,
+        "volumeBinSize": 0.01,
+        "supportClusterRangePercent": 5,
+        "minimumSupportCount": 2,
+        "supportDistancePercent": 3,
+        "requireReboundConfirmation": false,
+        "reboundPercent": 3,
+        "maxAverageDailyTradingValue": 2000000,
+        "supportBreakPercent": 3
+      },
+      "executionPolicy": {
+        "feePercent": 0.05,
+        "taxPercent": 0,
+        "slippagePercent": 0.02,
+        "conservativeExecutionCost": 0.002,
+        "submissionLatencyMilliseconds": 100,
+        "cancellationLatencyMilliseconds": 100,
+        "participationPercent": 10,
+        "maximumExposureCash": 1500,
+        "riskBudgetCash": null,
+        "maximumDataAgeMilliseconds": 3000,
+        "maximumTradeGapMilliseconds": 3000,
+        "maximumBufferedEvents": 200000,
+        "maximumVolumeBins": 20000,
+        "allowPreMarket": false,
+        "allowAfterHours": false,
+        "liveOrdersEnabled": false
+      },
+      "createdAt": "2026-11-11T07:52:31.379751+00:00",
+      "updatedAt": "2026-11-11T07:52:31.379751+00:00"
+    }
+  ],
+  "bin": {
+    "schemaVersion": 1,
+    "strategyId": "bins-strategy-v1",
+    "strategyName": "Bin's Strategy",
+    "enabled": true,
+    "market": {
+      "enabledExchanges": [
+        "KRX",
+        "NASDAQ",
+        "NYSE",
+        "AMEX"
+      ],
+      "regularSessionOnly": true,
+      "countryProfiles": {
+        "krx": {
+          "maxSpreadPct": 0.5,
+          "minBestBidQuantity": 100,
+          "minBestAskQuantity": 100,
+          "minBidNotional": null,
+          "minAskNotional": null,
+          "minEntryNetRewardPct": 0,
+          "maxOrderCash": 2000000,
+          "maxConcurrentExposure": 5000000,
+          "maxDailyLoss": 1000000,
+          "riskBudgetPerPosition": 100000,
+          "plannedInvestment": 1000000,
+          "fees": [
+            {
+              "from": "2020-01-01",
+              "until": "2030-01-01",
+              "knownAt": "2026-06-27T13:30:00+00:00",
+              "source": "SYNTHETIC_EXPLICIT_COST",
+              "buyPercent": 0.01,
+              "sellPercent": 0.01,
+              "sellTaxPercent": 0,
+              "perShare": 0
+            }
+          ]
+        },
+        "us": {
+          "maxSpreadPct": 0.5,
+          "minBestBidQuantity": 100,
+          "minBestAskQuantity": 100,
+          "minBidNotional": null,
+          "minAskNotional": null,
+          "minEntryNetRewardPct": 0,
+          "maxOrderCash": 2000,
+          "maxConcurrentExposure": 5000,
+          "maxDailyLoss": 1000,
+          "riskBudgetPerPosition": 100,
+          "plannedInvestment": 1000,
+          "fees": [
+            {
+              "from": "2020-01-01",
+              "until": "2030-01-01",
+              "knownAt": "2026-06-27T13:30:00+00:00",
+              "source": "SYNTHETIC_EXPLICIT_COST",
+              "buyPercent": 0.01,
+              "sellPercent": 0.01,
+              "sellTaxPercent": 0,
+              "perShare": 0
+            }
+          ]
+        }
+      }
+    },
+    "selection": {
+      "mode": "Automatic",
+      "manualFamily": "Uptrend",
+      "autoSwitchAfterExit": true
+    },
+    "regime": {
+      "timeframe": {
+        "value": 1,
+        "unit": "Minute"
+      },
+      "lookback": {
+        "value": 10,
+        "unit": "Minute"
+      },
+      "confirmBars": 2,
+      "minimumBars": 8,
+      "atrPeriod": 2,
+      "erTrend": 0.4,
+      "erRange": 0.2,
+      "minTrendMovePct": 0.1,
+      "atrTrendMultiplier": 0,
+      "structureAtrTolerance": 0,
+      "rangeUpperQuantile": 0.85,
+      "rangeLowerQuantile": 0.15,
+      "rangeMinTouchesPerSide": 2,
+      "rangeTouchSeparation": {
+        "value": 1,
+        "unit": "Minute"
+      },
+      "rangeReversalMinAtr": 0.3,
+      "rangeTouchTolerancePct": 0.3,
+      "rangeMinWidthPct": 1.5,
+      "rangeMaxWidthPct": 12,
+      "rangeMinInsideRatio": 0.8,
+      "rangeSnapshotLifetime": {
+        "value": 60,
+        "unit": "Minute"
+      },
+      "includePreviousSessionForLookback": false
+    },
+    "stage1": {
+      "enabled": false,
+      "movingAveragePeriod": 240,
+      "movingAverageBar": {
+        "value": 1,
+        "unit": "TradingDay"
+      },
+      "profileLookbackBars": 240,
+      "profileBar": {
+        "value": 1,
+        "unit": "TradingDay"
+      },
+      "profileSource": "ApproximateOHLCV",
+      "profileBinSizeTicks": 5,
+      "profileMaxBins": 512,
+      "volumeZoneThresholdPct": 70,
+      "profileMergeRangePct": 1,
+      "maxOverlapPct": 0.5,
+      "maxZoneWidthPct": 2,
+      "approachPct": 1,
+      "minReboundPct": 0.5,
+      "candidateLifetime": {
+        "value": 15,
+        "unit": "Minute"
+      },
+      "activationDuration": {
+        "value": 30,
+        "unit": "Minute"
+      },
+      "breakBufferPct": 0.3,
+      "minDistinctEpisodeGap": {
+        "value": 15,
+        "unit": "Second"
+      },
+      "zoneIdentityTolerancePct": 0.5
+    },
+    "entries": {
+      "downtrendRebound": {
+        "enabled": true,
+        "entryMode": "Fast",
+        "dropLookback": {
+          "value": 10,
+          "unit": "Minute"
+        },
+        "minDropPct": 0.5,
+        "dropAtrMultiplier": 0,
+        "lowStabilization": {
+          "value": 1,
+          "unit": "Second"
+        },
+        "minReboundPct": 0.4,
+        "microHighLookback": {
+          "value": 10,
+          "unit": "Second"
+        },
+        "breakBufferPct": 0.1,
+        "candidateLifetime": {
+          "value": 3,
+          "unit": "Minute"
+        },
+        "maxChasePct": 3
+      },
+      "uptrendBreakout": {
+        "enabled": false,
+        "lookback": {
+          "value": 10,
+          "unit": "Minute"
+        },
+        "breakoutBufferPct": 0.1,
+        "holdDuration": {
+          "value": 2,
+          "unit": "Second"
+        },
+        "minValidTicks": 2,
+        "candidateLifetime": {
+          "value": 2,
+          "unit": "Minute"
+        },
+        "maxChasePct": 3
+      },
+      "uptrendPullback": {
+        "enabled": false,
+        "emaPeriod": 2,
+        "emaBar": {
+          "value": 1,
+          "unit": "Minute"
+        },
+        "impulseLookback": {
+          "value": 10,
+          "unit": "Minute"
+        },
+        "minPullbackPct": 0.2,
+        "maxPullbackPct": 2,
+        "maxEMADistancePct": 2,
+        "minReboundPct": 0.25,
+        "microHighLookback": {
+          "value": 1,
+          "unit": "Second"
+        },
+        "microBreakBufferPct": 0.1,
+        "lowStabilization": {
+          "value": 1,
+          "unit": "Second"
+        },
+        "candidateLifetime": {
+          "value": 5,
+          "unit": "Minute"
+        },
+        "maxChasePct": 3
+      },
+      "rangeLowerBounce": {
+        "enabled": false,
+        "approachPct": 0.3,
+        "minReboundPct": 0.25,
+        "breakTolerancePct": 0.3,
+        "lowStabilization": {
+          "value": 1,
+          "unit": "Second"
+        },
+        "candidateLifetime": {
+          "value": 3,
+          "unit": "Minute"
+        },
+        "maxChasePct": 3
+      },
+      "rangeUpperBreakout": {
+        "enabled": false,
+        "lookback": {
+          "value": 20,
+          "unit": "Minute"
+        },
+        "breakoutBufferPct": 0.1,
+        "holdDuration": {
+          "value": 2,
+          "unit": "Second"
+        },
+        "minValidTicks": 2,
+        "candidateLifetime": {
+          "value": 2,
+          "unit": "Minute"
+        },
+        "maxChasePct": 3
+      },
+      "patternPriority": [
+        "RangeUpperBreakout",
+        "UptrendPullback",
+        "UptrendBreakout",
+        "RangeLowerBounce",
+        "DowntrendRebound"
+      ]
+    },
+    "sharedExit": {
+      "mode": "PartialTakeProfitWithTrailing",
+      "takeProfit1Pct": 1,
+      "takeProfit1RatioPct": 30,
+      "takeProfit2Pct": 2,
+      "takeProfit2RatioPct": 30,
+      "trailingStopPct": 0.7,
+      "trailingActivation": "AfterTP1Filled",
+      "trailingPeakBasis": "FromEntry",
+      "fixedStopEnabled": true,
+      "fixedStopLossPct": 1,
+      "technicalStopEnabled": true,
+      "technicalBreakBufferPct": 0.3,
+      "breakEvenAfterTP1": false,
+      "exitSignalEvaluation": "OnTick",
+      "closePositionsAtSessionEnd": true,
+      "stopNewEntriesBeforeClose": {
+        "value": 1,
+        "unit": "Minute"
+      },
+      "startLiquidationBeforeClose": {
+        "value": 0.5,
+        "unit": "Minute"
+      }
+    },
+    "sharedReentry": {
+      "minInterval": {
+        "value": 60,
+        "unit": "Second"
+      },
+      "afterProfit": {
+        "value": 60,
+        "unit": "Second"
+      },
+      "afterStop": {
+        "value": 5,
+        "unit": "Minute"
+      }
+    },
+    "sharedRisk": {
+      "maxConcurrentPositionsPerSymbol": 1,
+      "allowPyramiding": false,
+      "maxEntriesPerSymbolPerDay": 10,
+      "maxEntriesPerFamilyPerDay": 50,
+      "maxEntriesPerAccountPerDay": 100,
+      "maxConcurrentPositionsPerAccount": 5,
+      "maxConsecutiveStops": 3
+    },
+    "quality": {
+      "maxTradeAge": {
+        "value": 2,
+        "unit": "Second"
+      },
+      "maxQuoteAge": {
+        "value": 1,
+        "unit": "Second"
+      },
+      "maximumProcessingLag": {
+        "value": 2,
+        "unit": "Second"
+      },
+      "maximumTradeGap": {
+        "value": 2,
+        "unit": "Second"
+      },
+      "requireContinuousTrades": true,
+      "requireVerifiedExchangeTime": true,
+      "requireTradableInstrument": true,
+      "maximumHistoryBars": 20000,
+      "maximumHistoryTicks": 200000
+    },
+    "execution": {
+      "entryOrderKind": "Limit",
+      "maxEntrySlippagePct": 0.2,
+      "entryTimeout": {
+        "value": 3,
+        "unit": "Second"
+      },
+      "exitOrderKind": "Limit",
+      "exitLimitSlippagePct": 0.3,
+      "protectiveExitTimeout": {
+        "value": 2,
+        "unit": "Second"
+      },
+      "maxEntryQuoteParticipationPct": 25,
+      "reduceQuantityToQuoteCapacity": false,
+      "emergencyMarketFallback": false,
+      "allowUnverifiedLiveExecution": false,
+      "submissionLatency": {
+        "value": 0.1,
+        "unit": "Second"
+      },
+      "cancellationLatency": {
+        "value": 0.1,
+        "unit": "Second"
+      },
+      "simulationParticipationPct": 100
+    }
+  },
+  "binInitialCashUsd": 10000,
+  "binInitialCashKrw": 10000000
+}

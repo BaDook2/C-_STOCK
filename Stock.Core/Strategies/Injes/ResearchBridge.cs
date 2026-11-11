@@ -25,7 +25,7 @@ public static class InjesResearchBridge
         if(stock.Currency!="USD")throw new InvalidOperationException("Inje's Strategy는 미국주식 USD 원본 틱·호가 자료를 사용합니다.");
         if(observations.Length==0||!observations.Any(e=>e.Market.Kind==EventKind.Trade))throw new InvalidOperationException("MissingData: 선택 기간의 원본 미국 체결·호가 이벤트가 없습니다. 일봉·분봉을 틱으로 바꾸거나 기존 전략으로 대체하지 않습니다.");
         var earliest=observations.Min(e=>e.KnownAt);var latest=observations.Max(e=>e.KnownAt);if(latest==earliest)latest=latest.AddMilliseconds(1);
-        var replay=new InjesReplayEngine().Run(new(definition,[new(stock.Symbol,stock.Exchange)],observations,earliest,latest,definition.InitialCash,string.Join(",",observations.Select(e=>e.Market.Source).Distinct()),true,true),token);
+        var replay=new InjesReplayEngine().Run(new(definition,[new(stock.Symbol,stock.Exchange)],observations,earliest,latest,definition.InitialCash,string.Join(",",observations.Select(e=>e.Market.Source).Distinct()),true,true,observations.Any(e=>e.Market.Source.Contains("SYNTHETIC",StringComparison.OrdinalIgnoreCase)||e.Market.Source.Contains("FIXTURE",StringComparison.OrdinalIgnoreCase))),token);
         var trades=new List<OversoldTrade>();var current=new OversoldTrade();int held=0;decimal average=0;
         foreach(var fill in replay.Fills)
         {

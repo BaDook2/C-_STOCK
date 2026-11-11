@@ -2,7 +2,7 @@
  <PropertyGroup>
   <OutputType>WinExe</OutputType><TargetFramework>net10.0</TargetFramework><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable>
   <AssemblyName>Stock.Avalonia</AssemblyName><RootNamespace>Stock.Desktop</RootNamespace><AvaloniaUseCompiledBindingsByDefault>false</AvaloniaUseCompiledBindingsByDefault>
-  <Version>0.1.18</Version>
+  <Version>0.1.19</Version>
  </PropertyGroup>
  <ItemGroup><ProjectReference Include="../Stock.Core/Stock.Core.csproj"/></ItemGroup>
  <ItemGroup><AvaloniaResource Include="Assets/**"/></ItemGroup>

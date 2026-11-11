@@ -1,11 +1,11 @@
-# STOCK Avalonia v0.1.18
+# STOCK Avalonia v0.1.19
 
-Windows와 Apple Silicon Mac의 현재 UI는 Avalonia다. Inje/Bin 두 전략 설정·전체 프로필 JSON·StockViewer NXT/미국 데이마켓 공개 가격·도움말 중복 수정을 포함한다. [릴리즈 변경 사항](docs/avalonia/RELEASE_NOTES_v0.1.18.md) · [두 전략 설명·전체 JSON](docs/strategy/현재_전략_상세설명_및_JSON_가이드_2026-11-11.md).
+Windows와 Apple Silicon Mac의 현재 UI는 Avalonia다. Inje/Bin 전체 설정과 검증 샘플9개를 기본 포함하고 스크리닝 USD 소수 가격을 보존한다. [릴리즈 변경 사항](docs/avalonia/RELEASE_NOTES_v0.1.19.md) · [두 전략 설명·전체 JSON](docs/strategy/현재_전략_상세설명_및_JSON_가이드_2026-11-11.md).
 
 ## 다운로드
 
-- [Windows x64 · Stock.exe](https://github.com/BaDook2/C-_STOCK/releases/download/v0.1.18/Stock.exe)
-- [Apple Silicon Mac · DMG](https://github.com/BaDook2/C-_STOCK/releases/download/v0.1.18/Stock-AppleSilicon-v0.1.18-r1.dmg) / [ZIP](https://github.com/BaDook2/C-_STOCK/releases/download/v0.1.18/Stock-AppleSilicon-v0.1.18-r1.zip)
+- [Windows x64 · Stock.exe](https://github.com/BaDook2/C-_STOCK/releases/download/v0.1.19/Stock.exe)
+- [Apple Silicon Mac · DMG](https://github.com/BaDook2/C-_STOCK/releases/download/v0.1.19/Stock-AppleSilicon-v0.1.19-r1.dmg) / [ZIP](https://github.com/BaDook2/C-_STOCK/releases/download/v0.1.19/Stock-AppleSilicon-v0.1.19-r1.zip)
 
 .NET을 포함하므로 별도 설치가 필요 없다. Mac은 M1 이후·macOS14 이상이며 Intel Mac은 이번 릴리즈 대상이 아니다. 파일별 .sha256은 무결성 확인용이다. Mac은 ad-hoc 서명이며 Developer ID/공증은 없으므로 [설치 안내](docs/avalonia/MACOS_APPLE_SILICON.md)를 따른다.
 
@@ -28,4 +28,4 @@ Inje/Bin 사용 체크는 하나만 선택하며 두 체계와 비활성 설정�
 
 Inje 실시간 가상 세션의 보유 보호/원장 복원은 유지한다. **Bin 실시간 가상 주문/복원은 아직 연결하지 않아 시작을 차단한다. 실계좌 자동 전략 주문도 잠겨 있다.** 기존 수동 주문의 계좌 확인·명시 활성화·전송 안전 절차는 별개다.
 
-[최종 릴리즈 검증](docs/verification/Release-v0.1.18.md): Windows CI와 Mac ARM64 CI의 전체 검사, 실제 배포본/공개 재다운로드 실행·체크섬 검증을 통과했다. 물리 입력·개인 Keychain 권한·실제 증권사 API·실제 돈 주문은 자동 검사와 구분한다.
+[최종 릴리즈 검증](docs/verification/Release-v0.1.19.md): Windows/Mac workflow에서 전체 검사와 배포본·공개 재다운로드 실행/체크섬을 확인한다. 결과는 검증 기록을 따른다. 물리 입력·개인 Keychain 권한·실제 증권사 API·실제 돈 주문은 자동 검사와 구분한다.

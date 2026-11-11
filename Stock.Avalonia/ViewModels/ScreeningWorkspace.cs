@@ -10,7 +10,7 @@ public sealed record ScreeningDisplayRow(ScreeningObservation Observation)
     public string Region=>!string.IsNullOrEmpty(Observation.Stock.Board)?Observation.Stock.Board switch{"KOSPI"=>"코스피","KOSDAQ"=>"코스닥",_=>Observation.Stock.Board}:Observation.Stock.Exchange.ToString();
     public string Sector=>Observation.Stock.Sector;
     public string Date=>Observation.ObservedAt?.ToOffset(TimeSpan.FromHours(9)).ToString("yyyy.MM.dd HH:mm:ss")??"—";
-    public string Price=>Observation.Price is {} p?DisplayNumber.Price(p)+(Observation.Stock.Exchange==Exchange.KRX?" 원":" USD"):"—";
+    public string Price=>Observation.Price is {} p?Observation.Stock.Currency=="USD"?p.ToString("0.########",System.Globalization.CultureInfo.InvariantCulture)+" USD":DisplayNumber.Price(p)+" 원":"—";
     public string Drawdown=>Observation.Drawdown?.ToString("0.00")??"—";public string Rsi=>Observation.Rsi?.ToString("0.00")??"—";
     public string Volume=>Observation.VolumeRatio?.ToString("0.00")??"—";public int Supports=>Observation.SupportCount;
     public string Proximity=>Observation.Proximity.ToString("0.00");public string State=>Observation.Status;

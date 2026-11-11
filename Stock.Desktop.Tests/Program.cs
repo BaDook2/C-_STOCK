@@ -20,6 +20,7 @@ internal static partial class Program
             output=Path.GetFullPath(args.FirstOrDefault()??"artifacts/desktop-tests");Directory.CreateDirectory(output);
             AppBuilder.Configure<App>().UseSkia().UseHeadless(new AvaloniaHeadlessPlatformOptions{UseHeadlessDrawing=false}).SetupWithoutStarting();
             if(args.Contains("--history-timezone")){HistoryTimezoneChecks();Console.WriteLine($"PASS: {passed} history time-zone checks");return 0;}
+            if(args.Contains("--strategy-samples")){StrategySampleChecks();Console.WriteLine($"PASS: {passed} strategy sample checks; synthetic data only");return 0;}
             if(args.Contains("--public-price")){PublicPriceChecks();Console.WriteLine($"PASS: {passed} offline public price checks");return 0;}
             if(args.Contains("--strategy-values")){StrategyValueChecks();return 0;}
             if(args.Contains("--strategy-json")){StrategyJsonChecks();return 0;}
@@ -40,7 +41,7 @@ internal static partial class Program
             if(args.Contains("--transmission-guard")){OrderTransmissionGuardChecks();Console.WriteLine($"PASS: {passed} final transmission guard checks");return 0;}
             if(args.Contains("--annotations")){ChartAndHistoryChecks();Console.WriteLine($"PASS: {passed} annotation/history UI checks");return 0;}
             if(args.Contains("--outcome-colors")){TradeOutcomeColorChecks();Console.WriteLine($"PASS: {passed} trade outcome color checks");return 0;}
-            HistoryTimezoneChecks();MarketChecks();PublicPriceChecks();StrategySettingsChecks();StrategyJsonChecks();StrategyValueChecks();BinsWorkflowChecks();InjesPresetChecks();OnlineDesktopChecks();InjesWorkflowChecks();WorkflowChecks();ChartAndHistoryChecks();InteractiveStateChecks();ChartInteractionChecks();CalendarInteractionChecks();TradeOutcomeColorChecks();CredentialChecks();AccountOrderChecks();LiveStrategyAdapterChecks();OrderTransmissionGuardChecks();InjesRecoveryChecks();Console.WriteLine($"PASS: {passed} Avalonia headless checks; fixtures only, no real broker calls");return 0;
+            HistoryTimezoneChecks();MarketChecks();PublicPriceChecks();StrategySettingsChecks();StrategyJsonChecks();StrategyValueChecks();StrategySampleChecks();BinsWorkflowChecks();InjesPresetChecks();OnlineDesktopChecks();InjesWorkflowChecks();WorkflowChecks();ChartAndHistoryChecks();InteractiveStateChecks();ChartInteractionChecks();CalendarInteractionChecks();TradeOutcomeColorChecks();CredentialChecks();AccountOrderChecks();LiveStrategyAdapterChecks();OrderTransmissionGuardChecks();InjesRecoveryChecks();Console.WriteLine($"PASS: {passed} Avalonia headless checks; fixtures only, no real broker calls");return 0;
         }
         catch(Exception ex){Console.Error.WriteLine(ex);return 1;}
     }

@@ -135,7 +135,7 @@
                     <DockPanel>
                         <StackPanel DockPanel.Dock="Top">
                             <TextBlock Text="내 전략에 맞는 종목 찾기" FontSize="23" FontWeight="Bold" />
-                            <TextBlock Text="일봉은 공개 가격·거래량을 평가합니다. 실시간 분석은 선택한 자료와 전략을 재사용합니다. 거래대금 추정과 상태·위험 미확인은 결과에 명시합니다." Foreground="#8B95A1" TextWrapping="Wrap" Margin="0,8,0,16" />
+                            <TextBlock Text="선택 기간의 원본 체결·호가와 당시 확인 자료로 전략을 평가합니다. 표시용 일봉만 있으면 자료 부족으로 안내합니다." Foreground="#8B95A1" TextWrapping="Wrap" Margin="0,8,0,16" />
                             <Border Background="#F2F4F6" CornerRadius="10" HorizontalAlignment="Left">
                                 <StackPanel Orientation="Horizontal">
                                     <RadioButton Content="일반 스크리닝" GroupName="ScreenMode" IsChecked="{Binding ShowNormalScreen,Mode=TwoWay}" />

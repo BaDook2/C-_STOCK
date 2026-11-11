@@ -267,7 +267,7 @@
   {
     "Path": "Stock.Core/Stock.Core.csproj",
     "HashMode": "Utf8Lf",
-    "Sha256": "2A4E9755CC54A8B355EEB99A8BBC5D4723D61BE81813A9540256E3D759A54D10"
+    "Sha256": "779D11FF7BF1EB331CCB5A1CFACCF94410A70B9916B899D4B69EDF8C3A442440"
   },
   {
     "Path": "Stock.Core/Strategies/Bins/BinsStrategyEngine.cs",
@@ -367,7 +367,7 @@
   {
     "Path": "Stock.Core/Strategies/Injes/ResearchBridge.cs",
     "HashMode": "Utf8Lf",
-    "Sha256": "CB6736D1F2006B3BECD35215E4A97E53DDBE9070E5C0566C6EA757037AFFE28D"
+    "Sha256": "1EBCF7DCFE46C6A1E48AB65DA5DFBC98F38C2AC231904C8E06DB58403E972169"
   },
   {
     "Path": "Stock.Core/Strategies/Injes/StrategyRuntime.cs",
@@ -393,6 +393,11 @@
     "Path": "Stock.Core/Strategies/StrategyProfile.cs",
     "HashMode": "Utf8Lf",
     "Sha256": "436BA6232CB85A093BB07DA8C496EA45608C1196F9A55776F11389765D994546"
+  },
+  {
+    "Path": "Stock.Core/Strategies/StrategySampleCatalog.cs",
+    "HashMode": "Utf8Lf",
+    "Sha256": "B49C0F6653EF684088F2DC4E303ADD4B8358813945D306373244F578509F60A6"
   },
   {
     "Path": "Stock.Core/TossBroker.cs",

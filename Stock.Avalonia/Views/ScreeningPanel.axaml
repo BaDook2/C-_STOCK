@@ -27,7 +27,7 @@
                 <DataGridTextColumn Header="분야" Binding="{Binding Sector,Mode=OneWay}" Width="2*" />
                 <DataGridTextColumn Header="현재가 · 관측값" Binding="{Binding Price,Mode=OneWay}" Width="140" />
                 <DataGridTextColumn Header="접근도 · 점" Binding="{Binding Proximity,Mode=OneWay}" Width="95" />
-                <DataGridTextColumn Header="급락률 %" Binding="{Binding Drawdown,Mode=OneWay}" Width="100" />
+                <DataGridTextColumn Header="기준 대비 %" Binding="{Binding Drawdown,Mode=OneWay}" Width="100" />
                 <DataGridTextColumn Header="RSI" Binding="{Binding Rsi,Mode=OneWay}" Width="80" />
                 <DataGridTextColumn Header="거래량 배수" Binding="{Binding Volume,Mode=OneWay}" Width="100" />
                 <DataGridTextColumn Header="지지 개수" Binding="{Binding Supports,Mode=OneWay}" Width="90" />
