@@ -1,8 +1,8 @@
 # Stock v0.1.18 — Inje / Bin 전략
 
-현재 릴리즈 대상은 두 전략 설정·전체 JSON 프로필·도움말 중복 수정·StockViewer 방식의 공개 가격 조회를 포함한다. [변경 사항과 지원 범위](docs/avalonia/RELEASE_NOTES_v0.1.18.md) · [두 전략 설명/전체 JSON](docs/strategy/현재_전략_상세설명_및_JSON_가이드_2026-11-11.md).
+v0.1.18은 두 전략 설정·전체 JSON 프로필·도움말 중복 수정·StockViewer 방식의 공개 가격 조회를 포함한다. [변경 사항과 지원 범위](docs/avalonia/RELEASE_NOTES_v0.1.18.md) · [두 전략 설명/전체 JSON](docs/strategy/현재_전략_상세설명_및_JSON_가이드_2026-11-11.md).
 
-[Windows EXE](https://github.com/BaDook2/C-_STOCK/releases/download/v0.1.18/Stock.exe) · [Apple Silicon DMG](https://github.com/BaDook2/C-_STOCK/releases/download/v0.1.18/Stock-AppleSilicon-v0.1.18-r1.dmg) · [Mac ZIP](https://github.com/BaDook2/C-_STOCK/releases/download/v0.1.18/Stock-AppleSilicon-v0.1.18-r1.zip). 자산은 플랫폼별 검증 후 순차 게시한다. 실계좌 자동 전략 주문은 잠겨 있고 Bin 실시간 가상 주문/원장 복원은 미연결로 시작 차단한다.
+[Windows EXE](https://github.com/BaDook2/C-_STOCK/releases/download/v0.1.18/Stock.exe) · [Apple Silicon DMG](https://github.com/BaDook2/C-_STOCK/releases/download/v0.1.18/Stock-AppleSilicon-v0.1.18-r1.dmg) · [Mac ZIP](https://github.com/BaDook2/C-_STOCK/releases/download/v0.1.18/Stock-AppleSilicon-v0.1.18-r1.zip). Windows·Mac 및 각 체크섬6개 자산의 공개·재다운로드 검증을 완료했다. 실계좌 자동 전략 주문은 잠겨 있고 Bin 실시간 가상 주문/원장 복원은 미연결로 시작 차단한다.
 
 전략설정의 상위 그룹은 **Inje’s Strategy / Bin’s Strategy**다. 각 이름 옆 `사용`은 한 번에 하나만 선택한다. Inje 네 알고리즘과 Bin 다섯 패턴의 파라미터·시간 단위·전체 설정 JSON을 편집한다. 백테스트/일반 스크리닝은 선택한 독립 엔진을 사용하며, 실제 계좌/주문 안전 기록을 임의 삭제하지 않는다.
 

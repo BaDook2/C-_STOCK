@@ -1,29 +1,31 @@
 # STOCK Avalonia v0.1.18
 
-Inje/Bin 설정·전체 프로필 JSON·StockViewer NXT/미국 데이마켓 공개 가격·도움말 수정을 포함한다. [변경 사항과 지원 범위](docs/avalonia/RELEASE_NOTES_v0.1.18.md), [현재 전략 설명/전체 JSON](docs/strategy/현재_전략_상세설명_및_JSON_가이드_2026-11-11.md)을 따른다. 실계좌 자동 전략 주문은 잠겨 있으며 Bin 실시간 가상 주문/복원은 미연결로 시작 차단한다.
+Windows와 Apple Silicon Mac의 현재 UI는 Avalonia다. Inje/Bin 두 전략 설정·전체 프로필 JSON·StockViewer NXT/미국 데이마켓 공개 가격·도움말 중복 수정을 포함한다. [릴리즈 변경 사항](docs/avalonia/RELEASE_NOTES_v0.1.18.md) · [두 전략 설명·전체 JSON](docs/strategy/현재_전략_상세설명_및_JSON_가이드_2026-11-11.md).
 
+## 다운로드
 
+- [Windows x64 · Stock.exe](https://github.com/BaDook2/C-_STOCK/releases/download/v0.1.18/Stock.exe)
+- [Apple Silicon Mac · DMG](https://github.com/BaDook2/C-_STOCK/releases/download/v0.1.18/Stock-AppleSilicon-v0.1.18-r1.dmg) / [ZIP](https://github.com/BaDook2/C-_STOCK/releases/download/v0.1.18/Stock-AppleSilicon-v0.1.18-r1.zip)
 
-Rider에서 소스 수정 후 `.app`으로 사용하려면 상단 실행 설정 `Mac · .app 빌드 후 실행`을 선택한다. `/Applications/Stock Development.app`을 만들고 연다. [Rider 앱 생성 안내](docs/maintenance/Rider-Mac-App.md).
+.NET을 포함하므로 별도 설치가 필요 없다. Mac은 M1 이후·macOS14 이상이며 Intel Mac은 이번 릴리즈 대상이 아니다. 파일별 .sha256은 무결성 확인용이다. Mac은 ad-hoc 서명이며 Developer ID/공증은 없으므로 [설치 안내](docs/avalonia/MACOS_APPLE_SILICON.md)를 따른다.
 
-v0.1.18: 전략 설정을 `백테스트 전용 → 급락 판단 전략 → 공통 전략 조건`으로 정리했다. 사용 여부·독립 봉 기준·차트 MA240/급락 저점선·JSON 보존의 동작은 [설정 안내](docs/ui/Strategy-2026-11-09.md), [JSON 검증 기록](docs/verification/Strategy-JSON-2026-11-11.md), [전략 상세 설명·전체 JSON](docs/strategy/현재_전략_상세설명_및_JSON_가이드_2026-11-11.md)을 참고한다. [릴리즈 변경 사항](docs/avalonia/RELEASE_NOTES_v0.1.18.md).
+## 개발과 저장
 
-Windows 단일 실행 파일은 GitHub의 **Releases → Assets → Stock.exe**에서 받는다. 설치된 .NET은 필요 없다. `Stock.exe.sha256`은 다운로드 무결성 확인용이며 프로그램 실행에 필요한 파일은 아니다.
+.NET10 SDK와 Rider에서 `STOCK.Avalonia.sln`을 열고 `Stock.Avalonia`를 실행한다. WPF `Stock.App`/`Stock.sln`은 호환 소스로 보존하며 Core를 UI별로 복제하지 않는다.
 
-Apple Silicon Mac(M1 이후, macOS14+)은 [DMG](https://github.com/BaDook2/C-_STOCK/releases/download/v0.1.18/Stock-AppleSilicon-v0.1.18-r1.dmg) 또는 [ZIP](https://github.com/BaDook2/C-_STOCK/releases/download/v0.1.18/Stock-AppleSilicon-v0.1.18-r1.zip)을 받는다. Stock.app을 응용 프로그램으로 옮겨 실행하며 .NET 별도 설치는 필요 없다. Mac ARM64 CI에서 시작/공개 차트/더미 Keychain/ZIP·DMG를 검사했다. Apple Developer ID·공증은 없으므로 [설치 안내](docs/avalonia/MACOS_APPLE_SILICON.md)를 확인한다.
-
-원본 WPF 소스는 `Stock.App`/`Stock.sln`에 유지한다. 새 Windows/Mac UI는 `Stock.Avalonia`이며 `STOCK.Avalonia.sln`을 열어 개발한다. `Stock.Core`의 전략·백테스트·주문 엔진을 공유한다. 시작 프로젝트는 `Stock.Avalonia`이고 Tests는 테스트용 콘솔 프로젝트다.
-
-```powershell
-dotnet run --project Stock.Avalonia
-./avalonia-scripts/verify.ps1
-./avalonia-scripts/publish-windows.ps1
+```sh
+dotnet run --project Stock.Avalonia -c Release
+bash avalonia-scripts/verify.sh
 ```
 
-Mac 개발: .NET10 SDK를 설치하고 `dotnet run --project Stock.Avalonia`. 로컬 앱 번들은 `bash avalonia-scripts/publish-macos.sh osx-arm64` 또는 `osx-x64`로 만든다. Apple Silicon은 ARM64 CI에서 실제 앱/ZIP/DMG 시작·공개 차트·더미 Keychain을 확인했다. Intel은 교차 빌드만 확인했으며, 사용자 트랙패드·Keychain 권한과 Developer ID 서명/공증은 별도다. Windows EXE를 Mac에서 실행하는 방식이 아니다.
+Windows의 검증 스크립트는 `avalonia-scripts/verify.ps1`이다. Rider 실행 설정 `Mac · .app 빌드 후 실행`은 `/Applications/Stock Development.app`을 갱신하고 연다. [Rider 앱 생성 안내](docs/maintenance/Rider-Mac-App.md).
 
-사용자 자료는 실행 파일 옆에 넣지 않는다. OS의 LocalApplicationData 아래 `Stock.Avalonia`에서 설정/관심종목/거래 원장/테스트 기록을 보관한다. Windows 키는 DPAPI CurrentUser, Mac 키는 로그인 Keychain에 저장한다. 원본 WPF 계좌키/DB를 자동 복사하지 않으므로 새 앱에서 계좌를 연결해야 한다. 실제 계좌 주문은 기본 잠김이며 활성화·수동 주문·실제 전략 시작 시 각각 명시 확인이 필요하다.
+설정·관심종목·거래 안전 원장·테스트 기록은 OS LocalApplicationData 아래 Stock.Avalonia에 보관한다. Windows 계좌키는 DPAPI CurrentUser, Mac은 로그인 Keychain을 사용한다. 실행 파일에 개인키/DB를 포함하거나 WPF 자료를 자동 복사하지 않는다.
 
-오프라인 가상 실행은 공개시세 일봉 모형이다. 종가 신호는 다음 거래일의 신선한 관측 이후 주문하며 원본 틱 또는 공식 시가 체결로 해석하지 않는다. 저장된 가상 실행은 정지 상태로 복원되고 보호 감시 재개도 신규/추가매수 OFF다. 실계좌 전략 실행은 기존 체결 대사가 가능한 키움 국내 계좌와 검증된 시점별 종목/위험/시장 세션/거래대금 자료가 필요하다. 다른 지원 브로커의 수동 주문과 구분한다. 실제 주문 테스트는 자동 검사에서 하지 않는다.
+## 전략 지원 범위
 
-구현·API 제한·파일 지도: [이식 완료 설명](docs/avalonia/COMPLETION_E1_E4_20261108.md). 검증/미검증 정본: [작업 상태](TASKS.md), [인수인계](HANDOFF.md), [v0.1.18 최종 검증](docs/verification/Release-v0.1.18.md). CI는 WPF 회귀, 공통/새 UI 검사, Release 빌드와 격리 EXE 시작 검사를 모두 통과한 뒤에만 새 태그의 Windows Release를 만든다.
+Inje/Bin 사용 체크는 하나만 선택하며 두 체계와 비활성 설정도 전체 JSON에 보존한다. 두 전략 백테스트·일반 스크리닝은 원본 체결/호가와 당시 확인 가능한 자료가 필요하다. 공개 일봉/가격 관측을 틱이나 실제 체결로 만들지 않으며 자료가 없으면 MissingData다.
+
+Inje 실시간 가상 세션의 보유 보호/원장 복원은 유지한다. **Bin 실시간 가상 주문/복원은 아직 연결하지 않아 시작을 차단한다. 실계좌 자동 전략 주문도 잠겨 있다.** 기존 수동 주문의 계좌 확인·명시 활성화·전송 안전 절차는 별개다.
+
+[최종 릴리즈 검증](docs/verification/Release-v0.1.18.md): Windows CI와 Mac ARM64 CI의 전체 검사, 실제 배포본/공개 재다운로드 실행·체크섬 검증을 통과했다. 물리 입력·개인 Keychain 권한·실제 증권사 API·실제 돈 주문은 자동 검사와 구분한다.

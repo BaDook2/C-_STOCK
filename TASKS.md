@@ -1,13 +1,13 @@
-# 현재 — v0.1.18 Windows / Apple Silicon 릴리즈 진행
+# 현재 — v0.1.18 Windows / Apple Silicon 릴리즈 완료
 
-사용자가 현재 프로그램의 GitHub 릴리즈를 명시 요청했다. 이번 소스 commit/push/Actions/새 태그·Release를 진행한다. 실제 자동주문·사용자 DB/실제 거래기록 삭제는 하지 않는다. 기존 릴리즈/자산은 덮어쓰지 않는다.
+2026-11-11 사용자 명시 릴리즈 요청을 이행했다. [GitHub 릴리즈](https://github.com/BaDook2/C-_STOCK/releases/tag/v0.1.18). 실제 자동주문·사용자 DB/실제 기록 삭제 없음.
 
-- [x] 인증·원격 main/최신 v0.1.17·현재 미게시 변경·기존 배포 절차 확인.
-- [x] v0.1.18 버전·변경 사항·CI의 Inje/Bin/JSON 검사 반영과 공개 범위/비밀자료 제외 점검.
-- [x] Git-only 소스 Release 빌드·전체/디자인/manifest/설명서 검증.
-- [~] 소스 commit/push 후 Windows Actions 시작.
-- [ ] Windows Actions 전체 검사·단일 EXE 실행·새 v0.1.18 게시·공개 재다운로드 hash/실행 확인.
-- [ ] 동일 Core/Avalonia 소스의 macos-v0.1.18-r1 Actions 검사·DMG/ZIP·시작·공개 조회·Keychain·공개 다운로드 검증.
-- [ ] 공개6개 자산 hash/기존 자산 보존 최종 확인 및 TASKS/HANDOFF/검증 문서 갱신.
+- [x] 누적 Inje/Bin/UI/StockViewer 가격·도움말/JSON 개선을 소스2c1891c로 commit/push.
+- [x] Git-only 빌드0/0·Inje363/Bin187/UI861/디자인17/manifest104/JSON6개 통과.
+- [x] Windows CI42962568324 성공: WPF338/Inje363/Bin187/UI859·배포 EXE·공개 재다운로드 실행/버전/hash.
+- [x] 동일 소스 Mac CI42963164613 성공: Inje363/Bin187/UI861·Keychain·앱/ZIP/DMG·공개 차트·공개 재다운로드 실행.
+- [x] 공개 EXE/DMG/ZIP과 체크섬6개를 다시 내려받아 크기·SHA256·API digest·CI hash 대조. 이전 v0.1.17 자산6개 보존.
+- [x] 사용자 Mac에서도 공개 ZIP의 버전·서명·격리 시작 확인. 검사 사본 미색인 보관·등록 해제, 기존 설치 앱1개만 검색.
+- [x] 릴리즈 노트/설치 안내/README/검증 문서 갱신.
 
-현재 제한은 릴리즈 노트에 명시한다: Bin 실시간 가상 주문/재시작 원장 복원 미연결로 시작 차단. 실계좌 자동 전략 주문 잠금 유지. 원본 이벤트가 없으면 백테스트/스크리닝은 MissingData이며 일봉을 틱으로 만들지 않는다.
+정본: docs/verification/Release-v0.1.18.md. 배포 태그 v0.1.18/macos-v0.1.18-r1은2c1891c를 가리킨다. Bin 실시간 가상 주문/복원은 아직 시작 차단, 실계좌 자동 전략 주문도 잠금 유지. 이번 게시 요청은 이행 완료했으며 다음 추가 릴리즈에는 새 사용자 요청이 필요하다.

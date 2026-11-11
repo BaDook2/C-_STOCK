@@ -1,6 +1,6 @@
 # Apple Silicon Mac 배포
 
-현재 배포: v0.1.17 Windows와 같은 앱 소스를 Apple Silicon(M1 이후)용 self-contained Stock.app으로 빌드했다. macOS 14 이상을 대상으로 하며 별도 .NET 설치는 필요 없다. DMG/ZIP은 Mac에서 생성해 실행 권한과 번들 구조를 보존한다. Intel용은 이번 게시 범위에 포함하지 않는다.
+현재 배포: v0.1.18 Windows와 같은 앱 소스를 Apple Silicon(M1 이후)용 self-contained Stock.app으로 빌드했다. macOS 14 이상을 대상으로 하며 별도 .NET 설치는 필요 없다. DMG/ZIP은 Mac에서 생성해 실행 권한과 번들 구조를 보존한다. Intel용은 이번 게시 범위에 포함하지 않는다.
 
 ## 설치
 
@@ -23,7 +23,17 @@ ad-hoc 서명은 무결성 확인용이며 Apple Developer ID 서명·공증을 
 
 [GitHub ARM64 macOS runner](https://docs.github.com/en/actions/reference/runners/github-hosted-runners), [.NET macOS 지원](https://learn.microsoft.com/en-us/dotnet/core/install/macos), [.NET macOS 서명/JIT](https://learn.microsoft.com/en-us/dotnet/core/deploying/macos), [Avalonia 앱 번들 배포](https://docs.avaloniaui.net/docs/deployment/macos/).
 
-## 현재 v0.1.17 결과
+## 현재 v0.1.18 결과
+
+[DMG 다운로드](https://github.com/BaDook2/C-_STOCK/releases/download/v0.1.18/Stock-AppleSilicon-v0.1.18-r1.dmg) · [ZIP 다운로드](https://github.com/BaDook2/C-_STOCK/releases/download/v0.1.18/Stock-AppleSilicon-v0.1.18-r1.zip) · [Mac CI](https://github.com/BaDook2/C-_STOCK/actions/runs/42963164613) · [전체 검증](../verification/Release-v0.1.18.md).
+
+- macos-v0.1.18-r1과 Windows v0.1.18은 소스2c1891c8de46172e7060b47004a38ad712bef211을 사용한다.
+- macOS26.7.2 ARM64 CI에서 Inje363/Bin187/UI861/디자인17·격리 Keychain·앱/ZIP/DMG·공개 재다운로드 실행을 통과했다. 실제 공개 차트1500/1500/2513봉 렌더 확인, 실제 돈 주문0.
+- 공개 DMG53366698bytes / SHA256 `95739ba764260b83370ac00263a3546eae70011bbf3c07c1296e0aac78667132`.
+- 공개 ZIP46939247bytes / SHA256 `baea97434f786acfcef453158d0ae16c3f0001ad3333238959b2e6026db18143`.
+- 사용자 Mac macOS27.2에서도 공개 ZIP의 서명·버전0.1.18·격리 시작을 확인했다. 개인 DB/키를 사용하지 않았으며 검사 앱은 미색인 .saved-app으로 보관했다.
+
+## 이전 v0.1.17 결과
 
 [DMG 다운로드](https://github.com/BaDook2/C-_STOCK/releases/download/v0.1.17/Stock-AppleSilicon-v0.1.17-r1.dmg) · [ZIP 다운로드](https://github.com/BaDook2/C-_STOCK/releases/download/v0.1.17/Stock-AppleSilicon-v0.1.17-r1.zip) · [성공한 Mac CI](https://github.com/BaDook2/C-_STOCK/actions/runs/42848351841) · [전체 릴리즈 검증](../verification/Release-v0.1.17.md).
 

@@ -7,7 +7,7 @@
 - [Windows x64 · Stock.exe](https://github.com/BaDook2/C-_STOCK/releases/download/v0.1.18/Stock.exe)
 - [Apple Silicon Mac · DMG](https://github.com/BaDook2/C-_STOCK/releases/download/v0.1.18/Stock-AppleSilicon-v0.1.18-r1.dmg) / [ZIP](https://github.com/BaDook2/C-_STOCK/releases/download/v0.1.18/Stock-AppleSilicon-v0.1.18-r1.zip)
 
-각 파일에 .NET 실행 환경을 포함합니다. Mac은 M1 이후·macOS14 이상을 지원합니다. 파일별 `.sha256`은 무결성 확인용입니다. Mac 자산은 Windows 릴리즈 검증 후 순차 추가됩니다.
+각 파일에 .NET 실행 환경을 포함합니다. Mac은 M1 이후·macOS14 이상을 지원합니다. 파일별 `.sha256`은 무결성 확인용입니다. Windows·Mac 파일과 각 체크섬이 모두 공개되어 있습니다.
 
 ## 변경 사항
 
@@ -25,6 +25,10 @@
 - **Bin 실시간 가상 주문과 중단 후 원장 복원은 아직 연결하지 않아 시작을 차단합니다.** Bin은 설정·백테스트·일반 스크리닝에서 사용합니다.
 - **실계좌 자동 전략 주문은 잠겨 있습니다.** 이번 릴리즈가 실제 주문을 활성화하지 않습니다.
 - Inje/Bin 판단에는 원본 틱·호가와 당시 확인 가능한 시장/위험/가격 규칙 등이 필요합니다. 공개 일봉만 있으면 MissingData로 보류하며 틱이나 실제 체결로 합성하지 않습니다. 공개 가격의 1초 조회는 새 거래가 매초 보장된다는 뜻이 아닙니다.
-- Mac은 ad-hoc 서명 무결성을 검사하며 Apple Developer ID·공증은 포함하지 않습니다. [Mac 설치 안내](https://github.com/BaDook2/C-_STOCK/blob/v0.1.18/docs/avalonia/MACOS_APPLE_SILICON.md)를 확인하세요.
+- Mac은 ad-hoc 서명 무결성을 검사하며 Apple Developer ID·공증은 포함하지 않습니다. [Mac 설치 안내](https://github.com/BaDook2/C-_STOCK/blob/main/docs/avalonia/MACOS_APPLE_SILICON.md)를 확인하세요.
 
 배포 CI는 전체 Core/Inje·Bin·Avalonia UI·디자인·JSON 검사를 실행하고, 생성한 배포본의 격리 시작 검사가 통과해야 공개합니다. 공개 파일을 다시 내려받아 해시와 실행 결과를 확인합니다. 실제 계좌·API키·개인 DB는 배포 파일에 포함하지 않습니다.
+
+## 최종 검증
+
+[Windows CI](https://github.com/BaDook2/C-_STOCK/actions/runs/42962568324)에서 WPF338/Inje363/Bin187/Avalonia859 검사를, [Mac ARM64 CI](https://github.com/BaDook2/C-_STOCK/actions/runs/42963164613)에서 Inje363/Bin187/Avalonia861 검사와 격리 Keychain 검사를 통과했습니다. 양쪽 디자인·배포본 시작·공개 파일 재다운로드 실행을 확인했고 Mac은 ZIP/DMG와 삼성전자·SK하이닉스·애플 공개 차트도 검사했습니다. 공개6개 파일의 SHA256은 체크섬·GitHub digest와 일치하며 기존 v0.1.17의6개 자산은 보존됐습니다. [검증 기록](https://github.com/BaDook2/C-_STOCK/blob/main/docs/verification/Release-v0.1.18.md).
