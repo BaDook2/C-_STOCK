@@ -1,4 +1,4 @@
-﻿using System.Globalization;
+using System.Globalization;
 using System.Text.Json;
 
 namespace Stock.Core.Trading;
@@ -6,7 +6,7 @@ public enum Exchange { KRX, NASDAQ, NYSE, AMEX }
 public enum EventKind { Trade, Quote }
 public enum TradingMode { OfflineDemo, LiveLocalPaper, BrokerPaper, Backtest }
 public enum OrderKind { Limit, Market }
-public enum OrderState { New, Submitted, PartiallyFilled, Filled, CancelRequested, Cancelled, Rejected, Unknown }
+public enum OrderState { New, Submitted, PartiallyFilled, Filled, CancelRequested, Cancelled, Rejected, Unknown, Accepted, Expired }
 public record Instrument(string Symbol, Exchange Exchange)
 {
     public string Currency => Exchange == Exchange.KRX ? "KRW" : "USD";
@@ -23,6 +23,18 @@ public record Instrument(string Symbol, Exchange Exchange)
 public record BookLevel(decimal Price, decimal Size);
 public record MarketEvent(Instrument Instrument, EventKind Kind, DateTimeOffset ExchangeTime, DateTimeOffset ReceivedTime, string Source, long Sequence)
 {
+    [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public Stock.Core.Strategies.Injes.InjesReferenceData? StrategyReference {get;init;}
+    [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public Stock.Core.Strategies.Injes.InjesSessionInfo? TradingSession {get;init;}
+    [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public DateTimeOffset? AvailableAt {get;init;}
+    // Optional provider-confirmed Bin inputs. Absence is MissingData, never inferred from a calendar or display bars.
+    public Stock.Core.Strategies.Bins.MarketSession? BinSession {get;init;}
+    public Stock.Core.Strategies.Bins.InstrumentMetadata? BinMetadata {get;init;}
+    public bool BinContinuityVerified {get;init;}
+    public Stock.Core.Strategies.Bins.CompletedBar[] BinCompletedBars {get;init;}=[];
+    public Stock.Core.Strategies.Bins.HistoricalTrade[] BinProfileTrades {get;init;}=[];
     public decimal? LastPrice { get; init; }
     public decimal? TradePrice { get; init; }
     public decimal? TradeSize { get; init; }
@@ -72,6 +84,9 @@ public sealed class Position(Instrument instrument)
 }
 public sealed class ManagedOrder
 {
+    public bool PassiveLimit {get;init;}
+    public decimal? PriceTick {get;init;}
+    public DateTimeOffset? CancellationRequestedAt {get;set;}
     public int? TimeoutMilliseconds {get;init;}
     public string Id { get; init; } = "";
     public required Instrument Instrument { get; init; }
@@ -89,7 +104,7 @@ public sealed class ManagedOrder
     public string Strategy { get; init; } = "수동";
     public string Reason { get; init; } = "";
     public int Retry { get; init; }
-    public bool Active => State is OrderState.New or OrderState.Submitted or OrderState.PartiallyFilled or OrderState.CancelRequested or OrderState.Unknown;
+    public bool Active => State is OrderState.New or OrderState.Submitted or OrderState.Accepted or OrderState.PartiallyFilled or OrderState.CancelRequested or OrderState.Unknown;
 }
 public record EquityPoint(DateTimeOffset Time,string Currency,decimal Equity);
 public record BacktestResult(string RunId,int Events,int Fills,decimal Fees,decimal NetPnl,decimal MaxDrawdownPercent,decimal WinRate,string Currency,string DataHash,string Status,IReadOnlyList<EquityPoint> Equity,IReadOnlyList<Fill> Trades);

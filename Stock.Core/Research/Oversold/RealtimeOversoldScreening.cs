@@ -13,7 +13,8 @@ public sealed record RealtimeScreeningSnapshot(
     bool Running,bool AutoTradingEnabled,string Status,string ConnectionState,string StrategyName,
     BarSpecification? BarSpecification,IReadOnlyList<RealtimeScreeningStatusRow> Rows)
 {public long Version {get;init;}}
-public sealed record RealtimeScreeningChartData(StockItem Stock,string StrategyName,OversoldConfig Configuration,BarSpecification Specification,HistoricalFacts Facts,StrategyBar[] Bars);
+public sealed record RealtimeScreeningChartData(StockItem Stock,string StrategyName,OversoldConfig Configuration,BarSpecification Specification,HistoricalFacts Facts,StrategyBar[] Bars)
+{public PriceBar[] DailyIndicatorBars {get;init;}=[];}
 
 /// <summary>
 /// Application-lifetime real-time research service. It reuses OversoldLiveStrategy for causal bar

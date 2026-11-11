@@ -5,6 +5,8 @@ namespace Stock.Core.Research;
 public sealed record CurrentMarketSnapshot(StockItem Stock,MarketQuote Quote,DateTimeOffset ReceivedAt,
     decimal? Open,decimal? High,decimal? Low,decimal? Volume,decimal? TradingValue,
     string Source,TimeSpan PollInterval,DailySecurityStatus? Security=null,bool ExchangeTimestamp=true);
+public sealed class PublicQuoteRetryException(string message,TimeSpan retryAfter,Exception? inner=null):InvalidOperationException(message,inner)
+{public TimeSpan RetryAfter {get;}=retryAfter;}
 public interface ICurrentMarketData
 {
     Task<CurrentMarketSnapshot> Current(StockItem stock,CancellationToken token);
@@ -62,7 +64,7 @@ public sealed class SelectedQuotePump(ICurrentMarketData source,TimeProvider? cl
                     if(age>=TimeSpan.Zero&&age<interval)started=snapshot.ReceivedAt;
                 }
                 catch(OperationCanceledException) when(stop.IsCancellationRequested){return;}
-                catch{if(version!=generation)return;failures++;interval=TimeSpan.FromSeconds(Math.Min(120,Math.Max(interval.TotalSeconds,Math.Pow(2,Math.Min(failures,6))*7)));error($"갱신 실패 · {interval.TotalSeconds:N0}초 후 재시도 · 이전 관측값 유지");}
+                catch(Exception ex)when(ex is not OutOfMemoryException){if(version!=generation)return;failures++;interval=source is PublicMarketData?TimeSpan.FromSeconds(Math.Min(10,Math.Pow(2,Math.Min(failures-1,4)))):TimeSpan.FromSeconds(Math.Min(120,Math.Max(interval.TotalSeconds,Math.Pow(2,Math.Min(failures,6))*7)));if(ex is PublicQuoteRetryException limited&&limited.RetryAfter>interval)interval=limited.RetryAfter;error($"갱신 실패 · {interval.TotalSeconds:0.#}초 후 재시도 · 이전 관측값 유지");}
                 var wait=interval-(time.GetUtcNow()-started);
                 if(wait>TimeSpan.Zero)await Task.Delay(wait,time,stop.Token);
             }

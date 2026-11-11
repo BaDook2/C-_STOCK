@@ -1,9 +1,11 @@
-﻿using System.Collections.Immutable;
+using System.Collections.Immutable;
 using Stock.Core.Trading;
 namespace Stock.Core.Research.Oversold;
 
 public sealed record ScreeningObservation(StockItem Stock,DateTimeOffset? ObservedAt,decimal? Price,decimal? Drawdown,decimal? Rsi,decimal? VolumeRatio,int SupportCount,bool Candidate,string Status,string EvaluationJson,DateTimeOffset? DataFrom,DateTimeOffset? DataTo)
 {
+    public Stock.Core.Strategies.Injes.StrategyEvaluationResult? InjesEvaluation {get;init;}
+    public Stock.Core.Strategies.Bins.BinsScreenEvaluation? BinsEvaluation {get;init;}
     public decimal Proximity {get;init;}
     public bool IsNearCandidate {get;init;}
     public DateOnly[] MatchingDates {get;init;}=[];
@@ -26,6 +28,27 @@ public sealed record OversoldScreeningRun(string Id,DateTimeOffset ScreeningTime
     {if(!Targets.Any(t=>t.Key==row.Stock.Key)||Results.Any(r=>r.Stock.Key==row.Stock.Key))throw new InvalidOperationException("스크리닝 대상 중복/불일치");return this with{Results=Results.Add(row)};}
     public ScreeningFunnelRow[] Funnel()
     {
+        if(Configuration.Bins!=null)
+        {
+            string[] names=["원본 자료·품질","시장 분류·가족 선택","5가지 매수 패턴","공통 위험 심사"];
+            return names.Select((name,index)=>{var values=Targets.Select(stock=>{var row=Results.FirstOrDefault(r=>r.Stock.Key==stock.Key);return row==null?ConditionOutcome.NotEvaluated:row.BinsEvaluation?.Outcomes[index]??ConditionOutcome.MissingData;}).ToArray();return new ScreeningFunnelRow(name,values.Count(v=>v==ConditionOutcome.Passed),values.Count(v=>v==ConditionOutcome.Failed),values.Count(v=>v==ConditionOutcome.NotEvaluated),values.Count(v=>v==ConditionOutcome.MissingData),0,false);}).ToArray();
+        }
+        if(Configuration.Injes!=null)
+        {
+            string[] names=["Universe · 종목 범위","Attention · 시장 관심","Strategy Signal · 선택 전략","Risk Approval · 주문 심사"];
+            return names.Select((name,index)=>
+            {
+                var outcomes=Targets.Select(stock=>
+                {
+                    var row=Results.FirstOrDefault(r=>r.Stock.Key==stock.Key);if(row==null)return ConditionOutcome.NotEvaluated;
+                    var e=row.InjesEvaluation;if(e==null)return ConditionOutcome.MissingData;
+                    var value=index switch{0=>e.Universe,1=>e.Attention,2=>e.Strategy,_=>e.Risk};
+                    return value switch{Stock.Core.Strategies.Injes.EvaluationOutcome.Passed=>ConditionOutcome.Passed,Stock.Core.Strategies.Injes.EvaluationOutcome.Failed=>ConditionOutcome.Failed,Stock.Core.Strategies.Injes.EvaluationOutcome.MissingData=>ConditionOutcome.MissingData,_=>ConditionOutcome.NotEvaluated};
+                }).ToArray();
+                return new ScreeningFunnelRow(name,outcomes.Count(v=>v==ConditionOutcome.Passed),outcomes.Count(v=>v==ConditionOutcome.Failed),outcomes.Count(v=>v==ConditionOutcome.NotEvaluated),outcomes.Count(v=>v==ConditionOutcome.MissingData),0,false);
+            }).ToArray();
+        }
+
         string[] steps=["전체","상품 제외","정지·관리 제외","거래대금","Crash","RSI","Volume","Support 후보","Cluster","최소 count","접근","반등","FundamentalRisk","최종","MovingAverage","ConfirmedPivotHigh","ApproximateVolumeZone"];
         return steps.Select((name,index)=>
         {
@@ -42,62 +65,9 @@ public sealed record OversoldScreeningRun(string Id,DateTimeOffset ScreeningTime
     }
 }
 
-/// <summary>Sequential warmup with the same entry detector as backtesting. It observes signals, never simulates fills.</summary>
+/// <summary>Retired bar screening contract. Native screening uses InjesResearchBridge.Screen.</summary>
 public sealed partial class OversoldScreeningEngine
 {
-    /// <summary>
-    /// Evaluates intraday bars as a research screen. Missing historical classification/risk facts stay
-    /// visible as MissingData, but do not prevent the independent price/indicator/support conditions
-    /// from being calculated. A result from this method is never an order authorization.
-    /// </summary>
-    public ScreeningObservation EvaluateObserved(StockItem stock,IReadOnlyList<StrategyBar> input,OversoldConfig requested,HistoricalFacts inputFacts,DateTimeOffset asOf,DailySecurityStatus? currentStatus=null,bool? currentRisk=null,CancellationToken token=default,DateOnly? from=null,DateOnly? to=null)
-    {
-        var c=requested.Clone();c.Validate();var facts=inputFacts.Snapshot();
-        if(stock.Exchange!=Exchange.KRX)return ScreeningObservation.Missing(stock,"해외 제외 · 국내 일반주식 전략");
-        if(from>to)throw new InvalidOperationException("스크리닝 시작일·종료일을 확인하세요.");
-        var bars=input.Where(b=>b.Price.IsComplete&&b.ClosedAt<=asOf&&(to==null||DailyDates.Of(b.Price)<=to)).OrderBy(b=>b.ClosedAt).ThenBy(b=>b.Sequence).ToArray();
-        if(bars.Length==0)return ScreeningObservation.Missing(stock,"자료 부족 · 완성봉 없음");
-        if(bars.GroupBy(b=>(b.ClosedAt,b.Sequence)).Any(g=>g.Count()>1))return ScreeningObservation.Missing(stock,"자료 부족 · 봉 순서 중복");
-        var cache=new OversoldIndicatorCache(c,true,facts);var detector=new OversoldEntryDetector();IReadOnlyList<ISupportProvider> providers=ConfiguredIndicators.Providers(c,facts,true);
-        var sessions=facts.Sessions.OrderBy(s=>s.Open).ToArray();EntryEvaluation? evaluation=null,lastMatchedEvaluation=null;StrategyBar? last=null,lastMatched=null;var values=new List<decimal?>();var matched=new List<DateOnly>();
-        foreach(var bar in bars)
-        {
-            token.ThrowIfCancellationRequested();var day=Array.FindIndex(sessions,s=>bar.OpenTime>=s.Open&&bar.ClosedAt<=s.Close);
-            if(day<0)return ScreeningObservation.Missing(stock,"자료 부족 · 검증된 시장 세션 없음");
-            var session=sessions[day];var indicators=cache.Append(bar.Price);var candidates=providers.SelectMany(p=>p.Get(cache.History,c)).ToArray();
-            detector.Observe(bar.Price,day,c);var date=DailyDates.Of(bar.Price);var at=bar.ClosedAt;
-            var status=currentStatus is {KnownAt:var known}&&currentStatus.Date==date&&known<=asOf?currentStatus:facts.Status(stock.Symbol,date,at);
-            var risk=currentStatus?.Date==date?currentRisk??facts.Risk(stock.Symbol,date,at):facts.Risk(stock.Symbol,date,at);
-            evaluation=detector.Evaluate(bar.Price,day,session.Date,c,indicators,candidates,status,risk,values.TakeLast(c.AverageTradingValueLookbackDays).ToArray(),historyCount:cache.History.Count,currentResearch:true);
-            values.Add(bar.TradingValue);if(from==null||session.Date>=from){last=bar;if(ScreeningCandidatePolicy.IsExact(evaluation)||ScreeningCandidatePolicy.IsNear(evaluation,c)){matched.Add(session.Date);lastMatched=bar;lastMatchedEvaluation=evaluation;}}
-        }
-        if(last==null)return ScreeningObservation.Missing(stock,"선택 기간에 검증된 완성봉이 없습니다.");
-        var chosen=lastMatched??last;var e=lastMatchedEvaluation??evaluation!;var candidate=matched.Count>0;var isNear=candidate&&!ScreeningCandidatePolicy.IsExact(e);
-        var statusText=isNear?$"근접 후보 {RealtimeConditionProximity.Calculate(e,c):N2}점 · {e.Reason}":candidate?$"기간 내 기술 후보 {matched.Count:N0}개 봉 · {e.Reason}":e.TechnicalCandidate?"확인된 제외 조건 · 후보 제외":e.Reason;
-        return new(stock,chosen.ClosedAt,chosen.Price.Close,e.Indicators.MediumDrawdown,e.Indicators.Rsi,e.Indicators.VolumeRatio,e.Selected?.Count??0,candidate,statusText+" · 지정봉 연구 결과 (주문 승인 아님)",Serialization.Pack(e),bars[0].OpenTime,chosen.ClosedAt){MatchingDates=matched.ToArray(),Proximity=RealtimeConditionProximity.Calculate(e,c),IsNearCandidate=isNear};
-    }
-
-    public ScreeningObservation Evaluate(StockItem stock,IReadOnlyList<StrategyBar> input,OversoldConfig requested,HistoricalFacts inputFacts,DateTimeOffset asOf,CancellationToken token=default,DateOnly? from=null,DateOnly? to=null)
-    {
-        var c=requested.Clone();c.Validate();var facts=inputFacts.Snapshot();
-        if(stock.Exchange!=Exchange.KRX)return ScreeningObservation.Missing(stock,"해외 제외 · 국내 일반주식 전략");
-        if(from>to)throw new InvalidOperationException("스크리닝 시작일·종료일을 확인하세요.");
-        var bars=input.Where(b=>b.Price.IsComplete&&b.ClosedAt<=asOf&&(to==null||DailyDates.Of(b.Price)<=to)).OrderBy(b=>b.ClosedAt).ThenBy(b=>b.Sequence).ToArray();
-        if(bars.Length==0)return ScreeningObservation.Missing(stock,"자료 부족 · 완성봉 없음");
-        if(bars.GroupBy(b=>(b.ClosedAt,b.Sequence)).Any(g=>g.Count()>1))return ScreeningObservation.Missing(stock,"자료 부족 · 봉 순서 중복");
-        var cache=new OversoldIndicatorCache(c,true,facts);var detector=new OversoldEntryDetector();IReadOnlyList<ISupportProvider> providers=ConfiguredIndicators.Providers(c,facts,true);
-        var sessions=facts.Sessions.OrderBy(s=>s.Open).ToArray();EntryEvaluation? evaluation=null,lastMatchedEvaluation=null;StrategyBar? last=null,lastMatched=null;var values=new List<decimal?>();var matched=new List<DateOnly>();
-        foreach(var bar in bars)
-        {
-            token.ThrowIfCancellationRequested();var day=Array.FindIndex(sessions,s=>bar.OpenTime>=s.Open&&bar.ClosedAt<=s.Close);
-            if(day<0)return ScreeningObservation.Missing(stock,"자료 부족 · 검증된 시장 세션 없음");
-            var session=sessions[day];var indicators=cache.Append(bar.Price);var candidates=providers.SelectMany(p=>p.Get(cache.History,c)).ToArray();
-            detector.Observe(bar.Price,day,c);
-            evaluation=detector.Evaluate(bar.Price,day,session.Date,c,indicators,candidates,facts.Status(stock.Symbol,session.Date,bar.ClosedAt),facts.Risk(stock.Symbol,session.Date,bar.ClosedAt),values.TakeLast(c.AverageTradingValueLookbackDays).ToArray(),historyCount:cache.History.Count);
-            values.Add(bar.TradingValue);if(from==null||session.Date>=from){last=bar;if(evaluation.Enter){matched.Add(session.Date);lastMatched=bar;lastMatchedEvaluation=evaluation;}}
-        }
-        if(last==null)return ScreeningObservation.Missing(stock,"선택 기간에 검증된 완성봉이 없습니다.");
-        var chosen=lastMatched??last;var e=lastMatchedEvaluation??evaluation!;
-        return new(stock,chosen.ClosedAt,chosen.Price.Close,e.Indicators.MediumDrawdown,e.Indicators.Rsi,e.Indicators.VolumeRatio,e.Selected?.Count??0,matched.Count>0,matched.Count>0?$"기간 내 신호 {matched.Count:N0}일 · {e.Reason}":e.Reason,Serialization.Pack(e),bars[0].OpenTime,chosen.ClosedAt){MatchingDates=matched.ToArray(),Proximity=RealtimeConditionProximity.Calculate(e,c),IsNearCandidate=false};
-    }
+    public ScreeningObservation EvaluateObserved(StockItem stock,IReadOnlyList<StrategyBar> input,OversoldConfig requested,HistoricalFacts inputFacts,DateTimeOffset asOf,DailySecurityStatus? currentStatus=null,bool? currentRisk=null,CancellationToken token=default,DateOnly? from=null,DateOnly? to=null)=>throw RetiredStrategy.Error();
+    public ScreeningObservation Evaluate(StockItem stock,IReadOnlyList<StrategyBar> input,OversoldConfig requested,HistoricalFacts inputFacts,DateTimeOffset asOf,CancellationToken token=default,DateOnly? from=null,DateOnly? to=null)=>throw RetiredStrategy.Error();
 }

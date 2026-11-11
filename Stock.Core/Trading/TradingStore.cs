@@ -63,6 +63,13 @@ public sealed class TradingStore : IDisposable
             tx.Commit();return count;
         });
     }
+    /// <summary>Original insertion order across sources/kinds, used as a stable tie-break for equal availability timestamps.</summary>
+    public IReadOnlyList<MarketEvent> ReadEventsInArrivalOrder(string instrument,DateTimeOffset from,DateTimeOffset to,int limit=2000000)
+    {
+        if(limit<1)throw new InvalidOperationException("양의 이벤트 조회 한도가 필요합니다.");
+        if(marketData!=null){lock(gate){ObjectDisposedException.ThrowIf(disposed,this);var rows=marketData.ReadArrival(instrument,from,to);if(rows.Length>limit)throw new InvalidOperationException("원본 이벤트 조회 한도 초과");return rows;}}
+        return Access(db=>{using var c=db.CreateCommand();c.CommandText="SELECT json FROM events WHERE ($key='' OR market_key=$key) AND at >= $from AND at <= $to ORDER BY id LIMIT $limit";c.Parameters.AddWithValue("$key",instrument);c.Parameters.AddWithValue("$from",from.UtcTicks);c.Parameters.AddWithValue("$to",to.UtcTicks);c.Parameters.AddWithValue("$limit",(long)limit+1);using var r=c.ExecuteReader();var rows=new List<MarketEvent>();while(r.Read())rows.Add(Serialization.Unpack<MarketEvent>(r.GetString(0)));if(rows.Count>limit)throw new InvalidOperationException("원본 이벤트 조회 한도 초과");return rows;});
+    }
     public IReadOnlyList<MarketEvent> ReadEvents(string instrument,string source,DateTimeOffset from,DateTimeOffset to,int limit=int.MaxValue)
     {
         if(marketData!=null){lock(gate){ObjectDisposedException.ThrowIf(disposed,this);var rows=marketData.Read(instrument,source,from,to);if(rows.Length>limit)throw new InvalidOperationException($"명시한 조회 한도 {limit:N0}건을 초과했습니다.");return rows;}}
@@ -122,6 +129,22 @@ public sealed class TradingStore : IDisposable
                 if(key.StartsWith(prefix,StringComparison.Ordinal))rows.Add((key,r.GetString(1)));
             }
             return rows;
+        });
+    }
+    /// <summary>Explicit 2026-11-11 user instruction: retire old strategy settings and strategy research records only.</summary>
+    public int RetireLegacyStrategies()
+    {
+        return Access(db=>
+        {
+            using var transaction=db.BeginTransaction();
+            int Execute(string sql){using var c=db.CreateCommand();c.Transaction=transaction;c.CommandText=sql;return c.ExecuteNonQuery();}
+            using(var marker=db.CreateCommand()){marker.Transaction=transaction;marker.CommandText="SELECT COUNT(*) FROM state WHERE key='inje-legacy-retirement-v1'";if(Convert.ToInt64(marker.ExecuteScalar())>0)return 0;}
+            // Exact application-owned namespaces. Account credentials, WAL/order safety and watchlists are not strategy history.
+            var count=Execute("DELETE FROM state WHERE key GLOB 'oversold-*' OR key GLOB 'daytrading-*' OR key GLOB 'pipeline-*' OR key GLOB 'strategy-configuration-*' OR key GLOB 'strategy-tick-preset:*' OR key GLOB 'paper-live-*' OR key GLOB 'mock-batch*' OR key GLOB 'chart-preset*' OR key IN ('chart-settings','image-tick-settings','multi-trade-draft') OR key GLOB 'chart-run:*' OR key GLOB 'desktop-run:*' OR key GLOB 'desktop-screen:*' OR key GLOB 'screen-bars:*' OR key GLOB 'screen-facts:*' OR key GLOB 'test-bars:*' OR key GLOB 'trade-marker:D:*' OR (key GLOB 'trade-marker:*' AND json_valid(json) AND json_extract(json,'$.Source') IN ('전략 D 모의매매','실시간 모의매매','공개시세 모의매매')) OR (key GLOB 'trade-marker:*' AND json_valid(json) AND json_extract(json,'$.AccountScope') LIKE 'paper-live:%') OR key GLOB 'desktop-backtest:*' OR key GLOB 'desktop-screening:*' OR (key GLOB 'desktop-history-index:*' AND json_valid(json) AND json_extract(json,'$.Kind') IN (0,1,2))");
+            count+=Execute("DELETE FROM settings_history");count+=Execute("DELETE FROM presets");
+            // Runs/audit may also contain real account execution evidence; leave those safety records intact.
+            Execute("INSERT INTO state(key,json) VALUES('inje-legacy-retirement-v1','{\"Completed\":true,\"Authorization\":\"2026-11-11 user requested removal of old strategy settings and research history\"}')");
+            transaction.Commit();return count;
         });
     }
     public void Dispose(){lock(gate){disposed=true;marketData?.Clear();}}

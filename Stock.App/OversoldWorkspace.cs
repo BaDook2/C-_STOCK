@@ -6,6 +6,7 @@ using Stock.Core;
 using Stock.Core.Research;
 using Stock.Core.Research.Oversold;
 using Stock.Core.Trading;
+using Stock.Core.Strategies.Injes;
 namespace Stock.App;
 
 public sealed record OversoldUsageGroup(ParameterUsageSection Metadata,IReadOnlyList<ParameterGroup> Groups)
@@ -17,6 +18,7 @@ public sealed record OversoldBacktestBarPreference(bool Daily,string Value,strin
 public sealed partial class WorkspaceViewModel
 {
     private OversoldConfig oversoldConfig=new();
+    private InjesEditorModel injesEditor=null!;
     private HistoricalFacts oversoldFacts=new();
     private OversoldResult? oversoldResult;
     public ObservableCollection<ParameterGroup> OversoldGroups {get;}=[];
@@ -39,7 +41,7 @@ public sealed partial class WorkspaceViewModel
     private static readonly JsonSerializerOptions FactsJsonOptions=new(Serialization.Json){WriteIndented=true,Converters={new JsonStringEnumConverter()}};
     private void InitializeOversold()
     {
-        oversoldConfig=store.State<OversoldConfig>("oversold-config-v1")??new();oversoldFacts=store.State<HistoricalFacts>("oversold-facts-v1")??new();OversoldFactsJson=JsonSerializer.Serialize(oversoldFacts,FactsJsonOptions);
+        var injesPresets=new InjesPresetStore(store);injesPresets.EnsureDefaults();oversoldConfig=InjesPresetStore.Wrap(injesPresets.Get(injesPresets.Names[0]));oversoldFacts=store.State<HistoricalFacts>("oversold-facts-v1")??new();OversoldFactsJson=JsonSerializer.Serialize(oversoldFacts,FactsJsonOptions);
         if(store.State<OversoldBacktestBarPreference>("oversold-backtest-bars") is {} bars){backtestDaily=bars.Daily;backtestBarUnit=TimeBarSelection.NormalizeUnit(bars.Unit);backtestBarValue=TimeBarSelection.NormalizeValue(bars.Value,backtestBarUnit);}
         BuildOversoldGroups();
         Add("낙주설정저장",()=>{SaveOversold();return Task.CompletedTask;},()=>CanConfigure);
@@ -50,16 +52,24 @@ public sealed partial class WorkspaceViewModel
     }
     private void BuildOversoldGroups()
     {
-        OversoldGroups.Clear();OversoldUsageGroups.Clear();
-        var fields=ParameterCatalog.Properties(oversoldConfig).Select(p=>new ParameterField(oversoldConfig,p,()=>{OversoldMessage="수정 중 · 적용 및 저장 후 같은 값으로 일봉 백테스트를 실행합니다.";Changed(nameof(OversoldMessage));})).ToArray();
-        foreach(var section in OversoldParameterMetadata.Sections)
-        {
-            var byKey=fields.ToDictionary(f=>f.Metadata.Key);
-            var groups=OversoldParameterMetadata.Rows.Where(r=>r.Scope==section.Scope).GroupBy(r=>r.Group).Select(g=>new ParameterGroup(g.Key,g.SelectMany(r=>r.Keys).Where(k=>k!=null).Select(k=>byKey[k!]).ToArray(),g.Select(r=>new ParameterRow(r.Keys.Select(k=>new ParameterCell(k==null?null:byKey[k])).ToArray())).ToArray())).ToArray();
-            foreach(var group in groups)OversoldGroups.Add(group);
-            OversoldUsageGroups.Add(new(section,groups));
-        }
+        injesEditor=new(InjesPresetStore.Require(oversoldConfig));injesEditor.ModeChanged+=RefreshInjesGroups;RefreshInjesGroups();
     }
+    private void RefreshInjesGroups()
+    {
+        OversoldGroups.Clear();OversoldUsageGroups.Clear();
+        void Group(string label,InjesParameterField[] fields,ParameterUsageScope scope)
+        {
+            var adapted=fields.Select(f=>new ParameterField(f)).ToArray();
+            var rows=adapted.Chunk(3).Select(chunk=>new ParameterRow(Enumerable.Range(0,3).Select(i=>new ParameterCell(i<chunk.Length?chunk[i]:null)).ToArray())).ToArray();
+            var group=new ParameterGroup(label,adapted,rows);OversoldGroups.Add(group);
+            var metadata=new ParameterUsageSection(scope,label,"Inje's Strategy · 실험용 설정", "원본 틱·호가·당시 자료가 부족하면 MissingData로 보류합니다.","");
+            OversoldUsageGroups.Add(new(metadata,[group]));
+        }
+        Group("백테스트·체결 가정",injesEditor.ExecutionFields,ParameterUsageScope.Backtest);
+        Group("Inje's Strategy · "+StrategyRegistry.Injes.Get(oversoldConfig.Injes!.StrategyId).Name,injesEditor.ModeFields.Concat(injesEditor.StrategyFields).ToArray(),ParameterUsageScope.CommonStrategy);
+        Group("공통 전략 조건",injesEditor.CommonFields,ParameterUsageScope.CommonStrategy);
+    }
+
     private static HistoricalFacts ParseOversoldFacts(string json)
     {
         try{var facts=JsonSerializer.Deserialize<HistoricalFacts>(json,FactsJsonOptions)??throw new InvalidOperationException("시점별 자료가 비어 있습니다.");facts.Validate();return facts;}
@@ -67,10 +77,11 @@ public sealed partial class WorkspaceViewModel
     }
     private void SaveOversold(bool includeFacts=true)
     {
-        foreach(var f in OversoldGroups.SelectMany(g=>g.Fields))f.Apply();oversoldConfig.Validate();var facts=includeFacts?ParseOversoldFacts(OversoldFactsJson):oversoldFacts;oversoldFacts=facts;
-        store.State("oversold-config-v1",oversoldConfig);store.State("oversold-facts-v1",facts);
-        OversoldMessage=$"저장 완료 · 시장일 {facts.MarketSessions.Length:N0}개 · 과거 상태 {facts.StatusRecords.Length:N0}개 · 실제 거래대금 {facts.TradingValues.Length:N0}개 · 위험 자료 {facts.RiskRecords.Length:N0}개";Changed(nameof(OversoldMessage));
+        foreach(var f in OversoldGroups.SelectMany(g=>g.Fields))f.Apply();
+        var definition=injesEditor.Apply(string.IsNullOrWhiteSpace(Preset)?oversoldConfig.Injes!.StrategyName:Preset,DateTimeOffset.UtcNow);oversoldConfig=InjesPresetStore.Wrap(definition);
+        new InjesPresetStore(store).Save(definition);OversoldMessage="Inje 설정 저장 · 실제 주문 잠금 · 원본 틱/호가 부족 시 진입 보류";Changed(nameof(OversoldMessage));
     }
+
     private async Task RunOversold()
     {
         if(dataset==null||From==null||To==null||From>To)throw new InvalidOperationException("국내 종목과 시작·종료일을 선택하세요.");

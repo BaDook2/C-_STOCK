@@ -12,11 +12,11 @@ public sealed class LiveStrategyController:Bindable,IAsyncDisposable
     private readonly MarketHistoryService history;
     private LiveStrategyBatch? active;
     private RemoteTradingSession? owner;
-    private CancellationTokenSource? stop;
+    private CancellationTokenSource? stop=null;
     private Task loop=Task.CompletedTask;
     private readonly SemaphoreSlim stopGate=new(1,1);
-    private bool busy,disposed;
-    private string status="실제 주문 활성화와 검증된 현재 종목·위험 자료가 필요합니다. 키움 국내 계좌만 지원합니다.";
+    private bool busy=false,disposed;
+    private string status="Inje 실계좌 자동 주문은 잠겨 있습니다. 계좌 연결과 수동 주문의 기존 안전 절차는 유지합니다.";
     private LiveBatchStatus? snapshot;
     public AccountWorkspace Accounts {get;}
     public bool Busy=>busy;
@@ -40,51 +40,8 @@ public sealed class LiveStrategyController:Bindable,IAsyncDisposable
     public Dictionary<string,string> SessionStatuses()=>snapshot?.Rows.ToDictionary(r=>r.Key,r=>r.Status+(r.Error.Length>0?" · "+r.Error:""))??[];
     public async Task Start(RealtimeRequest request)
     {
-        if(disposed||Locked)throw new InvalidOperationException("기존 실제 실행을 먼저 중지·대사하세요.");
-        var remote=Accounts.Session;if(remote==null||!Accounts.Authorized)throw new InvalidOperationException("실제 계좌 주문을 명시적으로 활성화하세요.");
-        if(!remote.Broker.IsLive||remote.Broker.Id!="kiwoom"||remote.Broker.Exchange!=Exchange.KRX||remote.Broker is not IExecutionHistoryBroker)throw new InvalidOperationException("실제 체결 대사가 가능한 키움 국내 계좌만 지원합니다.");
-        if(!LiveBatchSupport.RegularSession(services.Clock()))throw new InvalidOperationException("장 외 시간입니다. 국내 정규 연속매매 시간에 시작하세요.");
-        if(request.PaperAssumptions)throw new InvalidOperationException("가상 분류·위험 가정은 실계좌에 사용할 수 없습니다.");
-        owner=remote;busy=true;stop=new(services.QueryTimeout);var token=stop.Token;Publish("실계좌 준비 봉·현재 상태 확인 중 · 주문 없음");
-        try
-        {
-            if(request.Configuration.UseCrashStrategy||request.ItemConfigurations?.Any(i=>i.Configuration.UseCrashStrategy)==true)throw new InvalidOperationException("급락 판단 전략은 검증·가상 실행 전용이며 실계좌 주문 연결은 지원하지 않습니다.");
-            request.Specification.Validate();var facts=request.Facts.Snapshot();facts.Validate();var now=services.Clock();var today=DailyQuoteMerger.Date(now,Exchange.KRX);
-            if(!facts.Sessions.Any(s=>s.Date==today&&now>=s.Open&&now<s.Close))throw new InvalidOperationException("오늘의 검증된 한국 시장 세션이 필요합니다.");
-            var items=new List<LiveBatchItem>();
-            foreach(var stock in request.Stocks)
-            {
-                token.ThrowIfCancellationRequested();if(stock.Exchange!=Exchange.KRX)throw new InvalidOperationException("국내 일반주식만 실제 전략 실행할 수 있습니다.");
-                if(!HistoricalFacts.Tradable(facts.Status(stock.Symbol,today,now))||facts.Risk(stock.Symbol,today,now)!=false)throw new InvalidOperationException(stock.Name+": 오늘의 일반주식·거래정지·관리·위험 상태가 확인되지 않았습니다.");
-                var selection=request.ItemConfigurations?.Single(i=>i.Stock.Key==stock.Key);var config=Serialization.Unpack<OversoldConfig>(Serialization.Pack(selection?.Configuration??request.Configuration));config.Validate();
-                var budget=selection?.Budget??config.PlannedInvestment;var prepared=await history.Get(stock,config,facts,request.Specification.Unit==BarUnit.Day?null:request.Specification,today,today,token);
-                // Live entry filters may not treat OHLC-average estimates as actual turnover.
-                var bars=prepared.Bars??prepared.Dataset.CompletedBars.Select((bar,n)=>{var day=DailyDates.Of(bar);var session=facts.Sessions.FirstOrDefault(s=>s.Date==day)??ResearchMarketSession.For(day,Exchange.KRX);return new StrategyBar(bar with{Time=session.Close},session.Open,session.Close,n+1,null,prepared.Dataset.Source);}).ToArray();
-                var external=Serialization.Unpack<Dictionary<string,StrategyBar[]>>(WarmupJson);
-                if(external.TryGetValue(stock.Key,out var supplied))bars=supplied;
-                else if(request.Specification.Unit==BarUnit.Day)bars=bars.Select(b=>b with{TradingValue=facts.TradingValue(stock.Symbol,DailyDates.Of(b.Price),b.ClosedAt),Source="외부 입력 일별 실제 거래대금"}).ToArray();
-                else bars=bars.Select(b=>b with{TradingValue=null}).ToArray();
-                if(bars.Any(b=>!b.Price.IsComplete||b.ClosedAt>now||b.OpenTime>=b.ClosedAt)||bars.Zip(bars.Skip(1)).Any(p=>p.First.ClosedAt>=p.Second.ClosedAt))throw new InvalidOperationException(stock.Name+": 준비 봉의 마감 시각·순서가 올바르지 않습니다.");
-                foreach(var bar in bars)bar.Price.Validate();
-                if(bars.Length==0||bars.Any(b=>b.TradingValue==null))throw new InvalidOperationException(stock.Name+": 준비 봉의 시점별 실제 거래대금 자료가 필요합니다. OHLC 추정치를 실계좌 입력으로 사용하지 않습니다.");
-                facts.StrategyFrames=facts.StrategyFrames.Select(s=>s.Bar.Source.Contains("추정")?s with{Bar=s.Bar with{TradingValue=null}}:s).ToArray();
-                var settings=RealtimeScreeningHost.PaperSettings(config,budget,publicPaper:false);settings.Data.Universe=stock.Key;
-                items.Add(new(stock,selection?.Name??request.Name,settings,budget){Oversold=new(config,prepared.Specification??new(1,BarUnit.Day),bars,LiveBatchSupport.WithObservedWarmupSessions(facts,bars))});
-            }
-            var plan=new LiveBatchPlan(items.ToArray(),request.TotalBudget,request.DailyLossLimit);
-            var details=string.Join("\n",items.Select(i=>$"{i.Stock.Name} / {i.Preset} / 예산 {DisplayNumber.Price(i.Budget)}원"));
-            if(!await Accounts.Confirm($"실제 계좌 전략 실행\n{remote.Broker.Name} {remote.Broker.MaskedAccount}\n{details}\n{request.Specification} · 전체 {DisplayNumber.Price(plan.TotalBudget)}원 / 일 손실 {DisplayNumber.Price(plan.DailyLossLimit)}원\n새 실제 체결로 완성된 봉의 전략 신호만 사용합니다. 실제 주문을 시작할까요?"))return;
-            token.ThrowIfCancellationRequested();if(Accounts.Session!=remote||!Accounts.Authorized)throw new InvalidOperationException("계좌 변경/중지로 시작을 차단했습니다.");
-            var instruments=items.Select(i=>new Instrument(i.Stock.Symbol,i.Stock.Exchange)).ToArray();
-            var candidate=new LiveStrategyBatch(remote,services.Store,services.Clock);active=candidate;
-            await Task.Run(()=>candidate.Start(plan),token).WaitAsync(token);token.ThrowIfCancellationRequested();if(Accounts.Session!=remote||!Accounts.Authorized)throw new InvalidOperationException("계좌 변경/중지로 시작을 차단했습니다.");snapshot=candidate.Snapshot();
-            IMarketDataProvider feed;
-            try{feed=services.LiveFeedFactory(remote.Broker,instruments,items[0].Settings.Data,message=>{if(message.Contains("단절")||message.Contains("오류")||message.Contains("버퍼"))candidate.FeedFault(message);Publish(message);});}
-            catch{await candidate.Stop().WaitAsync(services.QueryTimeout);active=null;throw;}
-            stop.CancelAfter(Timeout.InfiniteTimeSpan);loop=Task.Run(()=>Run(candidate,remote,feed,stop.Token));Publish("실제 전략 실행 · 새 체결 대기");
-        }
-        catch{if(active!=null){active.RequestStop(reason:"준비 실패 · 새 주문 금지");try{await active.Stop().WaitAsync(services.QueryTimeout);active=null;}catch{Publish("실행 준비 실패 · 주문 대사와 중지를 확인하세요.");}}throw;}
-        finally{busy=false;if(active==null)owner=null;Publish(status);}
+        await Task.CompletedTask;
+        throw new InvalidOperationException("기존 전략은 제거되었고 Inje 실계좌 자동 주문은 잠겨 있습니다. 가상 실행을 사용하세요.");
     }
     private async Task Run(LiveStrategyBatch batch,RemoteTradingSession remote,IMarketDataProvider feed,CancellationToken token)
     {

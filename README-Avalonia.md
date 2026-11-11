@@ -1,12 +1,16 @@
-# STOCK Avalonia
+# STOCK Avalonia v0.1.18
+
+Inje/Bin 설정·전체 프로필 JSON·StockViewer NXT/미국 데이마켓 공개 가격·도움말 수정을 포함한다. [변경 사항과 지원 범위](docs/avalonia/RELEASE_NOTES_v0.1.18.md), [현재 전략 설명/전체 JSON](docs/strategy/현재_전략_상세설명_및_JSON_가이드_2026-11-11.md)을 따른다. 실계좌 자동 전략 주문은 잠겨 있으며 Bin 실시간 가상 주문/복원은 미연결로 시작 차단한다.
+
+
 
 Rider에서 소스 수정 후 `.app`으로 사용하려면 상단 실행 설정 `Mac · .app 빌드 후 실행`을 선택한다. `/Applications/Stock Development.app`을 만들고 연다. [Rider 앱 생성 안내](docs/maintenance/Rider-Mac-App.md).
 
-v0.1.17: 전략 설정을 `백테스트 전용 → 급락 판단 전략 → 공통 전략 조건`으로 정리했다. 사용 여부·독립 봉 기준·차트 MA240/급락 저점선·JSON 보존의 동작은 [설정 안내](docs/ui/Strategy-2026-11-09.md), [JSON 검증 기록](docs/verification/Strategy-JSON-2026-11-10.md), [전략 상세 설명·전체 JSON](docs/strategy/현재_전략_상세설명_및_JSON_가이드_2026-11-10.md)을 참고한다. [릴리즈 변경 사항](docs/avalonia/RELEASE_NOTES_v0.1.17.md).
+v0.1.18: 전략 설정을 `백테스트 전용 → 급락 판단 전략 → 공통 전략 조건`으로 정리했다. 사용 여부·독립 봉 기준·차트 MA240/급락 저점선·JSON 보존의 동작은 [설정 안내](docs/ui/Strategy-2026-11-09.md), [JSON 검증 기록](docs/verification/Strategy-JSON-2026-11-11.md), [전략 상세 설명·전체 JSON](docs/strategy/현재_전략_상세설명_및_JSON_가이드_2026-11-11.md)을 참고한다. [릴리즈 변경 사항](docs/avalonia/RELEASE_NOTES_v0.1.18.md).
 
 Windows 단일 실행 파일은 GitHub의 **Releases → Assets → Stock.exe**에서 받는다. 설치된 .NET은 필요 없다. `Stock.exe.sha256`은 다운로드 무결성 확인용이며 프로그램 실행에 필요한 파일은 아니다.
 
-Apple Silicon Mac(M1 이후, macOS14+)은 [DMG](https://github.com/BaDook2/C-_STOCK/releases/download/v0.1.17/Stock-AppleSilicon-v0.1.17-r1.dmg) 또는 [ZIP](https://github.com/BaDook2/C-_STOCK/releases/download/v0.1.17/Stock-AppleSilicon-v0.1.17-r1.zip)을 받는다. Stock.app을 응용 프로그램으로 옮겨 실행하며 .NET 별도 설치는 필요 없다. Mac ARM64 CI에서 시작/공개 차트/더미 Keychain/ZIP·DMG를 검사했다. Apple Developer ID·공증은 없으므로 [설치 안내](docs/avalonia/MACOS_APPLE_SILICON.md)를 확인한다.
+Apple Silicon Mac(M1 이후, macOS14+)은 [DMG](https://github.com/BaDook2/C-_STOCK/releases/download/v0.1.18/Stock-AppleSilicon-v0.1.18-r1.dmg) 또는 [ZIP](https://github.com/BaDook2/C-_STOCK/releases/download/v0.1.18/Stock-AppleSilicon-v0.1.18-r1.zip)을 받는다. Stock.app을 응용 프로그램으로 옮겨 실행하며 .NET 별도 설치는 필요 없다. Mac ARM64 CI에서 시작/공개 차트/더미 Keychain/ZIP·DMG를 검사했다. Apple Developer ID·공증은 없으므로 [설치 안내](docs/avalonia/MACOS_APPLE_SILICON.md)를 확인한다.
 
 원본 WPF 소스는 `Stock.App`/`Stock.sln`에 유지한다. 새 Windows/Mac UI는 `Stock.Avalonia`이며 `STOCK.Avalonia.sln`을 열어 개발한다. `Stock.Core`의 전략·백테스트·주문 엔진을 공유한다. 시작 프로젝트는 `Stock.Avalonia`이고 Tests는 테스트용 콘솔 프로젝트다.
 
@@ -22,4 +26,4 @@ Mac 개발: .NET10 SDK를 설치하고 `dotnet run --project Stock.Avalonia`. �
 
 오프라인 가상 실행은 공개시세 일봉 모형이다. 종가 신호는 다음 거래일의 신선한 관측 이후 주문하며 원본 틱 또는 공식 시가 체결로 해석하지 않는다. 저장된 가상 실행은 정지 상태로 복원되고 보호 감시 재개도 신규/추가매수 OFF다. 실계좌 전략 실행은 기존 체결 대사가 가능한 키움 국내 계좌와 검증된 시점별 종목/위험/시장 세션/거래대금 자료가 필요하다. 다른 지원 브로커의 수동 주문과 구분한다. 실제 주문 테스트는 자동 검사에서 하지 않는다.
 
-구현·API 제한·파일 지도: [이식 완료 설명](docs/avalonia/COMPLETION_E1_E4_20261108.md). 검증/미검증 정본: [작업 상태](TASKS.md), [인수인계](HANDOFF.md), [v0.1.17 최종 검증](docs/verification/Release-v0.1.17.md). CI는 WPF 회귀, 공통/새 UI 검사, Release 빌드와 격리 EXE 시작 검사를 모두 통과한 뒤에만 새 태그의 Windows Release를 만든다.
+구현·API 제한·파일 지도: [이식 완료 설명](docs/avalonia/COMPLETION_E1_E4_20261108.md). 검증/미검증 정본: [작업 상태](TASKS.md), [인수인계](HANDOFF.md), [v0.1.18 최종 검증](docs/verification/Release-v0.1.18.md). CI는 WPF 회귀, 공통/새 UI 검사, Release 빌드와 격리 EXE 시작 검사를 모두 통과한 뒤에만 새 태그의 Windows Release를 만든다.

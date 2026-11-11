@@ -76,13 +76,13 @@ public partial class StockChart
     {
         if(Bars is not {Length:>0} bars||!DetailActive||PricePlot.Plot.LastRender.DataRect.Width<=0){HideGuide();return;}
         var index=IndexAt(point);var bar=bars[index];HoveredTime=bar.Time;lastHover=(point,volume);
-        HoverInfo.Text=$"{bar.Time.ToOffset(TimeSpan.FromHours(9)):yyyy.MM.dd HH:mm:ss} (한국) · 시 {DisplayNumber.Price(bar.Open)} · 고 {DisplayNumber.Price(bar.High)} · 저 {DisplayNumber.Price(bar.Low)} · 종 {DisplayNumber.Price(bar.Close)} · 거래량 {bar.Volume:N0}";
+        HoverInfo.Text=$"{bar.Time.ToOffset(TimeSpan.FromHours(9)):yyyy.MM.dd HH:mm:ss} (한국) · 시 {PriceLabel(bar.Open)} · 고 {PriceLabel(bar.High)} · 저 {PriceLabel(bar.Low)} · 종 {PriceLabel(bar.Close)} · 거래량 {bar.Volume:N0}";
         if(tooltipText!=HoverInfo.Text){tooltipText=HoverInfo.Text;ToolTip.SetTip(volume?VolumePlot:PricePlot,tooltipText);}
         var data=PricePlot.Plot.LastRender.DataRect;var pixel=PricePlot.Plot.GetPixel(new Coordinates(index,0));var x=pixel.X/RenderScale;
         var bottom=VolumePlot.TranslatePoint(new Point(0,VolumePlot.Bounds.Height-22),GuideLayer)?.Y??GuideLayer.Bounds.Height;
         VerticalGuide.StartPoint=new(x,data.Top/RenderScale);VerticalGuide.EndPoint=new(x,bottom);
         HorizontalGuide.IsVisible=GuidePrice.IsVisible=!volume&&point.Y>=data.Top/RenderScale&&point.Y<=data.Bottom/RenderScale;
-        if(HorizontalGuide.IsVisible){HorizontalGuide.StartPoint=new(data.Left/RenderScale,point.Y);HorizontalGuide.EndPoint=new(data.Right/RenderScale,point.Y);Canvas.SetLeft(GuidePrice,data.Right/RenderScale+3);Canvas.SetTop(GuidePrice,Math.Clamp(point.Y-10,0,Math.Max(0,PricePlot.Bounds.Height-24)));GuidePriceText.Text=Math.Floor(CoordinatesAt(point).Y).ToString("N0");}
+        if(HorizontalGuide.IsVisible){HorizontalGuide.StartPoint=new(data.Left/RenderScale,point.Y);HorizontalGuide.EndPoint=new(data.Right/RenderScale,point.Y);Canvas.SetLeft(GuidePrice,data.Right/RenderScale+3);Canvas.SetTop(GuidePrice,Math.Clamp(point.Y-10,0,Math.Max(0,PricePlot.Bounds.Height-24)));GuidePriceText.Text=Currency=="USD"?CoordinatesAt(point).Y.ToString("0.########",System.Globalization.CultureInfo.InvariantCulture):Math.Floor(CoordinatesAt(point).Y).ToString("N0");}
         GuideLayer.IsVisible=true;
     }
 }

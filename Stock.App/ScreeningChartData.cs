@@ -35,7 +35,7 @@ public sealed partial class WorkspaceViewModel
 
     private ScreeningChartQuote? ReadScreeningChartQuote(string key)
     {
-        var row=lastRealtimeScreeningSnapshot?.Rows.FirstOrDefault(r=>r.Key==key);
-        return row?.Price is >0?new(key,row.Price.Value,row.ChangePercent,row.LastQuoteTime,row.DataState,realtimeScreening?.Running==true):null;
+        var snapshot=injesStream?.Snapshot();var signal=snapshot?.Evaluations.FirstOrDefault(e=>e.Signal.Symbol==key)?.Signal;
+        return signal?.ReferencePrice is >0?new(key,signal.ReferencePrice.Value,signal.Metrics.GetValueOrDefault("dayGainPercent"),signal.UsedObservations.FirstOrDefault(e=>e.Kind=="Quote")?.ReceivedAt,signal.SignalReason,injesStream?.Running==true):null;
     }
 }

@@ -1,4 +1,4 @@
-﻿using System.Globalization;
+using System.Globalization;
 using Stock.Core.Trading;
 namespace Stock.Core.Research;
 
@@ -64,7 +64,7 @@ public sealed record MarketQuote(string Name,decimal Price,decimal Change,decima
 {
     public string PriceText=>DisplayNumber.Price(Price);
     public string ChangeText=>$"{DisplayNumber.SignedPrice(Change)} ({Percent:+0.00;-0.00;0.00}%)";
-    public string KoreaTime=>$"{TradeTime.ToOffset(TimeSpan.FromHours(9)):MM.dd HH:mm:ss} · {(State=="OPEN"?"장중":State=="DELAYED"?"제공처 시세 · 지연 가능":"장마감 / 지연 가능")}";
+    public string KoreaTime=>$"{TradeTime.ToOffset(TimeSpan.FromHours(9)):MM.dd HH:mm:ss} · {(State=="OPEN"?"장중":State=="DELAYED"?"제공처 시세 · 지연 가능":State=="UNKNOWN"?"시장 상태 확인 중":"장마감 / 지연 가능")}";
 }
 public interface IMarketOverviewData
 {

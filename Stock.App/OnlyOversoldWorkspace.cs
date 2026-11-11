@@ -1,15 +1,16 @@
-﻿using Stock.Core;
+using Stock.Core;
 using Stock.Core.Research;
 using Stock.Core.Research.Oversold;
 using Stock.Core.Trading;
+using Stock.Core.Strategies.Injes;
 namespace Stock.App;
 
 public sealed partial class WorkspaceViewModel
 {
     private readonly IStrategyFileDialogs strategyFileDialogs;
-    private const string OversoldPresetPrefix="oversold-preset:";
-    private const string OversoldPresetListKey="oversold-presets-v1";
-    private const string ActiveOversoldPresetKey="oversold-active-preset-v1";
+    private const string OversoldPresetPrefix="inje-config:";
+    private const string OversoldPresetListKey="inje-presets-v1";
+    private const string ActiveOversoldPresetKey="inje-active-preset-v1";
     private string? activeOversoldPreset;
     private string? selectedOversoldPreset;
     public string? SelectedOversoldPreset
@@ -25,41 +26,28 @@ public sealed partial class WorkspaceViewModel
     }
     // Retirement is a product boundary, not a user-editable preference or saved DB flag.
     private static bool LegacyStrategiesAvailable=>false;
-    private static void EnsureLegacyUnavailable(){if(!LegacyStrategiesAvailable)throw new InvalidOperationException("기존 전략은 사용 중지되었습니다. 국내 과매도·낙주 반등 일봉 백테스트만 사용할 수 있습니다.");}
+    private static void EnsureLegacyUnavailable(){if(!LegacyStrategiesAvailable)throw new InvalidOperationException("기존 전략은 사용 중지되었습니다. Inje’s Strategy를 선택하세요.");}
     private void InitializeOnlyOversold()
     {
         InitializeScreeningResults();
-        Presets.Clear();foreach(var p in store.State<string[]>(OversoldPresetListKey)??["기본"])if(!string.IsNullOrWhiteSpace(p)&&!Presets.Contains(p))Presets.Add(p);
-        if(Presets.Count==0)Presets.Add("기본");
-        if(!Presets.Contains(StrategyDiagnosticPreset.Name))
-        {
-            Presets.Add(StrategyDiagnosticPreset.Name);
-            store.State(OversoldPresetPrefix+StrategyDiagnosticPreset.Name,StrategyDiagnosticPreset.Configuration());
-            store.State(OversoldPresetListKey,Presets.ToArray());
-        }
-        foreach(var preset in StrategyDiagnosticPreset.BacktestVerificationPresets())
-        {
-            if(Presets.Contains(preset.Key))continue;
-            preset.Value.Validate();Presets.Add(preset.Key);store.State(OversoldPresetPrefix+preset.Key,preset.Value);
-        }
-        store.State(OversoldPresetListKey,Presets.ToArray());
+        var injesPresets=new InjesPresetStore(store);injesPresets.EnsureDefaults();Presets.Clear();foreach(var name in injesPresets.Names)Presets.Add(name);
+        foreach(var name in Presets)store.State(OversoldPresetPrefix+name,InjesPresetStore.Wrap(injesPresets.Get(name)));
         activeOversoldPreset=store.State<string>(ActiveOversoldPresetKey);if(activeOversoldPreset==null||!Presets.Contains(activeOversoldPreset))activeOversoldPreset=Presets[0];
-        if(store.State<OversoldConfig>(OversoldPresetPrefix+activeOversoldPreset)==null)store.State(OversoldPresetPrefix+activeOversoldPreset,oversoldConfig.Clone());
-        selectedOversoldPreset=activeOversoldPreset;Preset=activeOversoldPreset;
+        selectedOversoldPreset=activeOversoldPreset;Preset=activeOversoldPreset;oversoldConfig=InjesPresetStore.Wrap(injesPresets.Get(activeOversoldPreset));BuildOversoldGroups();
         Add("백테스트",RunOversold,()=>CanConfigure&&dataset!=null&&(BacktestDaily||dataset.Stock.Exchange==Exchange.KRX&&CanUseMinutes));
         Add("연습시작",StartPractice,()=>CanConfigure&&IsOffline&&dataset!=null&&!IsTick);
         Add("스크리닝",ScreenOversold,()=>CanConfigure);
         Actions["결과열기"]=new(()=>SelectedMatch==null?Task.CompletedTask:OpenScreeningStock(SelectedMatch.Stock),()=>CanReviewScreeningResults&&SelectedMatch!=null);
         Add("저장",()=>{var name=RequireActiveOversoldName();if(!string.Equals(Preset.Trim(),name,StringComparison.Ordinal))throw new InvalidOperationException("전략 이름을 바꾸려면 이름 변경 버튼을 사용하세요.");SaveOversold();store.State(OversoldPresetPrefix+name,oversoldConfig.Clone());PersistOversoldPresetSelection(name);Log("전략 설정 저장: "+name);return Task.CompletedTask;},()=>CanConfigure);
-        Add("추가",()=>{ApplyOversoldFields();var requested=Preset.Trim();if(requested.Length==0||string.Equals(requested,activeOversoldPreset,StringComparison.Ordinal))requested=UniqueOversoldName("새 전략");ValidateOversoldName(requested);if(Presets.Contains(requested))throw new InvalidOperationException("같은 이름의 전략이 이미 있습니다.");SaveOversold();store.State(OversoldPresetPrefix+requested,oversoldConfig.Clone());Presets.Add(requested);PersistOversoldPresetSelection(requested);Log("전략 추가: "+requested);return Task.CompletedTask;},()=>CanConfigure);
-        Add("이름변경",()=>{var previous=RequireActiveOversoldName();var renamed=Preset.Trim();ValidateOversoldName(renamed);if(string.Equals(previous,renamed,StringComparison.Ordinal)){Preset=previous;Changed(nameof(Preset));Log("전략 이름이 이미 "+previous+"입니다.");return Task.CompletedTask;}if(Presets.Contains(renamed))throw new InvalidOperationException("같은 이름의 전략이 이미 있습니다.");SaveOversold();store.State(OversoldPresetPrefix+renamed,oversoldConfig.Clone());store.DeleteState(OversoldPresetPrefix+previous);var index=Presets.IndexOf(previous);if(index>=0)Presets[index]=renamed;else Presets.Add(renamed);PersistOversoldPresetSelection(renamed);Log($"전략 이름 변경: {previous} → {renamed}");return Task.CompletedTask;},()=>CanConfigure);
-        Add("복구",()=>{var name=RequireActiveOversoldName();var cfg=store.State<OversoldConfig>(OversoldPresetPrefix+name)??store.State<OversoldConfig>("oversold-config-v1")??new();cfg.Validate();oversoldConfig=cfg.Clone();Preset=name;selectedOversoldPreset=name;BuildOversoldGroups();Changed(nameof(Preset));Changed(nameof(SelectedOversoldPreset));Log("저장 이후의 입력을 취소하고 이전 설정으로 복구했습니다.");return Task.CompletedTask;},()=>CanConfigure);
-        Add("불러오기",()=>{var file=strategyFileDialogs.Import();if(file==null)return Task.CompletedTask;var imported=OversoldPresetExport.Read(file);var basis=string.IsNullOrWhiteSpace(imported.Preset)?"가져온 전략":imported.Preset.Trim();var name=UniqueOversoldName(basis);oversoldConfig=imported.Configuration.Clone();BuildOversoldGroups();SaveOversold();store.State(OversoldPresetPrefix+name,oversoldConfig.Clone());Presets.Add(name);PersistOversoldPresetSelection(name);Log("전략 JSON 불러오기: "+name);return Task.CompletedTask;},()=>CanConfigure);
-        Add("다운로드",()=>{foreach(var field in OversoldGroups.SelectMany(g=>g.Fields))field.Apply();var snapshot=OversoldPresetExport.Snapshot(Preset,oversoldConfig,DateTimeOffset.UtcNow);var file=strategyFileDialogs.Export(OversoldPresetExport.SafeName(Preset,KoreaClock.Today));if(file!=null&&OversoldPresetExport.Write(file,snapshot))Status="전략 설정 JSON을 저장했습니다.";return Task.CompletedTask;},()=>CanConfigure);
-        Add("기본값",()=>{oversoldConfig=new();BuildOversoldGroups();Log("낙주 전략 기본값을 불러왔습니다. 저장 후 적용하세요.");return Task.CompletedTask;},()=>CanConfigure);
+        Add("추가",()=>{var requested=Preset.Trim();if(requested.Length==0||string.Equals(requested,activeOversoldPreset,StringComparison.Ordinal))requested=UniqueOversoldName("새 전략");ValidateOversoldName(requested);if(Presets.Contains(requested))throw new InvalidOperationException("같은 이름의 전략이 이미 있습니다.");Preset=requested;SaveOversold();store.State(OversoldPresetPrefix+requested,oversoldConfig.Clone());Presets.Add(requested);PersistOversoldPresetSelection(requested);Log("전략 추가: "+requested);return Task.CompletedTask;},()=>CanConfigure);
+        Add("이름변경",()=>{var previous=RequireActiveOversoldName();var renamed=Preset.Trim();ValidateOversoldName(renamed);if(string.Equals(previous,renamed,StringComparison.Ordinal)){Preset=previous;Changed(nameof(Preset));Log("전략 이름이 이미 "+previous+"입니다.");return Task.CompletedTask;}if(Presets.Contains(renamed))throw new InvalidOperationException("같은 이름의 전략이 이미 있습니다.");ApplyOversoldFields();new InjesPresetStore(store).Rename(previous,InjesPresetStore.Require(oversoldConfig));store.State(OversoldPresetPrefix+renamed,oversoldConfig.Clone());store.DeleteState(OversoldPresetPrefix+previous);var index=Presets.IndexOf(previous);if(index>=0)Presets[index]=renamed;else Presets.Add(renamed);PersistOversoldPresetSelection(renamed);Log($"전략 이름 변경: {previous} → {renamed}");return Task.CompletedTask;},()=>CanConfigure);
+        Add("복구",()=>{var name=RequireActiveOversoldName();var cfg=InjesPresetStore.Wrap(new InjesPresetStore(store).Get(name));cfg.Validate();oversoldConfig=cfg.Clone();Preset=name;selectedOversoldPreset=name;BuildOversoldGroups();Changed(nameof(Preset));Changed(nameof(SelectedOversoldPreset));Log("저장 이후의 입력을 취소하고 이전 설정으로 복구했습니다.");return Task.CompletedTask;},()=>CanConfigure);
+        Add("불러오기",()=>{var file=strategyFileDialogs.Import();if(file==null)return Task.CompletedTask;var definition=InjesStrategyJson.Import(System.IO.File.ReadAllText(file));var name=UniqueOversoldName(definition.StrategyName);definition.StrategyName=name;oversoldConfig=InjesPresetStore.Wrap(definition);Preset=name;BuildOversoldGroups();SaveOversold();store.State(OversoldPresetPrefix+name,oversoldConfig.Clone());Presets.Add(name);PersistOversoldPresetSelection(name);Log("전략 JSON 불러오기: "+name);return Task.CompletedTask;},()=>CanConfigure);
+        Add("다운로드",()=>{foreach(var field in OversoldGroups.SelectMany(g=>g.Fields))field.Apply();ApplyOversoldFields();var snapshot=oversoldConfig.Injes!;var file=strategyFileDialogs.Export(OversoldPresetExport.SafeName(Preset,KoreaClock.Today));if(file!=null){System.IO.File.WriteAllText(file,InjesStrategyJson.Export(snapshot));Status="Inje 전략 설정 JSON을 저장했습니다.";}return Task.CompletedTask;},()=>CanConfigure);
+        Add("기본값",()=>{oversoldConfig=InjesPresetStore.Wrap(InjesStrategyDefinition.Create(oversoldConfig.Injes!.StrategyId,DateTimeOffset.UtcNow));oversoldConfig.Injes!.StrategyName=Preset;BuildOversoldGroups();Log("Inje 기본값을 불러왔습니다. 저장 후 적용하세요.");return Task.CompletedTask;},()=>CanConfigure);
         foreach(var key in new[]{"전략설정저장","틱설정저장","틱백테스트","순위자료적용","순위CSV","파이프라인Mock"})Add(key,()=>{EnsureLegacyUnavailable();return Task.CompletedTask;},()=>false);
     }
-    private void ApplyOversoldFields(){foreach(var field in OversoldGroups.SelectMany(g=>g.Fields))field.Apply();oversoldConfig.Validate();}
+    private void ApplyOversoldFields(){foreach(var field in OversoldGroups.SelectMany(g=>g.Fields))field.Apply();oversoldConfig=InjesPresetStore.Wrap(injesEditor.Apply(Preset,DateTimeOffset.UtcNow));}
     private static void ValidateOversoldName(string name){if(string.IsNullOrWhiteSpace(name)||name.Length>80)throw new InvalidOperationException("전략 이름은 1~80자로 입력하세요.");}
     private string RequireActiveOversoldName(){var name=activeOversoldPreset;if(string.IsNullOrWhiteSpace(name))throw new InvalidOperationException("선택한 전략이 없습니다.");return name;}
     private string UniqueOversoldName(string basis)
@@ -74,8 +62,8 @@ public sealed partial class WorkspaceViewModel
     }
     private void LoadNamedOversoldPreset(string name)
     {
-        var cfg=store.State<OversoldConfig>(OversoldPresetPrefix+name)??(name==activeOversoldPreset?store.State<OversoldConfig>("oversold-config-v1"):null)??throw new InvalidOperationException("저장된 낙주 전략 설정이 없습니다.");
-        cfg.Validate();oversoldConfig=cfg.Clone();activeOversoldPreset=selectedOversoldPreset=name;Preset=name;store.State(ActiveOversoldPresetKey,name);store.State("oversold-config-v1",oversoldConfig);BuildOversoldGroups();Changed(nameof(Preset));Changed(nameof(SelectedOversoldPreset));Log("전략 선택: "+name);
+        var cfg=InjesPresetStore.Wrap(new InjesPresetStore(store).Get(name));
+        cfg.Validate();oversoldConfig=cfg.Clone();activeOversoldPreset=selectedOversoldPreset=name;Preset=name;store.State(ActiveOversoldPresetKey,name);store.State("inje-current-config-v1",oversoldConfig);BuildOversoldGroups();Changed(nameof(Preset));Changed(nameof(SelectedOversoldPreset));Log("전략 선택: "+name);
     }
     private async Task ScreenOversold()
     {
@@ -147,8 +135,7 @@ public sealed partial class WorkspaceViewModel
                 bool? risk=store.State<bool>("exclude:"+item.Key)?true:store.State<string>("review:"+item.Key)==KoreaClock.Today.ToString()?false:null;
                 var archiveHash=TradingStore.Hash(Serialization.Pack(bars));store.State("screen-data:"+archiveHash,bars);store.State("screen-bars:"+run.Id+":"+item.Key+":"+(spec?.ToString()??"일봉"),archiveHash);
                 dataWatch.Stop();var calculationWatch=System.Diagnostics.Stopwatch.StartNew();
-                var engine=new OversoldScreeningEngine();
-                var row=await Task.Run(()=>spec==null?engine.EvaluateCurrent(item,bars,cfg,itemFacts,observed,currentStatus,risk,token,first,last):engine.EvaluateObserved(item,bars,cfg,itemFacts,run.ScreeningTime,currentStatus,risk,token,first,last),token);
+                var row=await Task.Run(()=>InjesResearchBridge.Screen(item,cfg,InjesResearchBridge.Read(store,item,first,last),first,last,token),token);
                 calculationWatch.Stop();
                 if(spec!=null&&bars.Any(b=>b.Source.Contains("거래대금 OHLC 평균×거래량 추정",StringComparison.Ordinal))&&row.Evaluation is {} intradayEvaluation)
                 {

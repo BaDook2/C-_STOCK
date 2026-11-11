@@ -14,6 +14,13 @@ public sealed partial class PaperBroker
         {
             var quantity=value.Fills.Where(f=>f.Instrument==position.Instrument).Sum(f=>f.Buy?f.Quantity:-f.Quantity);
             if(position.Quantity!=quantity||quantity<0||position.Currency!=Currency||quantity>0&&position.AveragePrice<=0||position.CostFees<0)throw new InvalidOperationException("가상 보유수량과 체결 원장이 일치하지 않습니다.");
+            int held=0;decimal average=0,fees=0;DateTimeOffset? opened=null;string owner="";
+            foreach(var fill in value.Fills.Where(f=>f.Instrument==position.Instrument))
+            {
+                if(fill.Buy){if(held==0){opened=fill.Time;owner=fill.Strategy;}average=(average*held+fill.Price*fill.Quantity)/(held+fill.Quantity);held+=fill.Quantity;fees+=fill.Fee;}
+                else{if(fill.Quantity>held)throw new InvalidOperationException("가상 체결 원장의 매도 수량이 보유를 초과합니다.");fees-=fees*fill.Quantity/held;held-=fill.Quantity;}
+            }
+            if(Math.Abs(position.AveragePrice-average)>.00000001m||Math.Abs(position.CostFees-fees)>.00000001m||held>0&&(position.OpenedAt!=opened||position.Owner!=owner))throw new InvalidOperationException("가상 평균단가·잔여 매수비용·최초 체결시각과 체결 원장이 일치하지 않습니다.");
         }
         if(value.Fills.Any(f=>!value.Positions.Any(p=>p.Instrument==f.Instrument)||!value.Orders.Any(o=>o.Id==f.OrderId)))throw new InvalidOperationException("가상 체결의 포지션/원주문이 없습니다.");
         if(value.Orders.Any(o=>o.Filled!=value.Fills.Where(f=>f.OrderId==o.Id).Sum(f=>f.Quantity)||!Enum.IsDefined(o.Kind)||!Enum.IsDefined(o.State))||value.Fills.Any(f=>!value.Orders.Any(o=>o.Id==f.OrderId&&o.Instrument==f.Instrument&&o.Buy==f.Buy&&f.Time>o.Created)))throw new InvalidOperationException("가상 주문 체결수량·방향·시간의 대사가 일치하지 않습니다.");

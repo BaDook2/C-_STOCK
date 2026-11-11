@@ -137,6 +137,6 @@ public sealed partial class MainViewModel
     private void InitializeAccounts()
     {
         Accounts=new(services);Accounts.Initialize();Accounts.OrderStock=()=>SelectedStock;Accounts.Notice+=Notify;Accounts.FillsChanged+=RefreshPaperMarkers;Accounts.ConnectionRequested+=()=>AccountPopupRequested?.Invoke(Accounts);OpenAccounts=new(()=>{AccountPopupRequested?.Invoke(Accounts);return Task.CompletedTask;});
-        Accounts.ModeChanged+=()=>{operation?.Cancel();Realtime.Emergency();Research.Stop();Recurring.Stop();Screening.Stop();DayTrading.BlockNewEntries("계좌 모드 변경 · 새 진입 중지");quotePump?.Stop();RefreshPaperMarkers();Changed(nameof(Online));Changed(nameof(ModeText));Changed(nameof(ChartCustomAvailable));Research.ModeChanged();Screening.ModeChanged();if(!Online&&ChartPeriods.Intraday(ChartPeriod))ChartPeriod="일봉";if(selectedStock is {} stock)_=Run(token=>LoadStock(stock,token));};
+        Accounts.ModeChanged+=()=>{operation?.Cancel();Realtime.Emergency();Research.Stop();Recurring.Stop();Screening.Stop();quotePump?.Stop();RefreshPaperMarkers();Changed(nameof(Online));Changed(nameof(ModeText));Changed(nameof(ChartCustomAvailable));Research.ModeChanged();Screening.ModeChanged();if(!Online&&ChartPeriods.Intraday(ChartPeriod))ChartPeriod="일봉";if(selectedStock is {} stock)_=Run(token=>LoadStock(stock,token));};
     }
 }

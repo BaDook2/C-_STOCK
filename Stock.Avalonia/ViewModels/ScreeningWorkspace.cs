@@ -117,7 +117,7 @@ public sealed class ScreeningWorkspace:Bindable
                 {
                     var data=await history.Get(stock,config,facts,specification,first,last,token);var now=DateTimeOffset.UtcNow;
                     var bars=data.Bars??data.Dataset.CompletedBars.Select((b,index)=>new StrategyBar(b,b.Time,b.Time,index,facts.TradingValue(stock.Symbol,DailyDates.Of(b),b.Time),data.Dataset.Source)).ToArray();
-                    var engine=new OversoldScreeningEngine();var result=await Task.Run(()=>config.UseCrashStrategy?Stock.Core.Research.DayTrading.SelectedStrategy.Screen(stock,config,data.Facts,Stock.Core.Research.DayTrading.SelectedStrategy.DailyBars(data.Dataset,data.Facts),data.Bars??Stock.Core.Research.DayTrading.SelectedStrategy.DailyBars(data.Dataset,data.Facts),first,last,data.Specification==null,token):data.Specification==null?engine.EvaluateCurrent(stock,bars,config,data.Facts,now,token:token,from:first,to:last):engine.EvaluateObserved(stock,bars,config,data.Facts,now,token:token,from:first,to:last),token);
+                    var result=await Task.Run(()=>config.Bins!=null?Stock.Core.Strategies.Bins.BinsResearchBridge.Screen(stock,config,Stock.Core.Strategies.Bins.BinsResearchBridge.Read(services.Store,stock,first,last),token):Stock.Core.Strategies.Injes.InjesResearchBridge.Screen(stock,config,Stock.Core.Strategies.Injes.InjesResearchBridge.Read(services.Store,stock,first,last),first,last,token),token);
                     return(result,data);
                 }
                 catch(OperationCanceledException) when(token.IsCancellationRequested){throw;}catch(StorageException){throw;}

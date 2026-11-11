@@ -38,7 +38,7 @@
      </ScrollViewer>
     </Expander>
    </StackPanel>
-   <StackPanel Grid.Column="1" Margin="12,0,0,0"><WrapPanel IsEnabled="{Binding CanUseLiveBudget}" ToolTipService.ShowOnDisabled="True" ToolTip="실행 전 전체 투자 한도와 일 손실 한도를 편집합니다. 실행을 시작하면 잠깁니다."><TextBlock Text="전체 투자 한도 (원)" VerticalAlignment="Center"/><TextBox Text="{Binding TotalBudget,UpdateSourceTrigger=PropertyChanged}" Width="150" Margin="10,0,20,0"/><TextBlock Text="일 손실 한도 (원)" VerticalAlignment="Center"/><TextBox Text="{Binding DailyLoss,UpdateSourceTrigger=PropertyChanged}" Width="130" Margin="10,0,0,0"/></WrapPanel><TextBlock Text="과거 모의는 선택 기간을 사용하고, 실시간 모의는 실제 시세와 가상 잔고를 사용합니다. 실계좌 전략은 검증된 연결만 허용됩니다." TextWrapping="Wrap" Foreground="#6B7684" Margin="0,14,0,0"/></StackPanel>
+   <StackPanel Grid.Column="1" Margin="12,0,0,0"><WrapPanel IsEnabled="{Binding CanUseLiveBudget}" ToolTipService.ShowOnDisabled="True" ToolTip="실행 전 전체 투자 한도와 일 손실 한도를 편집합니다. 실행을 시작하면 잠깁니다."><TextBlock Text="전체 투자 한도 (USD)" VerticalAlignment="Center"/><TextBox Text="{Binding TotalBudget,UpdateSourceTrigger=PropertyChanged}" Width="150" Margin="10,0,20,0"/><TextBlock Text="일 손실 한도 (USD)" VerticalAlignment="Center"/><TextBox Text="{Binding DailyLoss,UpdateSourceTrigger=PropertyChanged}" Width="130" Margin="10,0,0,0"/></WrapPanel><TextBlock Text="과거 모의는 선택 기간을 사용하고, 실시간 모의는 실제 시세와 가상 잔고를 사용합니다. Inje 실계좌 자동 주문은 잠겨 있습니다." TextWrapping="Wrap" Foreground="#6B7684" Margin="0,14,0,0"/></StackPanel>
   </Grid>
   </Border>
   <Border Grid.Row="2" Style="{StaticResource Card}" Padding="0" ClipToBounds="True">
@@ -47,7 +47,7 @@
     <DataGridCheckBoxColumn Header="실행" Binding="{Binding Selected,UpdateSourceTrigger=PropertyChanged}" Width="55"/>
     <DataGridTextColumn Header="종목" Binding="{Binding Stock.Name}" IsReadOnly="True" Width="140"/>
     <DataGridTemplateColumn Header="등록 전략" Width="165"><DataGridTemplateColumn.CellTemplate><DataTemplate><ComboBox ItemsSource="{Binding DataContext.Presets,RelativeSource={RelativeSource AncestorType=Window}}" SelectedItem="{Binding Preset,UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding DataContext.CanEdit,RelativeSource={RelativeSource AncestorType=Window}}"/></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
-    <DataGridTemplateColumn Header="종목 예산 (원)" Width="135"><DataGridTemplateColumn.CellTemplate><DataTemplate><TextBox Text="{Binding Budget,UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding DataContext.CanEdit,RelativeSource={RelativeSource AncestorType=Window}}" MinWidth="105" Padding="8,5" Margin="0"/></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
+    <DataGridTemplateColumn Header="종목 예산 (USD)" Width="135"><DataGridTemplateColumn.CellTemplate><DataTemplate><TextBox Text="{Binding Budget,UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding DataContext.CanEdit,RelativeSource={RelativeSource AncestorType=Window}}" MinWidth="105" Padding="8,5" Margin="0"/></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
     <DataGridTextColumn Header="상태" Binding="{Binding State}" IsReadOnly="True" Width="160"/>
     <DataGridTextColumn Header="최근 신호" Binding="{Binding Signal}" IsReadOnly="True" Width="190"/>
     <DataGridTextColumn Header="소유 수량" Binding="{Binding Owned,StringFormat=N0}" IsReadOnly="True" Width="75"/>

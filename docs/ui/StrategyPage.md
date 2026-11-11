@@ -1,36 +1,25 @@
-# 전략 설정
+# 전략 설정 — Inje / Bin
 
-현재 제공하는 전략 엔진은 **국내주식 과매도·낙주 반등** 하나이며 이 엔진의 설정을 여러 이름으로 저장할 수 있다. 화면 제목과 바깥 래퍼는 일반적인 `전략 설정`으로 표시하고, 불필요했던 `국내 과매도·낙주 반등 · 일봉 백테스트` 중복 제목과 중복 저장 버튼을 제거했다. 급등/박스권/구형 반등/틱떼기/농부매매/Pipeline 선택과 구형 Standard/Advanced 편집은 복원하지 않는다.
+2026-11-11 로컬 Avalonia 소스 기준. GitHub에 게시하지 않은 개발본이다. 상위 그룹은 **Inje’s Strategy / Bin’s Strategy** 두 개다. 구전략·D 설정·공통 조건의 옛 상위 그룹은 화면에서 제거했다. 백테스트 가정과 공통 조건은 해당 전략 안에 있다.
 
-| UI | 동작 | 코드 |
-|---|---|---|
-| 전략 선택 | 저장한 낙주 전략 설정을 선택 즉시 편집 화면과 현재 적용값으로 전환 | OnlyOversoldWorkspace |
-| 추가·이름 변경 | 현재 입력값으로 여러 전략 설정을 추가하고 선택한 전략의 이름을 변경 | OnlyOversoldWorkspace |
-| 설정 저장·복구 | 현재 입력을 선택 전략에 저장하거나 저장 이후 입력을 이전 저장값으로 복구 | OnlyOversoldWorkspace |
-| 불러오기·다운로드 | 버전과 전략 ID를 검사해 JSON을 새 전략으로 가져오거나 현재 설정을 JSON으로 저장; 계좌키·주문기록 제외 | OversoldPresetExport |
-| 기본값 | 편집 화면만 기본값으로 변경하며 설정 저장 전에는 저장값을 바꾸지 않음 | OnlyOversoldWorkspace |
-| 전략 진단 | 최초 실행 시 전략 목록에 자동 추가되는 일반 프리셋. RSI·거래량·Pivot·근사 매물대·반등 확인을 OFF로 두어 `사용안함` 집계를 확인하기 쉽고, 자료 결손과 앞 단계 제외는 각각 `자료부족`·`미평가`로 표시 | StrategyDiagnosticPreset |
-| 사용범위별 그룹 | 백테스트 전용8개 / 공통 전략 조건53개 표시. 온라인 전용0개 범위는 숨김(메타데이터는 유지). 기존 세부 분야는 하위 그룹 | OversoldParameterPanel / OversoldParameterMetadata |
-| 각 항목의 ? | 중앙 메타데이터 Tooltip 및 상세 도움말 | ParameterField / ParameterHelpDialog |
-| 당시 자료 JSON | 실제 시점의 상태·거래대금·위험·시장일 입력 | OversoldWorkspace |
-| 적용 및 저장 | 설정과 자료 검증 후 기존 SQLite에 보관 | SaveOversold |
+두 이름 바로 옆에 `사용` 체크박스를 둔다. 파라미터를 접어도 보이고, 하나를 켜면 다른 하나는 꺼진다. 둘 다 끄면 새 실행을 거절한다. 이 체크는 전략 선택이며 실계좌 주문 권한을 활성화하지 않는다. 진행 중인 세션은 고정 설정을 보존하고, 선택 변경 시 신규 진입 감시를 중지한다.
 
-`OversoldConfig` → 검증·snapshot → `OversoldBacktest` → 결과·근거 저장 순서다. 계산은 Core에서 수행한다. 구형 설정에서 새 설정을 자동 변환하거나 기본값을 복원하지 않는다. 새 설정에는 Standard/Advanced 변환이 적용되지 않는다.
+Inje 내부의 네 알고리즘 선택기와 Standard/Advanced 편집은 각 알고리즘의 값을 보존한다. 공통14개, 체결·가상 현금, 강도6개 또는 전용 파라미터를 편집한다.
 
-`전략 진단`은 별도 모형이나 가짜 결과를 만드는 기능이 아니라 같은 과매도·낙주 엔진에서 사용하는 설정 프리셋이다. 따라서 다른 저장 전략처럼 스크리닝·백테스트·실시간 실행에 선택할 수 있으며, 선택만으로 주문을 보내지는 않는다.
+Bin은 이름, 가족 선택, 시장 분류, Stage1, 다섯 진입 패턴, 우선순위5개, 공통 매도·위험·재진입, 시세 품질·주문 체결, 거래소, 한국/미국 프로필과 기간별 비용표를 편집한다. 기간에는 초·분·시·일, 봉 크기에는 초·분·시·거래일 봉 단위를 붙인다. 초기 가상 현금은 KRW/USD를 따로 보관한다. 비용표는 시작/종료일·당시 확인 시각·출처를 포함하며 추가·삭제할 수 있다. 비어 있는 예산과 비용은 확인된 값으로 꾸미지 않는다. 지정가·추가매수 금지·실계좌 잠금 등 명세상 고정 정책은 보이되 편집하지 못한다.
 
-자세한 사용법과 저장 키는 [OversoldBacktest.md](OversoldBacktest.md), 시점 자료 형식은 [OversoldHistoricalFacts.md](../api/OversoldHistoricalFacts.md)를 참고한다. 실계좌 자동매매는 지원하지 않으며 수동 주문 및 정기매수 도구는 별도로 사용할 수 있다.
+상단 선택기는 전체 설정 프로필이다. 저장·추가·이름 변경·복구·기본값·불러오기·다운로드를 재사용한다. 저장 JSON은 `kind=stock-strategy-profile`, `schemaVersion=1`이며 두 체계의 모든 설정, Inje 네 알고리즘, 사용 중인 체계를 함께 담는다. 비활성 체계의 값도 보존한다. 단독 Inje/Bin JSON도 받으며 다른 체계의 값은 유지한다. 중복/알 수 없는 키·누락·잘못된 단위·범위는 저장 전에 거절한다. 기존 Inje 설정은 프로필에 복사하며 기존 계좌/주문/실제 기록을 삭제하지 않는다.
 
-사용범위별 항목과 코드 참조, 스크리닝 적용 차이는 [ParameterUsageScopes.md](ParameterUsageScopes.md)를 참고한다. 공통 분류는 실제 계좌 연결을 의미하지 않는다.
+실행은 선택한 체계만 `OversoldConfig.Injes` 또는 `.Bins`로 전달한다. 서로 다른 두 체계를 동시에 담은 실행 설정은 거절한다. 백테스트·일반 스크리닝은 두 엔진을 연결했다. Bin 스크리닝은 신호·위험 승인만 평가하며 가상 주문도 만들지 않는다. 원본 체결/호가·확인된 시장 세션/가격 규칙이 없으면 MissingData다. 일봉에서 틱을 만들지 않는다. **Bin 실시간 가상 주문과 재시작 복원은 아직 연결하지 않아 시작을 차단한다.** Inje 가상 세션/원장 복원은 유지하며 실계좌 자동 전략 주문은 계속 잠겨 있다.
 
-## 2026-10-04 입력과 배치
-요청한 라벨을 중앙 Metadata에서 교체하고 분야별로 27개의 명시적3열 행을 구성했다. 관련 항목은 같은 행에 놓고 빈칸20개는 보존한다. 당시 입력칸은180×32였다. 현재 배치는 아래2026-11-07 갱신을 따른다. 소수 파라미터는 focus/blur 모두 두 자리이며 원정밀도 값은 무편집 보존한다. EntryRatios는 원소별 소수 목록, MA 기간은 정수 목록이다. 상세 입력 규칙과 붙여넣기 정책은 [FixedDecimalParameters.md](FixedDecimalParameters.md)를 참고한다.
+주요 코드: `Stock.Avalonia/Views/StrategyPanel.axaml`, `Views/SettingInput.cs`, `ViewModels/StrategyEditor.cs`, `Stock.Core/Strategies/StrategyProfile.cs`, `Strategies/Bins/EditorModel.cs`, `Strategies/Bins/ResearchBridge.cs`.
 
-### 2026-10-05 갱신
-정수부 및 소수점 바로 앞은 일반 삽입으로 입력하며 소수점 뒤 두 자리만 덮어쓴다. 평균 거래대금·낙폭·RSI·거래량·지지의 lookback은 선택 봉 개수, 보유/후보/재진입 기간은 시장 거래일이다. Backtest와 Screening이 공통 EntryDetector/PositionRules를 사용한다. 새 실제 자동주문 연결은 승인 검토에 막혀 미연결이다. 세부 상태: ../architecture/OversoldExpansion-20261005.md.
-## 2026-11-06 스크리닝 후보 설정
+검사: `Stock.Desktop.Tests`의 StrategySettings/StrategyJson/Workflow/InjesWorkflow/Design, `Stock.Bins.Tests/BridgeChecks.cs`, Inje 및 Bin Core 회귀. 전체 설정 JSON과 설명은 `docs/strategy/현재_전략_상세설명_및_JSON_가이드_2026-11-11.md`에 모았다.
 
-`스크리닝 후보` 행에 `근접 후보 표시`(기본 ON)와 `후보 표시 최소 접근도`(기본60.00점)를 추가했다. 두 값은 전략별 저장/JSON/실행 당시 설정에 포함한다. 접근도는 확률이 아니며 표시만 제어한다. 실제 주문은 기존 EntryDetector의 매수 조건을 모두 충족해야 한다. 확정 위험·상품 제외를 근접 설정으로 우회하지 않으며 기준값은0~100으로 검증한다. 총61개 필드/27행/빈칸20개다.
+## 도움말·JSON 재검증 — 2026-11-11 후속
 
-## 2026-11-07 카드와 입력 정렬
-항목은145px 고정 높이 대신 내용 높이로 배치하며32px 입력칸의 단위/허용 범위는 오른쪽에 놓는다. 일반 입력130px/목록150px, boolean ON/OFF 범위 설명은 생략하고 상세 ? 도움말을 유지한다. 온라인 전용0개 범위는 숨긴다. TextBox template의 이중 padding을 제거했으며 소수 입력 규칙/원정밀도 저장은 유지한다. 검증: ../verification/CompactUi-2026-11-07.md.
+물음표 도움말에서 같은 short/detail 설명을 두 번 연결하던 문제를 고쳤다. 다른 상세 설명과 허용 범위는 남기고 같은 문장은 한 번만 표시한다. 실제 물음표 버튼과 열린 팝업의 TextBlock을 검사했다.
+
+JSON 구조는 현 파라미터와 일치한다. 최상위 필수 항목은 schemaVersion/kind/name/selectedSystem/selectedInjeId/injeStrategies/bin/binInitialCashUsd/binInitialCashKrw다. Inje 배열은 독립 알고리즘4개의 commonParameters/strategyParameters/standardParameters/effectiveAdvancedParameters/executionPolicy를 보관한다. Bin은 전체 typed config와 duration/value·unit, 국가별 프로필/날짜별 비용표를 보관한다. 비활성 체계의 값도 함께 저장한다.
+
+`StrategyValueChecks`가 Inje166개·Bin172개 입력값을 각각 변경해 JSON 왕복을 검사하고, 패턴 우선순위·실제 설정 저장·다운로드 파일·불러오기·편집기 재시작까지 검사한다. 이름 중복 접미사와 편집 시각 외의 모든 프로필 leaf를 비교해 비활성/내부 정책 값도 유지됨을 확인한다. 누락 파라미터·잘못된 시간 단위·엉뚱한 알고리즘 필드·동시 사용 선택·사용 체크 불일치·숫자 형식 오류는 저장을 바꾸지 않고 거절한다.

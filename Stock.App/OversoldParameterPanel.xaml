@@ -1,13 +1,6 @@
 ﻿<UserControl x:Class="Stock.App.OversoldParameterPanel" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="clr-namespace:Stock.App">
  <StackPanel Margin="0,14,0,20" TextElement.FontSize="12" TextElement.FontWeight="Normal">
    <TextBlock Text="{Binding OversoldMessage}" TextWrapping="Wrap" Foreground="#6B7684" Margin="0,8"/>
-   <Expander Header="시점별 검증 자료 (고급)" Margin="0,8,0,12">
-    <StackPanel>
-     <TextBlock Text="공개 OHLCV에는 당시 분류·관리/정지 여부·실제 거래대금·위험 정보가 없습니다. 해당 시점에 알려진 자료(KnownAt)와 검증된 시장일을 입력해야 진입할 수 있습니다. 누락값을 안전으로 간주하지 않습니다. 형식은 docs/api/OversoldHistoricalFacts.md에 설명되어 있습니다." TextWrapping="Wrap" Margin="0,8"/>
-     <Button Content="시점 자료 JSON 읽기" Command="{Binding Actions[낙주자료불러오기]}" Style="{StaticResource Secondary}" HorizontalAlignment="Left"/>
-     <TextBox Text="{Binding OversoldFactsJson,UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" FontFamily="Consolas" Height="180" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" IsEnabled="{Binding CanConfigure}"/>
-    </StackPanel>
-   </Expander>
    <ItemsControl ItemsSource="{Binding OversoldUsageGroups}" IsEnabled="{Binding CanConfigure}"><ItemsControl.ItemTemplate><DataTemplate>
     <Border Background="White" BorderBrush="#E5E8EB" BorderThickness="1" CornerRadius="12" Padding="12" Margin="0,0,0,10">
      <Border.Style><Style TargetType="Border"><Style.Triggers><DataTrigger Binding="{Binding IsEmpty}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></Border.Style>

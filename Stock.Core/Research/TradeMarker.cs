@@ -4,7 +4,7 @@ namespace Stock.Core.Research;
 public sealed record TradeMarker(string Id,string StockKey,DateTimeOffset Time,bool Buy,decimal Quantity,decimal? Price,string Source,string AccountScope="",bool DateOnly=false,int? TradeNumber=null,string Reason="",decimal? RealizedPnl=null,decimal? CrashJudgmentLow=null)
 {
     public string SideLabel=>TradeOutcome.Label(Buy,Reason,RealizedPnl);
-    public string ProfitText=>Buy?"":RealizedPnl is {} pnl?"실현손익 "+DisplayNumber.SignedPrice(pnl)+" "+(StockKey.StartsWith("KRX:",StringComparison.Ordinal)?"원":"USD"):"실현손익 미확인";
+    public string ProfitText=>Buy?"":RealizedPnl is {} pnl?"실현손익 "+(StockKey.StartsWith("KRX:",StringComparison.Ordinal)?DisplayNumber.SignedPrice(pnl)+" 원":pnl.ToString("+0.########;-0.########;0",System.Globalization.CultureInfo.InvariantCulture)+" USD"):"실현손익 미확인";
 }
 
 /// <summary>Shared chart captions preserve execution intent; a profitable trailing exit is not labelled a loss.</summary>

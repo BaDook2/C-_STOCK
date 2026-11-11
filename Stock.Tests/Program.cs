@@ -1,4 +1,4 @@
-﻿using System.IO;
+using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Text;
@@ -21,6 +21,19 @@ internal static partial class Program
     [STAThread]public static int Main(string[] args)
     {
         Directory.CreateDirectory(Dir);
+        if(args.Length==0||!args[0].StartsWith("--",StringComparison.Ordinal)||args[0] is "--current-checks" or "--injes-ui")
+        {
+            try
+            {
+                var currentOutput=args[0..].FirstOrDefault(a=>!a.StartsWith("--",StringComparison.Ordinal))??Path.Combine(Dir,"injes-ui");
+                if(!args.Contains("--injes-ui")){StoreLifecycleTests();StorageDiagnosticsTests();RecurringTests();BrokerTests().GetAwaiter().GetResult();ConnectionTests().GetAwaiter().GetResult();TossBrokerTests().GetAwaiter().GetResult();LiveExecutionApiTests().GetAwaiter().GetResult();}
+                InjesUiChecks(currentOutput);Console.WriteLine($"PASS: {passed} current Windows checks; native Inje UI and isolated non-strategy fixtures; no real broker calls");return 0;
+            }
+            catch(Exception error){Console.Error.WriteLine(error);return 1;}
+        }
+        string[] retiredFlags=["--progressive-screening","--day-trading-ui","--multi-mock","--oversold-ui","--realtime-ui-revision","--current-daily-checks","--expansion-checks","--realtime-screening-checks","--oversold-checks","--public-paper-checks","--public-oversold-verification","--public-screening-performance","--screening-perf","--research-expansion","--research-demo"];
+        if(args.Any(retiredFlags.Contains)){Console.Error.WriteLine("Removed strategy test command. Use Stock.Injes.Tests, Stock.Desktop.Tests, or --injes-ui for the replacement strategy.");return 2;}
+
         if(args.Length==2&&args[0]=="--progressive-screening")
         {
             try
@@ -33,9 +46,7 @@ internal static partial class Program
             }
             catch(Exception ex){Console.Error.WriteLine(ex);return 1;}
         }
-        if(args.Length==2&&args[0]=="--day-trading-ui"){try{DayTradingUiChecks(args[1]);Console.WriteLine($"PASS: {passed} day-trading UI checks; fixtures only");return 0;}catch(Exception ex){Console.Error.WriteLine(ex);return 1;}}
-        if(args.Length==2&&args[0]=="--day-trading-perf"){try{DayTradingPerformance(args[1]);return 0;}catch(Exception ex){Console.Error.WriteLine(ex);return 1;}}
-        if(args.Contains("--day-trading-checks")){try{DayTradingChecks();Console.WriteLine($"PASS: {passed} day-trading checks; no broker calls");return 0;}catch(Exception ex){Console.Error.WriteLine(ex);return 1;}}
+        if(args.Length==2&&args[0]=="--day-trading-ui"){try{InjesParameterAdapterChecks(args[1]);Console.WriteLine($"PASS: {passed} day-trading UI checks; fixtures only");return 0;}catch(Exception ex){Console.Error.WriteLine(ex);return 1;}}
         if(args.Length==2&&args[0] is "--screening-chart-checks" or "--screening-chart-demo" or "--screening-trade-demo")
         {
             try{Directory.CreateDirectory(args[1]);SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(Dispatcher.CurrentDispatcher));var app=new Stock.App.App{ManualWindowStartup=true};app.InitializeComponent();if(args[0]=="--screening-chart-demo")ScreeningChartDemo(args[1]);else if(args[0]=="--screening-trade-demo")ScreeningTradeChartDemo(args[1]);else ScreeningChartInteractionTests(args[1]);app.Shutdown();Console.WriteLine($"PASS: {passed} screening chart checks");return 0;}catch(Exception ex){Console.Error.WriteLine(ex);return 1;}
@@ -49,7 +60,7 @@ internal static partial class Program
         if(args.Contains("--broker-checks")){try{BrokerTests().GetAwaiter().GetResult();Console.WriteLine($"PASS: {passed} broker checks");return 0;}catch(Exception ex){Console.Error.WriteLine(ex);return 1;}}
         if(args.Contains("--public-paper-checks")){try{PublicPaperTests();Console.WriteLine($"PASS: {passed} public paper checks");return 0;}catch(Exception ex){Console.Error.WriteLine(ex);return 1;}}
         if(args.Length==2&&args[0]=="--public-quote-monitor"){try{PublicQuoteMonitor(args[1]).GetAwaiter().GetResult();return 0;}catch(Exception ex){Console.Error.WriteLine(ex);return 1;}}
-        if(args.Length==2&&args[0]=="--ui-smoke"){try{UiSmoke(args[1]);Console.WriteLine($"PASS: {passed} UI smoke checks");return 0;}catch(Exception ex){Console.Error.WriteLine(ex);return 1;}}
+        if(args.Length==2&&args[0]=="--ui-smoke"){try{InjesUiChecks(args[1]);Console.WriteLine($"PASS: {passed} native UI smoke checks");return 0;}catch(Exception ex){Console.Error.WriteLine(ex);return 1;}}
         if(args.Length==2&&args[0]=="--multi-ui"){try{Directory.CreateDirectory(args[1]);SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(Dispatcher.CurrentDispatcher));var app=new Stock.App.App{ManualWindowStartup=true};app.InitializeComponent();using var db=new TradingStore(Path.Combine(Dir,"multi-ui-shell.db"));using var vm=new WorkspaceViewModel(_=>false,provider:new FixtureMarketData(),store:db);var window=new MainWindow(vm){ShowActivated=false,Left=-20000,Top=0,WindowStartupLocation=WindowStartupLocation.Manual};window.Show();MultiTradeUiTests(window,args[1],true);window.Close();app.Shutdown();Console.WriteLine($"PASS: {passed} multi UI checks");return 0;}catch(Exception ex){Console.Error.WriteLine(ex);return 1;}}
         if(args.Contains("--multi-mock")){try{MockMultiTests().GetAwaiter().GetResult();Console.WriteLine($"PASS: {passed} mock batch checks");return 0;}catch(Exception ex){Console.Error.WriteLine(ex);return 1;}}
         if(args.Length==2&&args[0]=="--raw-tick-checks"){try{RawTickChecks(args[1]);return 0;}catch(Exception ex){Console.Error.WriteLine(ex);return 1;}}
@@ -62,9 +73,9 @@ internal static partial class Program
         if(args.Contains("--store-lifecycle-checks")){try{StoreLifecycleTests();StorageDiagnosticsTests();Console.WriteLine($"PASS: {passed} store lifecycle checks");return 0;}catch(Exception ex){Console.Error.WriteLine(ex);return 1;}}
         if(args.Length==2&&args[0]=="--public-oversold-verification"){try{PublicOversoldVerification(args[1]).GetAwaiter().GetResult();return 0;}catch(Exception ex){Console.Error.WriteLine(ex);return 1;}}
         if(args.Length==2&&args[0]=="--public-screening-performance"){try{Directory.CreateDirectory(args[1]);SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(Dispatcher.CurrentDispatcher));var app=new Stock.App.App{ManualWindowStartup=true};app.InitializeComponent();PublicScreeningPerformance(args[1]);app.Shutdown();return 0;}catch(Exception ex){Console.Error.WriteLine(ex);return 1;}}
-        try{PublicPaperTests();CurrentDailyTests().GetAwaiter().GetResult();StrategyBarTests();OversoldScreeningTests();OversoldRuntimeFixtureTests();RealtimeScreeningTests();RealtimePaperBatchTests();OversoldTests();LiveBatchTests().GetAwaiter().GetResult();LiveExecutionApiTests().GetAwaiter().GetResult();CoreTests();StrategyConfigurationTests();PipelineTests();RecurringTests();ResearchTests().GetAwaiter().GetResult();BrokerTests().GetAwaiter().GetResult();ConnectionTests().GetAwaiter().GetResult();TossBrokerTests().GetAwaiter().GetResult();UiSmoke(args.Length>0?args[0]:Path.Combine(Dir,"ui"));Console.WriteLine($"PASS: {passed} checks; no broker network calls or account transactions.");return 0;}
-        catch(Exception ex){Console.Error.WriteLine(ex);return 1;}
+        Console.Error.WriteLine("Unsupported test command. Use --current-checks or --injes-ui.");return 2;
     }
+
     private static void Check(bool ok,string message){if(!ok)throw new Exception("FAIL: "+message);passed++;Console.WriteLine("PASS: "+message);}
     private static void Throws<T>(Action action,string name) where T:Exception {try{action();}catch(T){Check(true,name);return;}throw new Exception("FAIL expected "+typeof(T).Name+": "+name);}
     private static async Task ThrowsAsync<T>(Func<Task> action,string name) where T:Exception {try{await action();}catch(T){Check(true,name);return;}throw new Exception("FAIL expected "+typeof(T).Name+": "+name);}
@@ -73,7 +84,7 @@ internal static partial class Program
     private static TradingSettings Settings(){var s=new TradingSettings();s.Scalping.Enabled=s.Box.Enabled=s.Rebound.Enabled=false;s.Execution.SlippagePercent=0;s.Execution.FeePercent=.1m;s.Execution.ParticipationPercent=50;s.Execution.LatencyMs=0;return s;}
     private static void CoreTests()
     {
-        DayTradingChecks();
+
         CompactCalculationChecks();
         StoreLifecycleTests();
         StorageDiagnosticsTests();

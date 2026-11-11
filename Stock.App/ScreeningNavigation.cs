@@ -2,17 +2,20 @@ using Stock.Core;
 using Stock.Core.Research;
 using Stock.Core.Research.Oversold;
 using Stock.Core.Trading;
+using NativeSignal=Stock.Core.Strategies.Injes.StrategySignal;
 namespace Stock.App;
 
 public sealed record ScreeningChartSeries(string Label,string Period,PriceBar[] Bars,string Source);
 public sealed record ScreeningChartTrade(DateTimeOffset Time,bool Buy,decimal Quantity,decimal Price,string Reason,string Source,OversoldExecution? Execution=null,int? TradeNumber=null,decimal? RealizedPnl=null)
 {
-    public string TimeText=>Time.ToOffset(TimeSpan.FromHours(9)).ToString("yyyy.MM.dd HH:mm:ss");
+    public NativeSignal? InjesEvidence {get;init;}
+    private NativeSignal? Native=>InjesEvidence??Execution?.InjesEvidence;
+    public string TimeText=>Time.ToOffset(TimeSpan.FromHours(9)).ToString(Native==null?"yyyy.MM.dd HH:mm:ss":"yyyy.MM.dd HH:mm:ss.fff");
     public string Side=>(TradeNumber is {} number?$"#{number} ":"")+TradeOutcome.Label(Buy,Reason,Execution is {} e&&!Buy?e.RealizedPnl:RealizedPnl);
-    public string PriceText=>DisplayNumber.Price(Price);
+    public string PriceText=>Native==null?DisplayNumber.Price(Price):Price.ToString("0.########",System.Globalization.CultureInfo.InvariantCulture);
     public string QuantityText=>Quantity.ToString("N0");
     public string ProfitText=>Buy?"":(Execution?.RealizedPnl??RealizedPnl) is {} profit?"실현손익 "+DisplayNumber.SignedPrice(profit):"실현손익 미확인";
-    public string Detail=>Execution==null?$"{Side} · {TimeText}\n가격 {DisplayNumber.Price(Price)} · 수량 {Quantity:N0}\n{ProfitText}\n사유 {Reason}\n출처 {Source}":$"{Side} · {TimeText}\n가격 {DisplayNumber.Price(Price)} · 수량 {Quantity:N0} · 평균단가 {DisplayNumber.Price(Execution.AveragePriceAfter)}\n{ProfitText} · 사유 {Reason}\n신호 {Execution.SignalTime.ToOffset(TimeSpan.FromHours(9)):yyyy.MM.dd HH:mm:ss}\n"+DecisionSnapshotText.Format(Execution.Snapshot);
+    public string Detail=>Native!=null?$"{Side} · {TimeText}\n가격 {PriceText} USD · 수량 {Quantity} · 실현손익 {Execution?.RealizedPnl??RealizedPnl}\n사유 {Reason}\n"+Stock.Core.Research.DayTrading.IntradayPresentation.PrettyJson(Serialization.Pack(Native)):Execution==null?$"{Side} · {TimeText}\n가격 {DisplayNumber.Price(Price)} · 수량 {Quantity:N0}\n{ProfitText}\n사유 {Reason}\n출처 {Source}":$"{Side} · {TimeText}\n가격 {DisplayNumber.Price(Price)} · 수량 {Quantity:N0} · 평균단가 {DisplayNumber.Price(Execution.AveragePriceAfter)}\n{ProfitText} · 사유 {Reason}\n신호 {Execution.SignalTime.ToOffset(TimeSpan.FromHours(9)):yyyy.MM.dd HH:mm:ss}\n"+DecisionSnapshotText.Format(Execution.Snapshot);
 }
 public sealed record ScreeningSupportZone(DateTimeOffset From,DateTimeOffset To,decimal Lower,decimal Upper,bool UsedForEntry,int Count,string Supports);
 public sealed record ScreeningChartSnapshot(StockItem Stock,ScreeningChartSeries[] Series,TradeMarker[] Markers,ScreeningChartTrade[] Trades,ScreeningSupportZone[] SupportZones,string Notice,OversoldResult? Result,OversoldScreeningRun Run)

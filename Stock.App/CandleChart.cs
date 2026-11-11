@@ -8,6 +8,9 @@ using Stock.Core.Research;
 namespace Stock.App;
 public sealed class CandleChart : FrameworkElement
 {
+    public static readonly DependencyProperty CurrencyProperty=DependencyProperty.Register(nameof(Currency),typeof(string),typeof(CandleChart),new FrameworkPropertyMetadata("KRW",FrameworkPropertyMetadataOptions.AffectsRender));
+    public string Currency {get=>(string)GetValue(CurrencyProperty);set=>SetValue(CurrencyProperty,value);}
+    private string PriceLabel(decimal value)=>Currency=="USD"?value.ToString("0.########",CultureInfo.InvariantCulture):DisplayNumber.Price(value);
     public static readonly DependencyProperty EquityCurveProperty=DependencyProperty.Register(nameof(EquityCurve),typeof(IReadOnlyList<RecurringEquity>),typeof(CandleChart),new FrameworkPropertyMetadata(null,FrameworkPropertyMetadataOptions.AffectsRender));
     public IReadOnlyList<RecurringEquity>? EquityCurve {get=>(IReadOnlyList<RecurringEquity>?)GetValue(EquityCurveProperty);set=>SetValue(EquityCurveProperty,value);}
     public static readonly DependencyProperty DisplayBarCountProperty=DependencyProperty.Register(nameof(DisplayBarCount),typeof(int),typeof(CandleChart),new FrameworkPropertyMetadata(100,FrameworkPropertyMetadataOptions.AffectsRender,(d,e)=>{var chart=(CandleChart)d;chart.visible=Math.Clamp((int)e.NewValue,25,2000);chart.offset=0;}));
@@ -161,7 +164,7 @@ public sealed class CandleChart : FrameworkElement
     {
         var bars=Bars;if(bars==null||bars.Count==0)return;var marker=new TradeMarker("focus",bars[0].Time.Offset==TimeSpan.FromHours(9)?"KRX:FOCUS":"NASDAQ:FOCUS",time,buy,0,null,"focus");var index=TradeBarIndex(bars,marker,Period);if(index<0)return;offset=Math.Clamp(bars.Count-index-visible/2,0,Math.Max(0,bars.Count-visible));InvalidateVisual();
     }
-    private string BarHelp(PriceBar b)=>$"{(b.IsComplete||ChartPeriods.Intraday(Period)?b.KoreaTime:b.Time.ToOffset(TimeSpan.FromHours(9)).ToString("yyyy.MM.dd")+" 진행 중")} · 한국시간\n시가 {DisplayNumber.Price(b.Open)}  고가 {DisplayNumber.Price(b.High)}\n저가 {DisplayNumber.Price(b.Low)}  종가 {DisplayNumber.Price(b.Close)}\n거래량 {b.Volume:N0}";
+    private string BarHelp(PriceBar b)=>$"{(b.IsComplete||ChartPeriods.Intraday(Period)?b.KoreaTime:b.Time.ToOffset(TimeSpan.FromHours(9)).ToString("yyyy.MM.dd")+" 진행 중")} · 한국시간\n시가 {PriceLabel(b.Open)}  고가 {PriceLabel(b.High)}\n저가 {PriceLabel(b.Low)}  종가 {PriceLabel(b.Close)}\n거래량 {b.Volume:N0}";
     protected override void OnRender(DrawingContext dc)
     {
         RenderFrameCount++;
@@ -169,7 +172,7 @@ public sealed class CandleChart : FrameworkElement
         base.OnRender(dc);dc.DrawRectangle(Brushes.White,null,new Rect(RenderSize));var b=Bars;if(b==null||b.Count==0){var text=new FormattedText(EmptyMessage,CultureInfo.GetCultureInfo("ko-KR"),FlowDirection.LeftToRight,new Typeface("Malgun Gothic"),14,Muted,VisualTreeHelper.GetDpi(this).PixelsPerDip){MaxTextWidth=Math.Max(50,ActualWidth-48)};dc.DrawText(text,new(24,90));return;}
         double width=Math.Max(50,ActualWidth-88),height=Math.Max(55,ActualHeight-130),top=34;int end=Math.Max(1,b.Count-Math.Min(offset,Math.Max(0,b.Count-2))),start=Math.Max(0,end-visible);double step=width/(end-start);decimal low=decimal.MaxValue,high=decimal.MinValue;for(var i=start;i<end;i++){var bar=b[i];if(bar.Low<low)low=bar.Low;if(bar.High>high)high=bar.High;}var pad=(high-low)*.07m;if(pad==0)pad=high*.01m;low-=pad;high+=pad;var indicators=IndicatorsFor(b);EnsureMarkerMap(b);var renderStride=Math.Max(1,(int)Math.Ceiling(1.5/step));var renderBars=RenderBars(b,start,end,renderStride);var maxVol=Math.Max(1,renderBars.Max(x=>x.Volume));
         double X(double i)=>(i-start+.5)*step+6;double Y(decimal v)=>top+(double)((high-v)/(high-low))*height;
-        for(int n=0;n<=4;n++){var val=low+(high-low)*n/4;var y=Y(val);dc.DrawLine(GridPen,new(0,y),new(width+8,y));Text(dc,DisplayNumber.Price(val),width+15,y-8,Muted,11);}
+        for(int n=0;n<=4;n++){var val=low+(high-low)*n/4;var y=Y(val);dc.DrawLine(GridPen,new(0,y),new(width+8,y));Text(dc,PriceLabel(val),width+15,y-8,Muted,11);}
         foreach(var mapped in locatedZones)
         {
             var zone=mapped.Zone;var first=mapped.First;var last=mapped.Last;
@@ -238,7 +241,7 @@ public sealed class CandleChart : FrameworkElement
                 Text(dc,$"평가금액 {mapped[^1].Value!.Equity:N0} · 별도 축 {min:N0}~{max:N0}",8,top+height+85,Brushes.SeaGreen,10);
             }
         }
-        if(hover is {} h){int i=HoverBarIndex(h.X);var bar=b[i];dc.DrawLine(new Pen(Muted,.6){DashStyle=DashStyles.Dash},new(Math.Clamp(X(i),6,width),top),new(Math.Clamp(X(i),6,width),top+height+55));Text(dc,$"{(bar.IsComplete||ChartPeriods.Intraday(Period)?bar.KoreaTime:bar.Time.ToOffset(TimeSpan.FromHours(9)).ToString("yyyy.MM.dd")+" 진행 중")} (한국)   시 {DisplayNumber.Price(bar.Open)}   고 {DisplayNumber.Price(bar.High)}   저 {DisplayNumber.Price(bar.Low)}   종 {DisplayNumber.Price(bar.Close)}   거래량 {bar.Volume:N0}",8,8,Brushes.DimGray,11);}
+        if(hover is {} h){int i=HoverBarIndex(h.X);var bar=b[i];dc.DrawLine(new Pen(Muted,.6){DashStyle=DashStyles.Dash},new(Math.Clamp(X(i),6,width),top),new(Math.Clamp(X(i),6,width),top+height+55));Text(dc,$"{(bar.IsComplete||ChartPeriods.Intraday(Period)?bar.KoreaTime:bar.Time.ToOffset(TimeSpan.FromHours(9)).ToString("yyyy.MM.dd")+" 진행 중")} (한국)   시 {PriceLabel(bar.Open)}   고 {PriceLabel(bar.High)}   저 {PriceLabel(bar.Low)}   종 {PriceLabel(bar.Close)}   거래량 {bar.Volume:N0}",8,8,Brushes.DimGray,11);}
         else Text(dc,screeningReviewMode?(screeningReviewFocused?"휠 확대·축소 · 좌우 드래그 이동 · 우클릭하면 전체 기간으로 복귀":"전체 기간 잠금 · 원하는 봉에서 우클릭하면 확대 및 탐색 활성화"):"마우스 휠로 확대 · 어디서든 좌우로 밀어 이동 · 모든 시각은 한국시간",8,8,Muted,11);
         (decimal? A,decimal? B) CloudAt(int i){int k=i-26;if(k<0||k>=end||indicators.Mid9[k] is not {} mid9||indicators.Mid26[k] is not {} mid26||indicators.Mid52[k] is not {} mid52)return(null,null);return((mid9+mid26)/2,mid52);}
         void DrawLine(Func<int,decimal?> value,Brush brush,int stop){Point? prev=null;var pen=new Pen(brush,1.15);if(pen.CanFreeze)pen.Freeze();void PointAt(int i){var v=value(i);if(v==null){prev=null;return;}var p=new Point(X(i),Y(v.Value));if(prev.HasValue)dc.DrawLine(pen,prev.Value,p);prev=p;}var last=-1;for(int i=start;i<stop;i+=renderStride){PointAt(i);last=i;}if(stop>start&&last!=stop-1)PointAt(stop-1);}

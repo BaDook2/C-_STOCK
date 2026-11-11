@@ -1,3 +1,0 @@
-<Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="clr-namespace:Stock.Desktop" x:Class="Stock.Desktop.DayTradingDialog" Title="급락 판단 전략 · 결과" Width="1380" Height="960" MinWidth="1050" MinHeight="720" WindowStartupLocation="CenterOwner">
- <DockPanel Margin="20"><StackPanel DockPanel.Dock="Top"><TextBlock Text="급락 판단 전략 · 결과" FontSize="26" FontWeight="Bold"/><TextBlock Text="{Binding Message}" TextWrapping="Wrap" /></StackPanel><local:DayTradingChartPanel /></DockPanel>
-</Window>

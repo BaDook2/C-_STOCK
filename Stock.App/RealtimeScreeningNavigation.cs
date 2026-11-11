@@ -7,44 +7,19 @@ namespace Stock.App;
 public sealed partial class WorkspaceViewModel
 {
     /// <summary>Capture completed bars and confirmed fills from the running research session, without starting another strategy or placing orders.</summary>
-    public Task<ScreeningChartSnapshot> LoadRealtimeScreeningChart(string code,CancellationToken token=default)=>Task.Run(async()=>
+    public Task<ScreeningChartSnapshot> LoadRealtimeScreeningChart(string code,CancellationToken token=default)=>Task.Run(()=>
     {
-        token.ThrowIfCancellationRequested();
-        var data=RealtimeScreening.ChartData("KRX:"+code);
-        if(data.Bars.Length==0)throw new InvalidOperationException("이 종목의 완성된 지정 봉이 아직 없습니다.");
-        var bars=data.Bars.OrderBy(b=>b.ClosedAt).ThenBy(b=>b.Sequence).ToArray();
-        var now=multiClock();var first=DailyDates.Of(bars[0].Price);var last=DailyQuoteMerger.Date(now,Exchange.KRX);
-        var targets=RealtimeScreening.Targets;
-        var run=OversoldScreeningRun.Start(targets,data.Configuration,data.Specification,now,first,last,data.StrategyName) with{FactsJson=Serialization.Pack(data.Facts),Status="실시간 감시 스냅샷"};
-        var from=new DateTimeOffset(first.ToDateTime(TimeOnly.MinValue),TimeSpan.FromHours(9));
-        var markers=new List<TradeMarker>();
-        var savedMarkers=ChartTradeHistory.Read(()=>store.States("trade-marker:"),out var historyUnavailable);
-        foreach(var row in savedMarkers)
-        {
-            try{var marker=Serialization.Unpack<TradeMarker>(row.Json);if(marker.StockKey==data.Stock.Key&&marker.Price.HasValue&&marker.Time>=from&&marker.Time<=now)markers.Add(marker);}
-            catch(System.Text.Json.JsonException){}
-        }
-        var trades=markers.OrderBy(m=>m.Time).Select(m=>new ScreeningChartTrade(m.Time,m.Buy,m.Quantity,m.Price!.Value,m.Reason,m.Source,TradeNumber:m.TradeNumber,RealizedPnl:m.RealizedPnl)).ToList();
-        var series=new ScreeningChartSeries(data.Specification.ToString(),data.Specification.ToString(),bars.Select(b=>b.Price with{Time=b.OpenTime}).ToArray(),string.Join(", ",bars.Select(b=>b.Source).Distinct()));
-        var notices=new List<string>{"창을 연 시점의 완성 봉과 확인된 실제·가상 체결을 표시합니다. 같은 전략의 과거 백테스트 모형체결은 출처로 구분하며 실제 주문/체결로 기록하지 않습니다."};
-        if(historyUnavailable)notices.Add("저장 DB 읽기 오류로 실제·가상 체결 기록을 읽지 못했습니다. 해당 기록은 표시하지 않으며 기존 데이터는 보존했습니다. 테스트 기록의 저장소 점검으로 진단을 확인하세요. 아래 모형체결은 실제 거래 기록이 아닙니다.");
-        OversoldResult? result=null;
-        try
-        {
-            var dataset=new BarDataset(data.Stock,bars.Select(b=>b.Price).ToArray(),series.Source,now);
-            result=await oversoldBacktests.RunAsync(new(dataset,data.Configuration,first,last,data.Facts,data.Specification,bars),token);
-            foreach(var pair in result.Trades.Select((trade,index)=>(trade,number:index+1)))
-                foreach(var fill in pair.trade.Executions)
-                {
-                    const string source="실시간 전략 검토 · 백테스트 모형체결";
-                    markers.Add(new("realtime-backtest:"+result.Id+":"+markers.Count,data.Stock.Key,fill.ExecutionTime,fill.Buy,fill.Quantity,fill.Price,source,TradeNumber:pair.number,Reason:fill.Reason,RealizedPnl:fill.Buy?null:fill.RealizedPnl));
-                    trades.Add(new(fill.ExecutionTime,fill.Buy,fill.Quantity,fill.Price,fill.Reason,source,fill,pair.number));
-                }
-        }
-        catch(OperationCanceledException){throw;}
-        catch(InvalidOperationException ex){notices.Add("과거 모형체결 계산: "+ex.Message);}
-        var zones=(result?.Trades??[]).SelectMany(t=>t.Executions.Where(e=>e.Buy&&e.Snapshot!=null).SelectMany(e=>e.Snapshot!.Clusters.Select(z=>new ScreeningSupportZone(e.SignalTime,t.LastExecutionDate??now,z.Lower,z.Upper,z.UsedForEntry,z.Count,string.Join(", ",z.Supports.Select(s=>s.Id)))))).ToArray();
-        return new ScreeningChartSnapshot(data.Stock,[series],markers.ToArray(),trades.OrderBy(t=>t.Time).ToArray(),zones,string.Join(" · ",notices),result,run);
+        token.ThrowIfCancellationRequested();var stream=injesStream??throw new InvalidOperationException("Inje 감시 세션이 없습니다.");var snapshot=stream.Snapshot()??throw new InvalidOperationException("Inje 원장이 없습니다.");
+        var stock=injesTargets.FirstOrDefault(s=>s.Symbol==code)??throw new InvalidOperationException("감시 종목이 없습니다.");var bars=InjesChartBars(stock.Key);
+        if(bars.Length==0)throw new InvalidOperationException("MissingData: 표시할 원본 체결이 아직 없습니다.");
+        var now=multiClock();var first=Stock.Core.Strategies.Injes.UsSessionClock.MarketDate(bars[0].OpenTime);var last=Stock.Core.Strategies.Injes.UsSessionClock.MarketDate(now);
+        var run=OversoldScreeningRun.Start(injesTargets,Stock.Core.Strategies.Injes.InjesPresetStore.Wrap(snapshot.Definition),null,now,first,last,snapshot.Definition.StrategyName) with{Status="실시간 감시 스냅샷"};
+        var journal=store.State<Stock.Core.Strategies.Injes.InjesSessionJournal>("inje-live:"+stream.RunId);
+        var fills=journal?.Ledger.Fills.Where(f=>f.Instrument.Key==stock.Key).ToArray()??[];
+        var markers=fills.Select(f=>new TradeMarker("inje:"+stream.RunId+":"+f.OrderId+":"+f.Time.UtcTicks+":"+f.Quantity,stock.Key,f.Time,f.Buy,f.Quantity,f.Price,"Inje 가상",Reason:f.Reason,RealizedPnl:f.Buy?null:f.RealizedPnl,AccountScope:"inje-paper:"+stream.RunId)).ToArray();
+        var trades=fills.Select(f=>new ScreeningChartTrade(f.Time,f.Buy,f.Quantity,f.Price,f.Reason,"Inje 가상",RealizedPnl:f.Buy?null:f.RealizedPnl){InjesEvidence=journal?.Checkpoint?.OrderEvidence.GetValueOrDefault(f.OrderId)}).ToArray();
+        var zones=trades.Where(t=>t.Buy&&t.InjesEvidence?.SupportCluster!=null).Select(t=>{var c=t.InjesEvidence!.SupportCluster!;return new ScreeningSupportZone(t.InjesEvidence.SignalTime,now,c.ClusterLower,c.ClusterUpper,true,c.SupportCount,string.Join(", ",c.SupportIds));}).ToArray();
+        return new ScreeningChartSnapshot(stock,[new("1분","1분",bars.Select(b=>b.Price with{Time=b.OpenTime}).ToArray(),"원본 체결 표시용 집계 · 판단과 독립")],markers,trades,zones,"원본 틱 판단 · 확인된 가상 체결과 진입 당시 근거 · 실제 주문 없음",null,run);
     },token);
 
     public async Task OpenRealtimeScreeningStock(RealtimeScreeningDisplayRow row)

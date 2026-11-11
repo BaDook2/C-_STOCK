@@ -12,7 +12,6 @@ public sealed class AppServices:IDisposable
     public TradingStore Store {get;}
     public IPublicMarketData MarketData {get;}
     public IOversoldBacktestService Backtests {get;}
-    public IntradayBacktestService IntradayBacktests {get;}=new();
     public string DataDirectory {get;}
     public Func<BrokerConnection,Exchange,IAccountBroker> BrokerFactory {get;}
     public Func<DateTimeOffset> Clock {get;}
@@ -26,7 +25,7 @@ public sealed class AppServices:IDisposable
         var vaultPath=Path.Combine(DataDirectory,"credentials");
         Credentials=credentials??new BrokerCredentialVault(OperatingSystem.IsWindows()?new WindowsDpapiSecretStore(vaultPath):OperatingSystem.IsMacOS()?new MacKeychainSecretStore(vaultPath):throw new PlatformNotSupportedException("이 OS의 안전한 키 저장소를 지원하지 않습니다."),vaultPath);
         LiveFeedFactory=liveFeedFactory??((broker,instruments,settings,status)=>broker is KiwoomBroker kiwoom?new KiwoomMarketDataProvider(kiwoom.GetTokenAsync,instruments,settings,status,live:true):throw new InvalidOperationException("검증된 키움 실제 체결·호가 피드가 필요합니다."));
-        MarketData=market??new PublicMarketData();Backtests=backtests??new OversoldBacktestService();BrokerFactory=brokerFactory??CreateBroker;Clock=clock??(()=>DateTimeOffset.UtcNow);
+        MarketData=market??new PublicMarketData();Backtests=backtests??new OversoldBacktestService(Store);BrokerFactory=brokerFactory??CreateBroker;Clock=clock??(()=>DateTimeOffset.UtcNow);
     }
     private static IAccountBroker CreateBroker(BrokerConnection connection,Exchange exchange)
     {

@@ -24,7 +24,7 @@ public sealed class ScreeningChartViewModel:Observable,IDisposable
     public ScreeningChartSeries DisplaySeries {get;private set;}=null!;
     public Task PendingLoad {get;private set;}=Task.CompletedTask;
     public string AnalysisPeriod=>Snapshot.Run.BarSpecification?.ToString()??"일봉";
-    public string PeriodDescription=>"스크리닝 기준 · "+AnalysisPeriod;
+    public string PeriodDescription=>Snapshot.Run.Configuration.Injes!=null?"Inje 판단 · 원본 틱/호가 · 표시 "+AnalysisPeriod:"스크리닝 기준 · "+AnalysisPeriod;
     public string DisplayPeriod=>period;
     public string[] BarValues=>TimeBarSelection.Values(unit);
     public TimeBarUnitOption[] BarUnits=>TimeBarSelection.Options;
@@ -38,7 +38,7 @@ public sealed class ScreeningChartViewModel:Observable,IDisposable
     public bool WeeklySelected {get=>period=="주봉";set{if(value)RequestPeriod("주봉");}}
     public bool MonthlySelected {get=>period=="월봉";set{if(value)RequestPeriod("월봉");}}
     public bool IsRealtime=>Snapshot.Run.Status=="실시간 감시 스냅샷";
-    public string PriceText=>quote==null?"시세 대기":DisplayNumber.Price(quote.Price)+" 원";
+    public string PriceText=>quote==null?"시세 대기":(Snapshot.Stock.Currency=="USD"?quote.Price.ToString("0.########",System.Globalization.CultureInfo.InvariantCulture)+" USD":DisplayNumber.Price(quote.Price)+" 원");
     public string ChangeText=>quote?.ChangePercent is {} change?$"전일 대비 {change:+0.00;-0.00;0.00}%":"전일 대비 —";
     public string PriceColor=>quote?.ChangePercent is >0?"#F04452":quote?.ChangePercent is <0?"#3182F6":"#6B7684";
     public string QuoteStatus=>quote==null?"실시간 시세 수신 대기":(!quote.Running?"감시 중지 · 마지막 시세":quote.Time is {} at&&(clock()-at).Duration()>TimeSpan.FromSeconds(20)?"시세 지연 · 마지막 수신가":quote.State)+" · "+(quote.Time?.ToOffset(TimeSpan.FromHours(9)).ToString("HH:mm:ss")??"시각 미제공");

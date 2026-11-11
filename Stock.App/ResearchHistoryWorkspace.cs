@@ -22,12 +22,6 @@ public sealed partial class WorkspaceViewModel
     public string ResearchHistoryInfo {get;private set;}="";
     private void InitializeResearchHistory()
     {
-        foreach(var saved in store.States("daytrading-history:"))
-        {
-            var record=Serialization.Unpack<DayTradingHistoryRecord>(saved.Json);
-            researchRecords[record.Id]=new(record.Id,record.At,"전략 D",record.Name,record.Period,"완료 · 원본/봉 근사 구분");
-        }
-        foreach(var run in History)AddBacktestHistory(run,false);
         try{foreach(var row in store.States("oversold-screen:"))
         {
             try{var run=Serialization.Unpack<OversoldScreeningRun>(row.Json);if(run.Status!="진행 중")AddScreeningHistory(run);}catch(System.Text.Json.JsonException){Log("스크리닝 기록 JSON 오류: "+row.Key);}
@@ -42,29 +36,6 @@ public sealed partial class WorkspaceViewModel
     {
         try{var hash=store.State<string>("screen-bars:"+runId+":"+key+":"+(specification?.ToString()??"일봉"));return hash==null?null:store.State<StrategyBar[]>("screen-data:"+hash);}
         catch(System.Text.Json.JsonException){return store.State<StrategyBar[]>("screen-bars:"+runId+":"+key+":"+(specification?.ToString()??"일봉"));}
-    }
-    private string? realtimeHistoryId;
-    private DateTimeOffset realtimeHistoryAt;
-    private void BeginRealtimeHistory(){realtimeHistoryId="oversold-screen:"+Guid.NewGuid().ToString("N");realtimeHistoryAt=multiClock();}
-    private OversoldScreeningRun? StoreRealtimeHistory(RealtimeScreeningSnapshot? snapshot,string reason)
-    {
-        if(snapshot?.Running!=true||realtimeHistoryId==null||realtimeScreening==null)return null;
-        var id=realtimeHistoryId;realtimeHistoryId=null;
-        try
-        {
-            var data=realtimeScreening.Targets.Select(s=>realtimeScreening.ChartData(s.Key)).Where(d=>d.Bars.Length>0).ToArray();if(data.Length==0)return null;
-            var first=data.Min(d=>DailyDates.Of(d.Bars[0].Price));var last=DailyQuoteMerger.Date(multiClock(),Exchange.KRX);
-            var run=OversoldScreeningRun.Start(data.Select(d=>d.Stock),data[0].Configuration,data[0].Specification,multiClock(),first,last,snapshot.StrategyName) with{Id=id,FactsJson=Serialization.Pack(data[0].Facts),Status="실시간 스크리닝 · "+reason+$" · 시작 {realtimeHistoryAt.ToOffset(TimeSpan.FromHours(9)):MM-dd HH:mm}"};
-            foreach(var item in data)
-            {
-                var state=snapshot.Rows.Single(r=>r.Key==item.Stock.Key);var evaluation=realtimeScreening.EntrySnapshot(item.Stock.Key);var bars=item.Bars;
-                var hash=TradingStore.Hash(Serialization.Pack(bars));store.State("screen-data:"+hash,bars);store.State("screen-bars:"+id+":"+item.Stock.Key+":"+item.Specification,hash);
-                store.State("screen-facts:"+id+":"+item.Stock.Key,item.Facts);
-                run=run.Append(new(item.Stock,state.LastAnalyzedAt,bars[^1].Price.Close,evaluation?.Indicators.MediumDrawdown,evaluation?.Indicators.Rsi,evaluation?.Indicators.VolumeRatio,evaluation?.Selected?.Count??0,state.MatchesStrategy||state.NearCandidate,state.StrategyState,evaluation==null?"":Serialization.Pack(evaluation),bars[0].OpenTime,bars[^1].ClosedAt){Proximity=state.Proximity,IsNearCandidate=state.NearCandidate&&!state.MatchesStrategy});
-            }
-            store.State(id,run);return run;
-        }
-        catch(Exception){Log("실시간 스크리닝 기록 저장 실패 · 저장소 점검을 확인하세요. 기존 기록은 보존했습니다.");return null;}
     }
     private void AddBacktestHistory(SavedBacktest run,bool capture)
     {
@@ -88,12 +59,7 @@ public sealed partial class WorkspaceViewModel
         if(SelectedResearchRecord is not {} record)return;
         try
         {
-            if(record.Kind=="전략 D")
-            {
-                var savedD=store.State<DayTradingHistoryRecord>(record.Id)??throw new InvalidOperationException("전략 D 기록을 찾지 못했습니다.");
-                var resultD=store.State<Stock.Core.Research.DayTrading.IntradayReplayResult>("daytrading-result:"+savedD.ResultId)??throw new InvalidOperationException("전략 D 결과 snapshot이 없습니다.");
-                DayTrading.ShowResult(resultD);ShowResearchWindow(new DayTradingDialog(DayTrading,1));return;
-            }
+
             if(record.Kind=="스크리닝")
             {
                 var run=store.State<OversoldScreeningRun>(record.Id)??throw new InvalidOperationException("저장된 스크리닝 결과를 찾지 못했습니다.");

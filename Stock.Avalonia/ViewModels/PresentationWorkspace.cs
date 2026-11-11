@@ -16,7 +16,7 @@ public sealed partial class MainViewModel
     public string ChartWatchStar=>WatchStar.StartsWith('★')?"★ 관심등록":"☆ 관심등록";
     public bool ShowMa {get=>showMa;set=>Set(ref showMa,value);}
     public bool ShowCloud {get=>showCloud;set=>Set(ref showCloud,value);}
-    public string VirtualTradingHelp=>Online?"연결 증권사 시세로 가상 전략을 실행합니다. 실제 주문은 전송하지 않습니다.":"네이버 KRX 공개 현재가·확정 일봉으로 가상 전략을 실행합니다. 일봉 종가 신호는 다음 거래일의 새 관측 이후 주문하며 시가 체결을 보장하지 않습니다.";
+    public string VirtualTradingHelp=>Online?"연결 증권사 시세로 가상 전략을 실행합니다. 실제 주문은 전송하지 않습니다.":"Inje는 원본 미국 틱·호가 기록이 필요합니다. 공개 일봉·현재가 폴링을 틱으로 바꾸지 않으며 필수 자료가 없으면 진입을 보류합니다.";
     public bool CanUseDisplayDays=>!ChartPeriods.Intraday(ChartPeriod);
     public string[] VisibleChartPeriods=>Online?Periods:["일봉"];
     public bool ShowNormalScreen {get=>screenMode==0;set{if(value){screenMode=0;Changed();Changed(nameof(ShowRealtimeScreen));}}}

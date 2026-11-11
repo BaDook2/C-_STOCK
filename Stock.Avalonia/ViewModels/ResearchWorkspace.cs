@@ -6,14 +6,15 @@ namespace Stock.Desktop;
 
 public sealed record ResearchTradeRow(int Number,OversoldExecution Fill)
 {
-    public string Time=>Fill.ExecutionTime.ToOffset(TimeSpan.FromHours(9)).ToString("yyyy.MM.dd HH:mm:ss");
-    public string Side=>Fill.Buy?"매수":"매도";public string Price=>DisplayNumber.Price(Fill.Price);public int Quantity=>Fill.Quantity;
-    public string Profit=>Fill.Buy?"—":DisplayNumber.SignedPrice(Fill.RealizedPnl);
+    public string Time=>Fill.ExecutionTime.ToOffset(TimeSpan.FromHours(9)).ToString("yyyy.MM.dd HH:mm:ss.fff");
+    public string Side=>Fill.Buy?"매수":"매도";public string Price=>(Fill.InjesEvidence!=null||Fill.BinsEvidence!=null)?Fill.Price.ToString("0.########",System.Globalization.CultureInfo.InvariantCulture):DisplayNumber.Price(Fill.Price);public int Quantity=>Fill.Quantity;
+    public string Profit=>Fill.Buy?"—":(Fill.InjesEvidence!=null||Fill.BinsEvidence!=null)?Fill.RealizedPnl.ToString("+0.########;-0.########;0",System.Globalization.CultureInfo.InvariantCulture):DisplayNumber.SignedPrice(Fill.RealizedPnl);
     public string Reason=>TradeOutcome.Label(Fill.Buy,Fill.Reason,Fill.Buy?null:Fill.RealizedPnl);
 }
 public sealed record ResearchArchive(string Id,DateTimeOffset At,string Name,OversoldResult Result,PriceBar[] Bars);
 public sealed class ResearchResultViewModel:Bindable
 {
+    public string Currency=>Result.Stock.Currency;
     public OversoldResult Result {get;}
     public PriceBar[] Bars {get;}
     public PriceBar[] IndicatorBars=>Result.IndicatorHistory;
@@ -23,26 +24,20 @@ public sealed class ResearchResultViewModel:Bindable
     public ResearchTradeRow[] Trades {get;}
     public string Period=>Result.BarSpecification?.ToString()??"일봉";
     public string Title=>Result.Stock.Name+" · "+Result.From+" ~ "+Result.To+" · "+Period;
-    public string Summary=>$"완결 거래 {Result.Performance.Trades:N0}회 · 승률 {Result.Performance.WinRate?.ToString("N2")??"—"}% · 손익 {DisplayNumber.SignedPrice(Result.Performance.FinalEquity-Result.Configuration.InitialCapital)} · MDD {Result.Performance.MaxDrawdown:N2}%";
+    public string Summary=>$"완결 거래 {Result.Performance.Trades:N0}회 · 승률 {Result.Performance.WinRate?.ToString("N2")??"—"}% · 손익 {((Result.InjesResult!=null||Result.BinsResult!=null)?(Result.Performance.FinalEquity-Result.Configuration.InitialCapital).ToString("+0.########;-0.########;0",System.Globalization.CultureInfo.InvariantCulture)+" "+Result.Stock.Currency:DisplayNumber.SignedPrice(Result.Performance.FinalEquity-Result.Configuration.InitialCapital))} · MDD {Result.Performance.MaxDrawdown:N2}%";
     private ResearchTradeRow? selected;
     private string detail;
     public string Detail {get=>detail;private set=>Set(ref detail,value);}
-    public ResearchTradeRow? Selected {get=>selected;set{if(Set(ref selected,value)&&value!=null)Detail=$"거래 #{value.Number} · {value.Side} · {value.Time}\n가격 {value.Price} · 수량 {value.Quantity:N0} · 실현손익 {value.Profit}\n사유 {value.Reason}\n"+Stock.Core.Research.DayTrading.IntradayPresentation.PrettyJson(Serialization.Pack(value.Fill.Snapshot));}}
+    public ResearchTradeRow? Selected {get=>selected;set{if(Set(ref selected,value)&&value!=null)Detail=$"거래 #{value.Number} · {value.Side} · {value.Time}\n가격 {value.Price} · 수량 {value.Quantity:N0} · 실현손익 {value.Profit}\n사유 {value.Reason}\n"+Stock.Core.Research.DayTrading.IntradayPresentation.PrettyJson(Serialization.Pack((object?)value.Fill.InjesEvidence??(object?)value.Fill.BinsEvidence??value.Fill.Snapshot));}}
     public ResearchResultViewModel(OversoldResult result,PriceBar[] bars)
     {
-        Result=result;Bars=bars;detail=string.Join("\n",result.Notices)+"\n성과지표\n"+Stock.Core.Research.DayTrading.IntradayPresentation.PrettyJson(Serialization.Pack(result.Performance));
+        Result=result;Bars=bars;detail=string.Join("\n",result.Notices)+"\n성과지표\n"+Stock.Core.Research.DayTrading.IntradayPresentation.PrettyJson(Serialization.Pack((object?)result.InjesResult?.Performance??(object?)result.BinsResult?.Currencies??result.Performance));
         Trades=result.Trades.SelectMany((trade,index)=>trade.Executions.Select(fill=>new ResearchTradeRow(index+1,fill))).ToArray();
         Markers=Trades.Select((t,index)=>new TradeMarker(result.Id+":"+index,result.Stock.Key,t.Fill.ExecutionTime,t.Fill.Buy,t.Quantity,t.Fill.Price,"백테스트",TradeNumber:t.Number,Reason:t.Fill.Reason,RealizedPnl:t.Fill.Buy?null:t.Fill.RealizedPnl)).ToArray();
         var last=bars.LastOrDefault()?.Time??DateTimeOffset.UtcNow;
-        Zones=result.Trades.SelectMany(t=>t.Executions.Where(e=>e.Buy&&e.Snapshot!=null).SelectMany(e=>e.Snapshot!.Clusters.Select(z=>new ChartSupportZone(e.SignalTime,t.LastExecutionDate??last,z.Lower,z.Upper,z.UsedForEntry,string.Join(", ",z.Supports.Select(s=>s.Id)))))).Concat(CrashPoints(result.StrategyDResult,last)).ToArray();
+        Zones=result.Trades.SelectMany(t=>t.Executions.Where(e=>e.Buy&&e.Snapshot!=null).SelectMany(e=>e.Snapshot!.Clusters.Select(c=>new ChartSupportZone(e.SignalTime,last,c.Lower,c.Upper,c.UsedForEntry,string.Join(", ",c.Supports.Select(p=>p.Id))))))
+            .Concat(result.Trades.SelectMany(t=>t.Executions.Where(e=>e.Buy&&e.InjesEvidence?.SupportCluster!=null).Select(e=>new ChartSupportZone(e.SignalTime,last,e.InjesEvidence!.SupportCluster!.ClusterLower,e.InjesEvidence.SupportCluster.ClusterUpper,true,string.Join(", ",e.InjesEvidence.SupportCluster.SupportIds))))).ToArray();
     }
-    public static decimal? CrashLow(Stock.Core.Research.DayTrading.IntradayEntrySignal? signal)
-    {
-        if(signal==null)return null;using var json=System.Text.Json.JsonDocument.Parse(signal.EvidenceJson);
-        return json.RootElement.TryGetProperty("ReboundLow",out var low)&&low.TryGetDecimal(out var value)&&value>0?value:null;
-    }
-    public static ChartSupportZone[] CrashPoints(Stock.Core.Research.DayTrading.IntradayReplayResult? result,DateTimeOffset end)
-    =>result?.Trades.Where(t=>t.Entry!=null&&t.Fills.Any(f=>f.Buy)).Select(t=>Stock.Core.Trading.Serialization.Unpack<Stock.Core.Research.DayTrading.StrategyDSignal>(t.Entry!.EvidenceJson)).Select(s=>new ChartSupportZone(s.Crash.At,end,s.ReboundLow,s.ReboundLow,true,"급락 판단 지점",true)).DistinctBy(z=>z.Lower).ToArray()??[];
     public void SelectMarker(TradeMarker marker)
     {Selected=Trades.FirstOrDefault(t=>t.Fill.ExecutionTime==marker.Time&&t.Fill.Buy==marker.Buy&&t.Fill.Price==marker.Price);}
 }
@@ -94,7 +89,7 @@ public sealed class ResearchWorkspace:Bindable
             Status="과거 자료를 준비하고 있습니다…";var data=await history.Get(item,configuration,facts,specification,first,last,token);
             var calculated=await services.Backtests.RunAsync(new(data.Dataset,configuration,first,last,data.Facts,data.Specification,data.Bars),token);token.ThrowIfCancellationRequested();
             var prices=(data.Bars?.Select(b=>b.Price with{Time=b.OpenTime})??data.Dataset.CompletedBars).Where(b=>DailyDates.Of(b)>=first&&DailyDates.Of(b)<=last).ToArray();
-            Result=new(calculated,prices);Status=Result.Summary;if(calculated.Trades.Count==0)Status+=" · "+(calculated.Decisions.LastOrDefault()?.Reason??"선택 기간에 평가 가능한 완성봉이 없습니다.");var archived=new ResearchArchive("desktop-run:"+Guid.NewGuid().ToString("N"),DateTimeOffset.UtcNow,strategyName,calculated,prices);services.Store.State(archived.Id,archived);Completed?.Invoke(archived);
+            Result=new(calculated,prices);Status=Result.Summary;if(calculated.Trades.Count==0)Status+=" · "+(calculated.InjesResult?.Signals.LastOrDefault()?.SignalReason??calculated.BinsResult?.FinalStates.LastOrDefault()?.Status??calculated.Decisions.LastOrDefault()?.Reason??"선택 기간에 진입 조건/필수 자료를 충족한 원본 이벤트가 없습니다.");var archived=new ResearchArchive("desktop-run:"+Guid.NewGuid().ToString("N"),DateTimeOffset.UtcNow,strategyName,calculated,prices);services.Store.State(archived.Id,archived);Completed?.Invoke(archived);
         }
         catch(OperationCanceledException) when(token.IsCancellationRequested){Status="백테스트를 취소했습니다.";}
         catch(Exception ex) when(ex is not OutOfMemoryException){Status=OperationError.Describe(ex);Notice?.Invoke(Status);}

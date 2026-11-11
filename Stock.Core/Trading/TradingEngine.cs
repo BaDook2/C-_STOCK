@@ -48,7 +48,7 @@ public sealed partial class PaperBroker(string currency,decimal initialCash,Exec
     public Action<string,object,DateTimeOffset>? Record { get; set; }
     public void Submit(ManagedOrder o){Orders.Add(o);Transition(o,OrderState.Submitted,o.Created);}
     private void Transition(ManagedOrder o,OrderState state,DateTimeOffset now){o.State=state;Record?.Invoke("주문",o,now);}
-    public void RequestCancel(ManagedOrder o,DateTimeOffset now){if(o.Active&&o.State!=OrderState.Unknown)Transition(o,OrderState.CancelRequested,now);}
+    public void RequestCancel(ManagedOrder o,DateTimeOffset now){if(o.Active&&o.State is not(OrderState.Unknown or OrderState.CancelRequested)){o.CancellationRequestedAt=now;Transition(o,OrderState.CancelRequested,now);}}
     /// <summary>Ends a local simulation order when its feed is stopping; no exchange acknowledgement or fabricated market event is needed.</summary>
     public void CancelLocally(ManagedOrder order,DateTimeOffset now)
     {
@@ -64,16 +64,23 @@ public sealed partial class PaperBroker(string currency,decimal initialCash,Exec
         foreach(var o in Orders.Where(o=>o.Active&&o.Symbol==e.Key).ToArray())
         {
             if(o.State==OrderState.Unknown)continue;
-            if(o.State==OrderState.CancelRequested){Transition(o,OrderState.Cancelled,e.ExchangeTime);cancelled.Add(o);continue;}
+            if(o.State==OrderState.CancelRequested&&(!settings.ConservativeLimitMatching||(e.ExchangeTime-(o.CancellationRequestedAt??e.ExchangeTime)).TotalMilliseconds>=settings.CancellationLatencyMilliseconds)){Transition(o,OrderState.Cancelled,e.ExchangeTime);cancelled.Add(o);continue;}
             if((e.ExchangeTime-o.Created).TotalMilliseconds>=(o.TimeoutMilliseconds??settings.TimeoutMilliseconds??settings.TtlSeconds*1000)){RequestCancel(o,e.ExchangeTime);continue;}
             // Never match the event that caused the order; match only later events after latency.
             if(e.ExchangeTime<=o.Created||(e.ExchangeTime-o.Created).TotalMilliseconds<settings.LatencyMs)continue;
-            if(settings.UseSpread)
+            if(settings.ConservativeLimitMatching&&o.PassiveLimit)
+            {
+                // Unknown queue position: quote touches and same-price prints do not establish a fill.
+                if(e.Kind!=EventKind.Trade||e.TradePrice==null||(o.Buy?e.TradePrice>=o.Price:e.TradePrice<=o.Price))continue;
+                price=o.Price;liquidity=e.TradeSize??0;
+            }
+            else if(settings.UseSpread)
             {if(e.Kind!=EventKind.Quote)continue;price=o.Buy?e.Ask:e.Bid;liquidity=(o.Buy?e.AskSize:e.BidSize)??0;}
             else
             {if(e.Kind!=EventKind.Trade)continue;price=e.TradePrice;liquidity=e.TradeSize??0;if(o.Kind==OrderKind.Limit&&(o.Buy?price>=o.Price:price<=o.Price))continue;}
             if(price==null||liquidity<=0)continue;
-            var fillPrice=price.Value*(1+(o.Buy?1:-1)*settings.SlippagePercent/100);
+            var fillPrice=settings.ConservativeLimitMatching&&o.PassiveLimit?price.Value:price.Value*(1+(o.Buy?1:-1)*settings.SlippagePercent/100);
+            if(o.PriceTick is >0)fillPrice=(o.Buy?decimal.Ceiling(fillPrice/o.PriceTick.Value):decimal.Floor(fillPrice/o.PriceTick.Value))*o.PriceTick.Value;
             if(o.Kind==OrderKind.Limit&&(o.Buy?fillPrice>o.Price:fillPrice<o.Price))continue;
             var qty=(int)Math.Min(o.Remaining,decimal.Floor(liquidity*settings.ParticipationPercent/100));
             if(!settings.AllowPartial&&qty<o.Remaining||qty<=0)continue;
@@ -92,23 +99,26 @@ public sealed partial class PaperBroker(string currency,decimal initialCash,Exec
 }
 public sealed class TradingEngine
 {
-    public const string ModelVersion="STOCK-quant-1.2/pipeline-opt-in-next-event-v1";
+    public const string ModelVersion="STOCK-inje-1.0/shared-paper-ledger-v1";
     public TradingSettings Settings { get; }
     public PaperBroker Broker { get; }
     public RiskManager Risk { get; }
     public Dictionary<string,MarketContext> Contexts { get; }=[];
     public List<Decision> Decisions { get; }=[];
     public List<EquityPoint> Equity { get; }=[];
-    private readonly ITradingStrategy[] strategies=[new AdvancedStrategyGate(new ScalpingStrategy()),new AdvancedStrategyGate(new BoxStrategy()),new AdvancedStrategyGate(new ReboundStrategy())];
-    private readonly CommonScanner scanner;
-    private readonly Stock.Core.Pipeline.PipelineRuntime pipeline=new();
+    private readonly Stock.Core.Strategies.Injes.InjesSession? injes;
     private readonly Action<string,object,DateTimeOffset>? record;
     private DateOnly day;
     private decimal dayOpening;
     private int dailyOrders,counter;
     private DateTimeOffset now;
     public TradingEngine(TradingSettings settings,string currency,decimal cash,Action<string,object,DateTimeOffset>? record=null)
-    {settings.Validate();Settings=settings.Clone();scanner=new(Settings);Risk=new(Settings);Broker=new(currency,cash,Settings.Execution){Record=record};this.record=record;dayOpening=cash;}
+    {
+        settings.Validate();Settings=settings.Clone();Risk=new(Settings);this.record=record;dayOpening=cash;
+        if(Settings.Injes is {} definition)
+        {if(currency!="USD")throw new InvalidOperationException("Inje는 USD 계좌를 사용합니다.");var execution=new Stock.Core.Strategies.Injes.InjesPaperExecution(cash,definition.ExecutionPolicy,record);Broker=execution.Broker;var instruments=Settings.Data.Universe.Split(',',StringSplitOptions.TrimEntries|StringSplitOptions.RemoveEmptyEntries).Select(Instrument.Parse).Where(i=>i.Currency=="USD").ToArray();injes=new(definition,instruments,execution);injes.SetEntriesEnabled(true,DateTimeOffset.MinValue);}
+        else Broker=new(currency,cash,Settings.Execution){Record=record};
+    }
     private void Log(Decision d){Decisions.Add(d);if(Decisions.Count>300)Decisions.RemoveAt(0);record?.Invoke("판단",d,d.Time);}
     public void OnEvent(MarketEvent e,bool evaluate=true)
     {
@@ -116,7 +126,10 @@ public sealed class TradingEngine
         if(!Contexts.TryGetValue(e.Key,out var c)){c=new(e.Instrument,Settings);Contexts[e.Key]=c;}
         var d=DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeBySystemTimeZoneId(now,e.Instrument.Exchange==Exchange.KRX?"Korea Standard Time":"Eastern Standard Time").DateTime);
         if(day!=d){day=d;dayOpening=Broker.Equity;dailyOrders=0;}
-        c.Add(e);var cancelled=Broker.Process(e);c.Position=Broker.Positions.GetValueOrDefault(e.Key);
+        c.Add(e);
+        if(injes!=null)
+        {now=e.AvailableAt??e.ReceivedTime;if(!evaluate)injes.SetEntriesEnabled(false,now);injes.OnMarket(Stock.Core.Strategies.Injes.InjesResearchBridge.Observation(e),now);var result=injes.Latest(e.Key);if(result!=null)Log(new(now,e.Key,result.Signal.StrategyId,result.Signal.SignalType.ToString(),result.Signal.SignalReason,result.Signal.ReferencePrice));c.Position=Broker.Positions.GetValueOrDefault(e.Key);Equity.Add(new(now,Broker.Currency,Broker.Equity));return;}
+        var cancelled=Broker.Process(e);c.Position=Broker.Positions.GetValueOrDefault(e.Key);
         var dayLoss=dayOpening-Broker.Equity;
         if(dayLoss>=Settings.Risk.MaxDailyLoss||dayOpening>0&&dayLoss/dayOpening*100>=Settings.Risk.MaxDailyLossPercent)
             foreach(var pending in Broker.Orders.Where(o=>o.Active&&o.Buy).ToArray())Broker.RequestCancel(pending,now);
@@ -129,23 +142,11 @@ public sealed class TradingEngine
             if(stop>0&&c.Price<=p.AveragePrice-stop||take>0&&c.Price>=p.AveragePrice+take||Settings.Advanced is {} advanced&&p.OpenedAt is {} opened&&(now-opened).TotalSeconds>=advanced.Common.MaxHoldingSeconds)
             {foreach(var o in Broker.Orders.Where(o=>o.Active&&o.Symbol==e.Key))Broker.RequestCancel(o,now);if(!Broker.Orders.Any(o=>o.Active&&o.Symbol==e.Key))Submit(c,false,p.Quantity,c.Price,"리스크 청산","손절/익절/최대 보유시간 도달",OrderKind.Market);}
         }
-        if(evaluate&&e.Kind==EventKind.Trade&&Settings.Pipeline==null)
-        {
-            var rejected=scanner.Reject(c);
-            if(rejected!=null)Log(new(now,e.Key,"스캐너","제외",rejected,c.Price));
-            else foreach(var strategy in strategies)
-            {var signal=strategy.Evaluate(c);Log(new(now,e.Key,signal.Strategy,signal.Buy==null?"대기":signal.Buy.Value?"매수":"매도",signal.Reason,signal.Price));if(signal.Buy is bool buy&&signal.Price is decimal price){if(buy&&Settings.Advanced is {StrategyType:StrategyType.Rebound,Rebound.AutoBuy:false})continue;var qty=buy?Risk.Size(c,Math.Min(Broker.Equity,Settings.Risk.AccountCapital),price):c.Position?.Quantity??0;Submit(c,buy,qty,price,strategy.Name,signal.Reason,Settings.Execution.Kind);}}
-        }
-        if(evaluate&&e.Kind==EventKind.Trade&&Settings.Pipeline!=null)
-        {
-            var order=pipeline.Evaluate(c,Settings,Broker,out var reason);
-            Log(new(now,e.Key,"Pipeline",order==null?"대기":order.Buy?"매수":"매도",reason??pipeline.Last!.Summary,c.Price));
-            if(order!=null)Submit(c,order.Buy,order.Quantity,order.Price,order.Owner,order.Reason,order.Kind,timeout:order.TimeoutMilliseconds);
-        }
+        // Automatic legacy algorithms and Pipeline dispatch were removed. Manual order/risk handling remains shared.
         Equity.Add(new(now,Broker.Currency,Broker.Equity));
     }
     public ManagedOrder? Manual(Instrument instrument,bool buy,int qty,decimal price,OrderKind kind)
-    {if(!Contexts.TryGetValue(instrument.Key,out var c)||now-c.Now>TimeSpan.FromSeconds(Settings.Execution.StaleSeconds))throw new InvalidOperationException("현재 세션의 신선한 시세가 필요합니다.");return Submit(c,buy,qty,price,"수동","사용자 주문",kind);}
+    {if(injes!=null)throw new InvalidOperationException("Inje 단일 전략 원장에는 수동 주문을 섞을 수 없습니다.");if(!Contexts.TryGetValue(instrument.Key,out var c)||now-c.Now>TimeSpan.FromSeconds(Settings.Execution.StaleSeconds))throw new InvalidOperationException("현재 세션의 신선한 시세가 필요합니다.");return Submit(c,buy,qty,price,"수동","사용자 주문",kind);}
     private ManagedOrder? Submit(MarketContext c,bool buy,int qty,decimal price,string strategy,string reason,OrderKind kind,int retry=0,bool allowStopExit=false,int? timeout=null)
     {
         if(Settings.Advanced is {} config&&kind==OrderKind.Limit&&strategy!="수동")price+=(buy?1:-1)*config.Execution.LimitOrderOffsetTicks*c.Instrument.Tick(price);
@@ -157,14 +158,14 @@ public sealed class TradingEngine
         if(buy&&Settings.Execution.UseSpread&&!c.QuoteFresh){Log(new(now,c.Instrument.Key,strategy,"리스크 거절","호가 stale/미수신",price));return null;}
         Broker.Submit(o);dailyOrders++;return o;
     }
-    public void EmergencyStop(){Risk.Stop();foreach(var o in Broker.Orders.Where(o=>o.Active).ToArray())Broker.RequestCancel(o,now);Log(new(now,"전체","긴급중지","중지","신규 주문 차단·미체결 취소 요청"));}
+    public void EmergencyStop(){injes?.EmergencyStop(now);Risk.Stop();foreach(var o in Broker.Orders.Where(o=>o.Active).ToArray())Broker.RequestCancel(o,now);Log(new(now,"전체","긴급중지","중지","신규 주문 차단·미체결 취소 요청"));}
     public void Cancel(string id){var o=Broker.Orders.FirstOrDefault(x=>x.Id==id)??throw new InvalidOperationException("주문번호 없음");Broker.RequestCancel(o,now);}
 }
 public sealed class BacktestRunner(TradingStore store)
 {
     public BacktestResult Run(TradingSettings settings,IReadOnlyList<MarketEvent> data,CancellationToken token,IProgress<int>? progress=null)
     {
-        settings.Validate();var instrument=Instrument.Parse(settings.Backtest.Instrument);if(data.Count==0)throw new InvalidOperationException("선택 기간/종목/소스의 저장 데이터가 없습니다.");
+        settings.Validate();if(settings.Injes!=null)throw new InvalidOperationException("Inje 원본 이벤트는 InjesReplayEngine으로 수신·가용시각 순 재생하세요.");var instrument=Instrument.Parse(settings.Backtest.Instrument);if(data.Count==0)throw new InvalidOperationException("선택 기간/종목/소스의 저장 데이터가 없습니다.");
         if(data.Any(e=>e.Instrument!=instrument))throw new InvalidOperationException("백테스트는 한 통화/종목의 데이터로 실행하세요.");
         var ordered=data.Select((e,i)=>(e,i)).OrderBy(x=>x.e.ExchangeTime).ThenBy(x=>x.i).Select(x=>x.e).ToList();
         var hash=TradingStore.Hash(string.Join('\n',ordered.Select(Serialization.Pack)));var run=store.BeginRun("Backtest:"+TradingEngine.ModelVersion,settings,hash);var engine=new TradingEngine(settings,instrument.Currency,settings.Backtest.InitialCash,(cat,obj,t)=>store.Audit(run,cat,obj,t));

@@ -21,14 +21,15 @@ public sealed class MarketHistoryService(AppServices services,Func<IAccountBroke
     }
     public async Task<PreparedResearchData> Get(StockItem stock,OversoldConfig config,HistoricalFacts facts,BarSpecification? specification,DateOnly from,DateOnly to,CancellationToken token)
     {
-        var independent=account()!=null&&(config.UseCrashStrategy||config.ParameterTimeframes.Count>0);
+        if(config.Injes!=null||config.Bins!=null)specification=null;
+        var independent=config.Injes==null&&config.Bins==null&&account()!=null&&config.ParameterTimeframes.Count>0;
         if(independent)specification=DecisionSpecification(config);
         var daily=services.Store.State<BarDataset>("bars:"+stock.Key);
         if(daily==null||DateTimeOffset.UtcNow-daily.RetrievedAt>TimeSpan.FromMinutes(10)){daily=await services.MarketData.History(stock,token);token.ThrowIfCancellationRequested();services.Store.State("bars:"+stock.Key,daily);}
         if(specification==null||specification.Unit==BarUnit.Day)
         {
             var dailyFacts=facts.Snapshot();
-            if(independent)PrepareFrames(dailyFacts,config,Stock.Core.Research.DayTrading.SelectedStrategy.DailyBars(daily,dailyFacts),[],services.Clock());
+            if(independent)PrepareFrames(dailyFacts,config,DailyBars(daily,dailyFacts),[],services.Clock());
             return new(daily,null,null,dailyFacts);
         }
         if(stock.Exchange!=Exchange.KRX||account() is not IMinuteHistoryBroker minute)throw new InvalidOperationException("분·시간봉은 해당 국내 시장을 지원하는 온라인 계좌 연결이 필요합니다.");
@@ -47,27 +48,22 @@ public sealed class MarketHistoryService(AppServices services,Func<IAccountBroke
         copy.MarketSessions=known.Values.OrderBy(s=>s.Open).ToArray();if(copy.Source.Length==0)copy.Source="연결 API 관측 봉의 정규장 세션 · 실제 휴장/단축장 달력 미확인";copy.Validate();
         var result=StrategyBarAggregator.FromMinutes(rows,specification,copy.Sessions,now,sourceMinutes);
         if(result.Bars.Length==0)throw new InvalidOperationException("선택한 지정봉 자료가 부족합니다. "+result.Reason);
-        if(independent)PrepareFrames(copy,config,Stock.Core.Research.DayTrading.SelectedStrategy.DailyBars(daily,copy),rows,now);
+        if(independent)PrepareFrames(copy,config,DailyBars(daily,copy),rows,now);
         return new(daily,specification,result.Bars,copy);
     }
     public static BarSpecification? DecisionSpecification(OversoldConfig config)
     {
-        var specs=config.ParameterTimeframes.Values.Concat(config.UseCrashStrategy?Stock.Core.Research.DayTrading.SelectedStrategy.Definition(config).Configuration.ParameterTimeframes.Values:[]);
-        if(config.UseCrashStrategy)
-        {
-            var p=Stock.Core.Research.DayTrading.SelectedStrategy.Definition(config).DayTrading!;
-            // All decision inputs are collected independently from display bars.
-            specs=specs.Concat(new[]{p.SimpleTimeframe,p.Support.MovingAverageTimeframe,p.Support.ProfileTimeframe}).Concat(p.IndicatorTimeframes.Values);
-        }
+        var specs=config.ParameterTimeframes.Values;
         var minutes=specs.Where(f=>f.Unit is Stock.Core.Research.DayTrading.TimeframeUnit.Minute or Stock.Core.Research.DayTrading.TimeframeUnit.Hour).ToArray();
         return minutes.Length==0?null:new BarSpecification(1,BarUnit.Minute);
     }
     private static void PrepareFrames(HistoricalFacts facts,OversoldConfig config,StrategyBar[] daily,StrategyBar[] minute,DateTimeOffset asOf)
     {
-        var frames=config.ParameterTimeframes.Values.Concat(config.UseCrashStrategy?Stock.Core.Research.DayTrading.SelectedStrategy.Definition(config).Configuration.ParameterTimeframes.Values:[]);
-        if(config.UseCrashStrategy){var p=Stock.Core.Research.DayTrading.SelectedStrategy.Definition(config).DayTrading!;frames=frames.Concat(new[]{p.SimpleTimeframe,p.Support.MovingAverageTimeframe,p.Support.ProfileTimeframe}).Concat(p.IndicatorTimeframes.Values);}
+        var frames=config.ParameterTimeframes.Values;
         facts.StrategyFrames=frames.Append(new(1,Stock.Core.Research.DayTrading.TimeframeUnit.TradingDay)).Concat(minute.Length>0?[new Stock.Core.Research.DayTrading.TimeframeSpec(1,Stock.Core.Research.DayTrading.TimeframeUnit.Minute)]:[]).Distinct().SelectMany(f=>Stock.Core.Research.DayTrading.StrategyFrameSeries.Aggregate(f.Unit is Stock.Core.Research.DayTrading.TimeframeUnit.Minute or Stock.Core.Research.DayTrading.TimeframeUnit.Hour?minute:daily,f,asOf)).ToArray();
         var sessions=facts.Sessions.ToDictionary(s=>s.Date);foreach(var row in daily.Concat(minute)){var date=DailyDates.Of(row.Price);sessions.TryAdd(date,ResearchMarketSession.For(date,Exchange.KRX));}facts.MarketSessions=sessions.Values.OrderBy(s=>s.Open).ToArray();if(facts.Source.Length==0)facts.Source="관측 자료 날짜의 연구 세션";facts.Validate();
     }
 
+    private static StrategyBar[] DailyBars(BarDataset dataset,HistoricalFacts facts)=>dataset.CompletedBars.Select((bar,n)=>
+    {var session=facts.Sessions.FirstOrDefault(s=>s.Date==DailyDates.Of(bar))??ResearchMarketSession.For(DailyDates.Of(bar),dataset.Stock.Exchange);return new StrategyBar(bar with{Time=session.Close},session.Open,session.Close,n+1,null,dataset.Source);}).ToArray();
 }

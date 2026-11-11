@@ -35,24 +35,44 @@ public interface IPublicMarketData
     Task<StockItem> Describe(StockItem stock,CancellationToken token);
     Task<BarDataset> History(StockItem stock,CancellationToken token);
 }
-// Public, unauthenticated endpoints. No cookies, credentials, or access-control bypass.
+// Public endpoints. The optional US day-market supplement creates its own anonymous visitor session; no account credentials are read.
 // Failures remain explicit; synthetic quotes never replace missing market data.
 /// <summary>인증키 없는 공개 검색·일봉을 공통 모델로 변환하며, 누락 가격을 생성하지 않습니다.</summary>
 public sealed partial class PublicMarketData : IPublicMarketData,IMarketOverviewData,IIndexChartData,ICurrentMarketData,IDisposable
 {
     private readonly HttpClient http;
     private readonly Dictionary<string,string> industries=[];
-    public PublicMarketData(HttpMessageHandler? handler=null)
-    {System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);http=new(handler??new HttpClientHandler()){Timeout=TimeSpan.FromSeconds(20)};http.DefaultRequestHeaders.UserAgent.ParseAdd("StockResearch/2.0");}
+    private readonly UnitedStatesDayMarket? dayMarket;
+    private readonly TimeProvider clock;
+    private long retryAfterTicks;
+    public PublicMarketData(HttpMessageHandler? handler=null,HttpMessageHandler? dayMarketHandler=null,TimeProvider? clock=null)
+    {
+        this.clock=clock??TimeProvider.System;
+        // Supplying only a test handler must never accidentally open a second external connection.
+        if(handler==null||dayMarketHandler!=null)dayMarket=new(dayMarketHandler,this.clock);
+        System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
+        http=new(handler??new HttpClientHandler{AllowAutoRedirect=false}){Timeout=TimeSpan.FromSeconds(20)};
+        http.DefaultRequestHeaders.UserAgent.ParseAdd("StockResearch/2.0");
+        http.DefaultRequestHeaders.CacheControl=new(){NoCache=true};http.DefaultRequestHeaders.Pragma.ParseAdd("no-cache");
+    }
     private async Task<string> Get(string url,CancellationToken ct)
     {
+        var blocked=Interlocked.Read(ref retryAfterTicks);var now=clock.GetUtcNow();
+        if(now.UtcTicks<blocked)throw new PublicQuoteRetryException("공개 시세 조회 제한 · 재시도 대기",TimeSpan.FromTicks(blocked-now.UtcTicks));
         using var response=await http.GetAsync(url,ct);
-        if(response.StatusCode==HttpStatusCode.TooManyRequests)throw new InvalidOperationException("공개 시세 조회 한도에 도달했습니다. 잠시 후 다시 시도하세요.");
+        if(response.StatusCode==HttpStatusCode.TooManyRequests||!response.IsSuccessStatusCode&&response.Headers.RetryAfter!=null)
+        {
+            var delay=response.Headers.RetryAfter?.Delta??response.Headers.RetryAfter?.Date-clock.GetUtcNow()??TimeSpan.FromSeconds(30);
+            if(delay<=TimeSpan.Zero)delay=TimeSpan.FromSeconds(30);
+            var until=(clock.GetUtcNow()+delay).UtcTicks;long before;
+            do{before=Interlocked.Read(ref retryAfterTicks);if(before>=until)break;}while(Interlocked.CompareExchange(ref retryAfterTicks,until,before)!=before);
+            throw new PublicQuoteRetryException("공개 시세 조회 한도에 도달했습니다. 잠시 후 다시 시도하세요.",delay);
+        }
         if(!response.IsSuccessStatusCode)throw new InvalidOperationException("공개 데이터 제공처가 응답하지 않습니다. 저장한 자료를 이용하거나 다시 시도하세요.");
         return await response.Content.ReadAsStringAsync(ct);
     }
     private async Task<JsonElement> Json(string url,CancellationToken ct){using var d=JsonDocument.Parse(await Get(url,ct));return d.RootElement.Clone();}
-    internal static string Text(JsonElement e,string name)=>e.TryGetProperty(name,out var v)?v.ToString():"";
+    internal static string Text(JsonElement e,string name)=>e.ValueKind==JsonValueKind.Object&&e.TryGetProperty(name,out var v)?v.ToString().Trim():"";
     public async Task<IReadOnlyList<StockItem>> Search(string name,string region,CancellationToken token)
     {
         if(string.IsNullOrWhiteSpace(name))throw new InvalidOperationException("검색할 종목 이름을 입력하세요.");
@@ -171,5 +191,5 @@ public sealed partial class PublicMarketData : IPublicMarketData,IMarketOverview
     {return ParseQuote(await Json(stock.Exchange==Exchange.KRX?$"https://m.stock.naver.com/api/stock/{Uri.EscapeDataString(stock.Symbol)}/basic":$"https://api.stock.naver.com/stock/{Uri.EscapeDataString(stock.ProviderCode)}/basic",token));}
     private static MarketQuote ParseQuote(JsonElement r)
     {decimal N(string k)=>decimal.Parse(Text(r,k),NumberStyles.Number,CultureInfo.InvariantCulture);return new(Text(r,"stockName"),N("closePrice"),N("compareToPreviousClosePrice"),N("fluctuationsRatio"),DateTimeOffset.Parse(Text(r,"localTradedAt"),CultureInfo.InvariantCulture),Text(r,"marketStatus"));}
-    public void Dispose()=>http.Dispose();
+    public void Dispose(){http.Dispose();dayMarket?.Dispose();}
 }

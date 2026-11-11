@@ -104,6 +104,8 @@ public class RiskSettings
 }
 public class ExecutionSettings
 {
+    public bool ConservativeLimitMatching {get;set;}
+    public int CancellationLatencyMilliseconds {get;set;}
     public decimal TaxPercent {get;set;}
     public int? TimeoutMilliseconds {get;set;}
     [Setting("주문 방식")] public OrderKind Kind { get; set; }=OrderKind.Limit;
@@ -149,6 +151,7 @@ public class FilterRule
 }
 public class TradingSettings
 {
+    public Stock.Core.Strategies.Injes.InjesStrategyDefinition? Injes {get;set;}
     public AdvancedStrategyConfig? Advanced {get;set;}
     public Stock.Core.Pipeline.PipelineAdvancedConfig? Pipeline {get;set;}
     public Stock.Core.Pipeline.SymbolObservation[] PipelineObservations {get;set;}=[];
@@ -165,6 +168,7 @@ public class TradingSettings
     public TradingSettings Clone() => Serialization.Unpack<TradingSettings>(Serialization.Pack(this));
     public void Validate()
     {
+        if(Injes!=null){Injes.Validate();return;}
         Advanced?.Validate();Pipeline?.Validate();
         if(Execution.TaxPercent<0||Execution.TaxPercent>20||Execution.TimeoutMilliseconds is <=0)throw new InvalidOperationException("거래세 또는 주문 대기시간을 확인하세요.");
         foreach(var (name,value) in Groups()) foreach(var p in value.GetType().GetProperties())

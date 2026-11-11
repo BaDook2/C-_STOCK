@@ -37,9 +37,10 @@ public sealed partial class MainViewModel:IDisposable
     public StockItem? SelectedStock {get=>selectedStock;set{if(value==null||selectedStock?.Key==value.Key)return;_ = Run(async token=>{await LoadStock(value,token);});}}
     public string StockTitle=>dataset?.Stock.Name??"어떤 주식을 살펴볼까요?";
     public string StockCode=>dataset?.Stock.Symbol??"";
-    public string PriceText=>quote?.PriceText??(dataset?.Bars.LastOrDefault() is {} bar?DisplayNumber.Price(bar.Close):"—");
+    public string PriceCurrency=>SelectedStock?.Currency??"KRW";
+    public string PriceText=>PriceCurrency=="USD"?(quote?.Price??dataset?.Bars.LastOrDefault()?.Close)?.ToString("0.########",System.Globalization.CultureInfo.InvariantCulture)??"—":quote?.PriceText??(dataset?.Bars.LastOrDefault() is {} bar?DisplayNumber.Price(bar.Close):"—");
     public string ChangeText=>quote?.ChangeText??(dataset?.Bars.TakeLast(2).ToArray() is {Length:2} bars?$"{DisplayNumber.SignedPrice(bars[1].Close-bars[0].Close)} ({(bars[1].Close/bars[0].Close-1)*100:+0.00;-0.00;0.00}%)":"");
-    public string QuoteTime=>quote?.KoreaTime??dataset?.Description??"";
+    public string QuoteTime=>quote is {} value?value.KoreaTime+(currentSnapshot!=null?" · "+currentSnapshot.Source:""):dataset?.Description??"";
     public string PriceColor=>quote?.Change>=0?"#F04452":"#3182F6";
     public string ChartPeriod {get=>period;set{if(string.IsNullOrWhiteSpace(value))return;if(Set(ref period,value)){if(ChartPeriods.Minutes(value)>0){selectedRange=value.EndsWith("분")?Ranges[0]:Ranges[1];displayIntraday=[];RefreshChart();_ = LoadChartTimeframe();}else{chartRequest++;if(selectedRange.Months<0)selectedRange=Ranges[1];RefreshChart();}Changed(nameof(SelectedRange));}}}
     public RangeChoice SelectedRange
@@ -55,7 +56,7 @@ public sealed partial class MainViewModel:IDisposable
     public AsyncCommand EmergencyCommand {get;private set;}=null!;
     private void InitializeMarket()
     {
-        selectedRange=Ranges[2];SearchCommand=new(()=>Run(Search));EmergencyCommand=new(()=>{operation?.Cancel();Accounts.Emergency();Realtime.Emergency();Research.Stop();Recurring.Stop();Screening.Stop();DayTrading.EmergencyStop();generation++;quotePump?.Stop();Status="긴급중지 · 조회/가격 갱신 취소 · 보유분 임의청산 없음";Busy=false;return Task.CompletedTask;});
+        selectedRange=Ranges[2];SearchCommand=new(()=>Run(Search));EmergencyCommand=new(()=>{operation?.Cancel();Accounts.Emergency();Realtime.Emergency();Research.Stop();Recurring.Stop();Screening.Stop();generation++;quotePump?.Stop();Status="긴급중지 · 조회/가격 갱신 취소 · 보유분 임의청산 없음";Busy=false;return Task.CompletedTask;});
     }
     private void Notify(string message){Status=message;NotificationRequested?.Invoke(message);}
     private async Task Run(Func<CancellationToken,Task> action)
@@ -78,7 +79,7 @@ public sealed partial class MainViewModel:IDisposable
         var loaded=services.Store.State<BarDataset>("bars:"+stock.Key);
         if(loaded==null||DateTimeOffset.UtcNow-loaded.RetrievedAt>TimeSpan.FromMinutes(10)){loaded=await services.MarketData.History(stock,token);token.ThrowIfCancellationRequested();services.Store.State("bars:"+stock.Key,loaded);}
         if(version!=generation)return;foreach(var bar in loaded.Bars)bar.Validate();if(loaded.Bars.Length==0)throw new InvalidOperationException("가격 자료가 없습니다.");
-        dataset=loaded;displayDaily=loaded.Bars;selectedStock=stock;Research.ModeChanged();if(!ChartCustomAvailable&&ChartPeriods.Intraday(ChartPeriod)){period="일봉";selectedRange=Ranges[2];Changed(nameof(ChartPeriod));Changed(nameof(SelectedRange));}RefreshPaperMarkers();Accounts.RefreshOrderCommands();Changed(nameof(SelectedStock));Changed(nameof(WatchStar));Changed(nameof(StockTitle));Changed(nameof(StockCode));Changed(nameof(ChartCustomAvailable));RefreshChart();NotifyQuote();Status=loaded.Description;if(ChartPeriods.Minutes(ChartPeriod)>0)_=LoadChartTimeframe();
+        dataset=loaded;displayDaily=loaded.Bars;selectedStock=stock;Research.ModeChanged();if(!ChartCustomAvailable&&ChartPeriods.Intraday(ChartPeriod)){period="일봉";selectedRange=Ranges[2];Changed(nameof(ChartPeriod));Changed(nameof(SelectedRange));}RefreshPaperMarkers();Accounts.RefreshOrderCommands();Changed(nameof(SelectedStock));Changed(nameof(PriceCurrency));Changed(nameof(WatchStar));Changed(nameof(StockTitle));Changed(nameof(StockCode));Changed(nameof(ChartCustomAvailable));RefreshChart();NotifyQuote();Status=loaded.Description;if(ChartPeriods.Minutes(ChartPeriod)>0)_=LoadChartTimeframe();
         var current=Online&&Broker is {} broker?new BrokerCurrentMarketData(broker,_=>dataset.CompletedBars.Reverse().Skip(1).FirstOrDefault()?.Close):services.MarketData as ICurrentMarketData;
         if(current==null)return;quotePump=new(current,fast:!Online);
         quotePump.Select(stock,snapshot=>Dispatcher.UIThread.Post(()=>
@@ -104,6 +105,6 @@ public sealed partial class MainViewModel:IDisposable
     public int ChartRevision {get;private set;}
     public int ChartDisplayCount {get;private set;}
     private void ResetBacktestDisplay(){visibleBacktest=null;showBacktest=false;ChartMarkers=[];ChartZones=[];Changed(nameof(ShowBacktest));Changed(nameof(ChartMarkers));Changed(nameof(ChartZones));}
-    public void Dispose(){if(disposed)return;disposed=true;AsyncCommand.Failed-=CommandFailed;operation?.Cancel();Research.Stop();Recurring.Stop();Screening.Stop();Realtime.DisposeAsync().AsTask().GetAwaiter().GetResult();ActualTrading.DisposeAsync().AsTask().GetAwaiter().GetResult();dayTimer?.Stop();DayTrading.DisposeAsync().AsTask().GetAwaiter().GetResult();quotePump?.Dispose();Accounts.Dispose();}
+    public void Dispose(){if(disposed)return;disposed=true;AsyncCommand.Failed-=CommandFailed;operation?.Cancel();Research.Stop();Recurring.Stop();Screening.Stop();Realtime.DisposeAsync().AsTask().GetAwaiter().GetResult();ActualTrading.DisposeAsync().AsTask().GetAwaiter().GetResult();quotePump?.Dispose();Accounts.Dispose();}
 }
 public sealed record ChartSupportZone(DateTimeOffset From,DateTimeOffset To,decimal Lower,decimal Upper,bool UsedForEntry,string Label,bool CrashPoint=false);

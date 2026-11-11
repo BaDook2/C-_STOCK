@@ -84,49 +84,11 @@ public sealed class PipelineEvaluator
 }
 public sealed record PipelineOrder(bool Buy,int Quantity,decimal Price,OrderKind Kind,string Owner,string Reason,int TimeoutMilliseconds);
 public interface IPipelineStrategy { PipelineOrder? Evaluate(PipelineEvaluation evaluation,PipelineAdvancedConfig config,PaperBroker broker); }
+/// <summary>Retired pipeline entry algorithms. DTOs remain readable for generic account journals.</summary>
 public sealed class TickScalpingPipelineStrategy:IPipelineStrategy
-{
-    private readonly Dictionary<string,(DateTimeOffset Open,decimal Rate,decimal? Support)> entries=[];
-    public PipelineOrder? Evaluate(PipelineEvaluation e,PipelineAdvancedConfig c,PaperBroker broker)
-    {
-        var f=e.Features;var s=c.TickScalping;var key=f.Instrument.Key;var p=broker.Positions.GetValueOrDefault(key);const string name="Pipeline:틱떼기";
-        if(p?.Quantity>0)
-        {
-            if(p.Owner!=name)return null;
-            if(!entries.TryGetValue(key,out var state)||state.Open!=p.OpenedAt)entries[key]=state=(p.OpenedAt??f.At,f.VolumeRate,f.Support);
-            var pnl=(f.Price/p.AveragePrice-1)*100;var reason=pnl>=s.TakeProfitPercent?"익절":pnl<=s.StopLossPercent?"손절":(f.At-state.Open).TotalSeconds>=s.MaxHoldSeconds?"보유시간":s.LiquidityDropExit&&state.Rate>0&&f.VolumeRate/state.Rate<=s.VolumeDecayExitThreshold?"유동성 감소":s.SupportBreakExit&&state.Support>0&&f.Price<state.Support*(1-s.SupportBreakPercent/100)?"지지 이탈":null;
-            return reason==null?null:new(false,p.Quantity,f.Price,OrderKind.Market,name,reason,s.TickOrderTimeoutMilliseconds);
-        }
-        entries.Remove(key);if(!e.Passed||e.Score<s.EntryScoreThreshold)return null;
-        var amount=Math.Min(broker.Equity*c.Risk.MaxPositionPercent/100,broker.Equity*c.Portfolio.MaxPennyPortfolioPercent/100);var qty=(int)Math.Min(int.MaxValue,decimal.Floor(amount/f.Price));
-        return new(true,qty,(c.Execution.OrderType==OrderKind.Limit?f.BidPrice??f.Price:f.Price)+(s.LimitEntryOffsetTicks+c.Execution.LimitOrderOffsetTicks)*f.Instrument.Tick(f.Price),c.Execution.OrderType,name,"틱 진입",s.TickOrderTimeoutMilliseconds);
-    }
-}
+{public PipelineOrder? Evaluate(PipelineEvaluation evaluation,PipelineAdvancedConfig config,PaperBroker broker)=>throw RetiredStrategy.Error();}
 public sealed class FarmerPipelineStrategy:IPipelineStrategy
-{
-    private readonly Dictionary<string,(DateTimeOffset Open,decimal Peak)> peaks=[];
-    public PipelineOrder? Evaluate(PipelineEvaluation e,PipelineAdvancedConfig c,PaperBroker broker)
-    {
-        var f=e.Features;var s=c.Farmer;var key=f.Instrument.Key;var p=broker.Positions.GetValueOrDefault(key);const string name="Pipeline:농부매매";
-        PipelineOrder Order(bool buy,int qty,string reason)=>new(buy,qty,f.Price+(buy?1:-1)*c.Execution.LimitOrderOffsetTicks*f.Instrument.Tick(f.Price),buy?c.Execution.OrderType:OrderKind.Market,name,reason,c.Execution.OrderTimeoutMilliseconds);
-        var initial=(int)Math.Min(int.MaxValue,decimal.Floor(broker.Equity*s.InitialPositionPercent/100/f.Price));
-        if(p?.Quantity>0)
-        {
-            if(p.Owner!=name)return null;var opened=p.OpenedAt??f.At;
-            var peak=peaks.TryGetValue(key,out var old)&&old.Open==opened?Math.Max(old.Peak,f.Price):Math.Max(p.AveragePrice,f.Price);peaks[key]=(opened,peak);
-            var profit=(f.Price/p.AveragePrice-1)*100;var hold=e.Stages.Where(s=>s.Stage is "Price Action" or "Microstructure").ToArray();var known=hold.All(s=>!s.Missing);var score=hold.Average(s=>s.Score);
-            if(f.Price<=peak*(1-s.TrailingStopPercent/100)||(f.At-opened).TotalDays>=s.FarmerMaxHoldDays||known&&score<=s.ThesisInvalidationScoreThreshold)return Order(false,p.Quantity,"농부 가설 훼손/추적 손절/기간");
-            if(s.FullHarvestEnabled&&profit>=s.FullHarvestTriggerPercent)return Order(false,p.Quantity,"농부 전량 수확");
-            bool harvested=broker.Orders.Any(o=>o.Symbol==key&&o.Created>=opened&&o.Reason=="농부 일부 수확"&&o.Filled>0);
-            if(s.PartialHarvestEnabled&&!harvested&&profit>=s.PartialHarvestTriggerPercent)return Order(false,Math.Max(1,(int)decimal.Floor(p.Quantity*s.PartialHarvestRatio)),"농부 일부 수확");
-            bool added=broker.Orders.Any(o=>o.Symbol==key&&o.Created>=opened&&o.Reason=="농부 추가 진입"&&o.Filled>0);
-            if(!s.FarmerSignalOnlyMode&&s.AdditionalEntryEnabled&&!added&&e.Passed&&known&&score>=s.TrendContinuationScoreThreshold&&e.Score>=s.AdditionalEntryConditionScore)return Order(true,initial,"농부 추가 진입");
-            return null;
-        }
-        peaks.Remove(key);if(!e.Passed||e.Score<s.TrendContinuationScoreThreshold||s.FarmerSignalOnlyMode)return null;
-        return Order(true,initial,"농부 최초 진입");
-    }
-}
+{public PipelineOrder? Evaluate(PipelineEvaluation evaluation,PipelineAdvancedConfig config,PaperBroker broker)=>throw RetiredStrategy.Error();}
 public static class PortfolioPolicy
 {
     public static decimal CoreReserve(PipelineAdvancedConfig c,PaperBroker b)=>c.Portfolio.ProfitTransferEnabled&&c.Portfolio.CorePortfolioDestinationEnabled?Math.Max(0,b.Fills.Sum(f=>f.RealizedPnl))*c.Portfolio.ProfitTransferRatio:0;
@@ -147,8 +109,6 @@ public static class PortfolioPolicy
 }
 public sealed class PipelineRuntime
 {
-    private readonly PipelineEvaluator evaluator=new();private readonly TickScalpingPipelineStrategy tick=new();private readonly FarmerPipelineStrategy farmer=new();
-    public PipelineEvaluation? Last {get;private set;}
-    public PipelineOrder? Evaluate(MarketContext context,TradingSettings settings,PaperBroker broker,out string? rejected)
-    {var c=settings.Pipeline!;Last=evaluator.Evaluate(context,c,settings.PipelineObservations);var order=(c.Strategy==PipelineStrategy.TickScalping?(IPipelineStrategy)tick:farmer).Evaluate(Last,c,broker);rejected=order==null?null:PortfolioPolicy.Reject(order,Last.Features,c,broker);return rejected==null?order:null;}
+    public PipelineEvaluation? Last=>null;
+    public PipelineOrder? Evaluate(MarketContext context,TradingSettings settings,PaperBroker broker,out string? rejected)=>throw RetiredStrategy.Error();
 }

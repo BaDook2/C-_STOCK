@@ -1,3 +1,5 @@
+> 2026-11-11 오프라인 가격 조회를 StockViewer 방식으로 갱신했다. NXT·미국 시간외/데이마켓의 최신 실제 가격을 선택하고 1초 목표 갱신·실패 재시도·조회 제한을 적용한다. 가격 시각 옆에 실제 제공처/세션을 표시한다. 공급자 장애 시 마지막 가격을 보존하고 시장 상태 확인 중으로 안내한다. 공개 일봉과 온라인 계좌 조회는 별개다. 구현: `Stock.Core/Research/PublicCurrentMarketData.cs`, `UnitedStatesDayMarket.cs`, `Stock.Avalonia/ViewModels/MarketWorkspace.cs`. 상세 계약은 `docs/api/NaverPublic.md` 맨 위를 따른다.
+
 # 종목 · 차트
 
 ## 분봉 전용 1일 기간 (2026-11-07)

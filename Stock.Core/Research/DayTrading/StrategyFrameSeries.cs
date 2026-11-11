@@ -2,6 +2,8 @@ using Stock.Core.Research.Oversold;
 namespace Stock.Core.Research.DayTrading;
 
 /// <summary>Completed independent indicator series. Calendar buckets are published only after their boundary.</summary>
+public sealed record KnownStrategyBar(TimeframeSpec Timeframe,StrategyBar Bar,DateTimeOffset KnownAt);
+
 public static class StrategyFrameSeries
 {
     public static KnownStrategyBar[] Aggregate(IEnumerable<StrategyBar> source,TimeframeSpec frame,DateTimeOffset asOf)

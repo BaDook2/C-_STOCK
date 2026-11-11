@@ -14,6 +14,9 @@ public partial class StockChart:UserControl
     public static readonly StyledProperty<TradeMarker[]?> MarkersProperty=AvaloniaProperty.Register<StockChart,TradeMarker[]?>(nameof(Markers));
     public static readonly StyledProperty<ChartSupportZone[]?> ZonesProperty=AvaloniaProperty.Register<StockChart,ChartSupportZone[]?>(nameof(Zones));
     public static readonly StyledProperty<int> RevisionProperty=AvaloniaProperty.Register<StockChart,int>(nameof(Revision));
+    public static readonly StyledProperty<string> CurrencyProperty=AvaloniaProperty.Register<StockChart,string>(nameof(Currency),"KRW");
+    public string Currency {get=>GetValue(CurrencyProperty);set=>SetValue(CurrencyProperty,value);}
+    private string PriceLabel(decimal value)=>Currency=="USD"?value.ToString("0.########",System.Globalization.CultureInfo.InvariantCulture):DisplayNumber.Price(value);
     public static readonly StyledProperty<string> PeriodProperty=AvaloniaProperty.Register<StockChart,string>(nameof(Period),"일봉");
     public static readonly StyledProperty<bool> ShowMovingAveragesProperty=AvaloniaProperty.Register<StockChart,bool>(nameof(ShowMovingAverages),true);
     public static readonly StyledProperty<bool> ShowCloudProperty=AvaloniaProperty.Register<StockChart,bool>(nameof(ShowCloud));
@@ -61,7 +64,7 @@ public partial class StockChart:UserControl
         // Live updates may increase DisplayBarCount. Only an explicit Revision
         // or navigation-mode change should discard the user's pan/zoom state.
         if(change.Property==OverviewNavigationProperty)resetView=true;
-        if(change.Property==BarsProperty||change.Property==MarkersProperty||change.Property==ZonesProperty||change.Property==RevisionProperty||change.Property==PeriodProperty||change.Property==ShowMovingAveragesProperty||change.Property==OverviewNavigationProperty||change.Property==ShowCloudProperty||change.Property==IndicatorBarsProperty||change.Property==DailyBarsProperty||change.Property==DisplayBarCountProperty)QueueRedraw();
+        if(change.Property==CurrencyProperty||change.Property==BarsProperty||change.Property==MarkersProperty||change.Property==ZonesProperty||change.Property==RevisionProperty||change.Property==PeriodProperty||change.Property==ShowMovingAveragesProperty||change.Property==OverviewNavigationProperty||change.Property==ShowCloudProperty||change.Property==IndicatorBarsProperty||change.Property==DailyBarsProperty||change.Property==DisplayBarCountProperty)QueueRedraw();
     }
     private void QueueRedraw(){if(redrawQueued)return;redrawQueued=true;Dispatcher.UIThread.Post(()=>{redrawQueued=false;Redraw();},DispatcherPriority.Normal);}
     private static double X(DateTimeOffset time)=>time.ToOffset(TimeSpan.FromHours(9)).DateTime.ToOADate();

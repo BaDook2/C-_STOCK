@@ -1,3 +1,33 @@
+# 도움말·StockViewer 가격·JSON 검증 — 2026-11-11 후속
+
+[최신 검증 기록](../verification/Viewer-Price-JSON-2026-11-11.md): Avalonia861/Inje363/Bin187 PASS, 현 전략 JSON의 변경값 Inje166개(Advanced+Standard)/Bin172개, 실제 물음표 팝업, Mac 합성 시작/실제 공개 차트, StockViewer 동시 가격 비교. Release 빌드0경고/0오류, Core manifest104파일. 13:36 KST 로컬 설치 앱 교체. GitHub 게시·개인 DB 수정·실계좌 주문 없음.
+
+# 두 전략 UI 연결 검증 — 2026-11-11
+
+현재 결과: [두 전략 UI 검증 기록](../verification/Strategy-UI-2026-11-11.md). Avalonia492, Inje363, Bin187개 합성 검사, 디자인17개, Core manifest103파일, 설명서 JSON6개, Avalonia/WPF 빌드0경고·0오류, macOS 네이티브 합성 시작·전략 화면 검사·서명 검증 통과. WPF는 Mac에서 교차 컴파일한 결과이며 Windows 실행 검사가 아니다. Bin 실시간 가상 주문/재시작 복원은 미연결로 시작 차단한다. GitHub 업로드/릴리즈 없음.
+
+# 현재 로컬 Bin·Inje 검증 — 2026-11-11
+
+Bin 독립 Core의 최신 결과는 [Bin 검증 기록](../verification/Bins-2026-11-11.md)이다. `dotnet run --project Stock.Bins.Tests -c Release -- artifacts/bins-tests`를 기본 로컬 검사에 추가했다. 전체 설정 JSON 검사는 `--validate-guide docs/strategy/Bins_Strategy_구현_검증_가이드_2026-11-11.md`다. UI/실계좌/실제 거래기록/공개 배포를 변경하는 작업은 이번 Bin 범위가 아니다.
+
+GitHub 업로드 금지. 이 작업에서는 아래 로컬 검사만 수행하며 릴리즈/Actions/실계좌를 실행하지 않는다. 최신 근거는 [Inje 검증 기록](../verification/Injes-2026-11-11.md)이다.
+
+```sh
+dotnet build STOCK.Avalonia.sln -c Release
+dotnet run --project Stock.Portable.Tests -c Release --no-build
+dotnet run --project Stock.Desktop.Tests -c Release --no-build -- artifacts/injes-ui
+dotnet run --project Stock.Desktop.Tests -c Release --no-build -- artifacts/injes-design --design
+dotnet run --project Stock.Portable.Tests -c Release --no-build -- --validate-guide docs/strategy/현재_전략_상세설명_및_JSON_가이드_2026-11-11.md
+# macOS에서 WPF 컴파일만 검증 (Windows 실행 검사와 다름)
+dotnet build Stock.sln -c Release -p:EnableWindowsTargeting=true
+# 실제 Windows에서 수행할 현재 suite
+dotnet run --project Stock.Tests -c Release -- --current-checks artifacts/injes-wpf
+```
+
+새 기능은 위 suite로 확인한다. 아래 구전략/D 전용 명령·과거 검사 수·릴리즈 명령은 과거 버전에 대한 기록이며 현재 변경의 통과 근거로 사용하지 않는다.
+
+---
+
 # 검증 명령
 
 작업 위치는 저장소 루트다. 아래 명령은 실계좌 주문 없이 실행한다. 일반 실행 중인 앱이 빌드 출력 DLL을 잡고 있으면 먼저 정상 종료한다.

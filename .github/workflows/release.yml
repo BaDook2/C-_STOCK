@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       release_tag:
-        description: "New version tag (for example v0.1.17); publishes only after verification"
+        description: "New version tag (for example v0.1.18); publishes only after verification"
         required: true
         type: string
   push:
@@ -49,23 +49,11 @@ jobs:
       - name: Build
         run: dotnet build Stock.sln -c Release --no-restore -p:UseSharedCompilation=false
 
-      - name: Verify Korean history dates and progressive screening
-        shell: pwsh
-        run: |
-          & "Stock.Tests/bin/Release/net10.0-windows10.0.19041.0/Stock.Tests.exe" --progressive-screening (Join-Path $env:RUNNER_TEMP "stock-progressive-screening")
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-
-      - name: Run complete offline test suite
+      - name: Run current Windows integration and non-strategy checks
         shell: pwsh
         run: |
           $testExe = Resolve-Path "Stock.Tests/bin/Release/net10.0-windows10.0.19041.0/Stock.Tests.exe"
           & $testExe (Join-Path $env:RUNNER_TEMP "stock-tests")
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-
-      - name: Verify Strategy D WPF integration
-        shell: pwsh
-        run: |
-          & "Stock.Tests/bin/Release/net10.0-windows10.0.19041.0/Stock.Tests.exe" --day-trading-ui (Join-Path $env:RUNNER_TEMP "stock-strategy-d-ui")
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Restore and build Avalonia
@@ -82,6 +70,10 @@ jobs:
           & ./avalonia-scripts/verify-core-manifest.ps1
           if (!$?) { throw "Shared core manifest failed" }
           dotnet run --project Stock.Portable.Tests -c Release --no-build
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet run --project Stock.Bins.Tests -c Release --no-build -- (Join-Path $env:RUNNER_TEMP "bins-strategy")
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet run --project Stock.Portable.Tests -c Release --no-build -- --validate-guide "docs/strategy/현재_전략_상세설명_및_JSON_가이드_2026-11-11.md"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           dotnet run --project Stock.Desktop.Tests -c Release --no-build -- (Join-Path $env:RUNNER_TEMP "avalonia-workflows")
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
@@ -183,6 +175,7 @@ jobs:
             ${{ runner.temp }}/stock-release-smoke
             ${{ runner.temp }}/stock-progressive-screening
             ${{ runner.temp }}/stock-tests
+            ${{ runner.temp }}/bins-strategy
             ${{ runner.temp }}/avalonia-workflows
             ${{ runner.temp }}/avalonia-design
           if-no-files-found: warn

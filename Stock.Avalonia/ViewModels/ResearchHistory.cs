@@ -5,13 +5,13 @@ using Stock.Core.Research.Oversold;
 using Stock.Core.Research.DayTrading;
 using Stock.Core.Trading;
 namespace Stock.Desktop;
-public enum DesktopRunKind { Backtest,Screening,StrategyD,Recurring }
+public enum DesktopRunKind { Backtest,Screening,RetiredStrategy,Recurring }
 public sealed record DesktopHistoryEntry(string Id,DateTimeOffset At,DesktopRunKind Kind,string Name,string Stock,string Period,string Trades,string PayloadKey);
 public sealed record HistoryRow(DesktopHistoryEntry Entry)
 {
     public string At=>Entry.At.ToOffset(TimeSpan.FromHours(9)).ToString("yyyy.MM.dd HH:mm:ss");
     public string Stock=>Entry.Stock;public string Strategy=>Entry.Name;public string Period=>Entry.Period;public string Trades=>Entry.Trades;
-    public string Kind=>Entry.Kind switch{DesktopRunKind.Backtest=>"전략 백테스트",DesktopRunKind.Screening=>"일반 스크리닝",DesktopRunKind.StrategyD=>"전략 D 연구",_=>"정기매수"};
+    public string Kind=>Entry.Kind switch{DesktopRunKind.Backtest=>"전략 백테스트",DesktopRunKind.Screening=>"일반 스크리닝",DesktopRunKind.RetiredStrategy=>"제거된 전략 기록",_=>"정기매수"};
 }
 public sealed partial class MainViewModel
 {
@@ -60,8 +60,8 @@ public sealed partial class MainViewModel
                     var archive=services.Store.State<ResearchArchive>(entry.PayloadKey)??throw new InvalidOperationException("기록 본문이 없습니다.");ResultPopupRequested?.Invoke(new(archive.Result,archive.Bars));break;
                 case DesktopRunKind.Screening:
                     var snapshot=services.Store.State<OversoldScreeningRun>(entry.PayloadKey)??throw new InvalidOperationException("스크리닝 snapshot이 없습니다.");var screen=new ScreeningWorkspace(services,Strategies,HistoryService,()=>Online,WatchScreenTargets,()=>Research.FactsJson);screen.Notice+=Notify;screen.BrowserRequested+=model=>BrowserPopupRequested?.Invoke(model);screen.LoadSnapshot(snapshot);ScreeningHistoryRequested?.Invoke(screen);break;
-                case DesktopRunKind.StrategyD:
-                    var result=services.Store.State<IntradayReplayResult>(entry.PayloadKey)??throw new InvalidOperationException("전략 D 결과가 없습니다.");DayTrading.ShowResult(result);DayTradingPopupRequested?.Invoke(DayTrading,1);break;
+                case DesktopRunKind.RetiredStrategy:
+                    throw new InvalidOperationException("기존 전략 기록은 제거되었습니다.");
                 case DesktopRunKind.Recurring:
                     var recurring=services.Store.State<RecurringPurchaseResult>(entry.PayloadKey)??throw new InvalidOperationException("정기매수 결과가 없습니다.");var bars=services.Store.State<PriceBar[]>("desktop-recurring-bars:"+recurring.Id)??throw new InvalidOperationException("재현 봉이 없습니다.");RecurringPopupRequested?.Invoke(new(recurring,bars));break;
             }

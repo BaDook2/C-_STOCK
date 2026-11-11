@@ -6,9 +6,11 @@ public enum TrailingActivation { AfterEntry, AfterTakeProfit1 }
 /// <summary>Single source of parameters and UI help for historical and guarded live evaluation.</summary>
 public sealed class OversoldConfig
 {
+    public Stock.Core.Strategies.Injes.InjesStrategyDefinition? Injes {get;set;}
+    public Stock.Core.Strategies.Bins.BinsStrategyConfig? Bins {get;set;}
+    public decimal BinsInitialCashUsd {get;set;}=10000;
+    public decimal BinsInitialCashKrw {get;set;}=10000000;
     // Additive settings: old presets remain legacy until explicitly enabled.
-    public bool UseCrashStrategy {get;set;}
-    public Stock.Core.Research.DayTrading.StrategyDefinition? CrashStrategy {get;set;}
     public Dictionary<string,Stock.Core.Research.DayTrading.TimeframeSpec> ParameterTimeframes {get;set;}=[];
 
     [Parameter("근접 후보 표시","매수 조건을 모두 충족하기 전에도 최소 접근도 이상인 연구 후보를 표시합니다. 주문 조건은 변경하지 않습니다.","근접 후보도 목록에 표시합니다.","기존 조건 일치 종목만 표시합니다.","ON / OFF")] public bool ShowNearCandidates {get;set;}=true;
@@ -77,6 +79,9 @@ public sealed class OversoldConfig
     public OversoldConfig Clone()=>Serialization.Unpack<OversoldConfig>(Serialization.Pack(this));
     public void Validate()
     {
+        if(Injes!=null&&Bins!=null)throw new InvalidOperationException("한 번에 하나의 전략만 사용할 수 있습니다.");
+        if(Bins!=null){Bins.Validate();if(!Bins.Enabled||BinsInitialCashUsd<=0||BinsInitialCashKrw<=0)throw new InvalidOperationException("Bin 사용 여부와 통화별 가상 현금을 확인하세요.");return;}
+        if(Injes!=null){Injes.Validate();return;}
         StrategyParameterValidation.Object(this);
         if(ParameterTimeframes==null)throw new InvalidOperationException("전략 봉 단위가 없습니다.");
         foreach(var (key,frame) in ParameterTimeframes)
@@ -87,12 +92,6 @@ public sealed class OversoldConfig
             frame.Validate();
             if(frame.Unit is not (Stock.Core.Research.DayTrading.TimeframeUnit.Minute or Stock.Core.Research.DayTrading.TimeframeUnit.Hour or Stock.Core.Research.DayTrading.TimeframeUnit.TradingDay or Stock.Core.Research.DayTrading.TimeframeUnit.Week or Stock.Core.Research.DayTrading.TimeframeUnit.Month))throw new InvalidOperationException("전략 봉 단위는 분·시간·일봉·주봉·월봉이어야 합니다.");
             if(key==nameof(MovingAveragePeriods)&&frame.Unit is Stock.Core.Research.DayTrading.TimeframeUnit.Minute or Stock.Core.Research.DayTrading.TimeframeUnit.Hour)throw new InvalidOperationException("이동평균선 기간의 단위는 일봉·주봉·월봉 중 선택하세요.");
-        }
-        if(CrashStrategy!=null)
-        {
-            if(!CrashStrategy.IsStrategyD||CrashStrategy.Configuration==null||CrashStrategy.Configuration.UseCrashStrategy||CrashStrategy.Configuration.CrashStrategy!=null)throw new InvalidOperationException("급락 판단 전략에는 중첩되지 않은 전략 D 설정이 필요합니다.");
-            // Validate saved standby settings even while the strategy is OFF.
-            CrashStrategy.Validate();
         }
         try{if(MaPeriods().Length==0||MaPeriods().Any(n=>n<1||n>10000))throw new Exception();}catch{throw new InvalidOperationException("이동평균 기간은 1~10,000의 쉼표 구분 정수로 입력하세요.");}
         try{var r=Ratios();if(r.Length!=MaxEntries||r.Any(x=>x<=0)||r.Sum()!=100)throw new Exception();}catch{throw new InvalidOperationException("분할 비율은 매수 횟수와 길이가 같고 모두 양수이며 합계가 100이어야 합니다.");}

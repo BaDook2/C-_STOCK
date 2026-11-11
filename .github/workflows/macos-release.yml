@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       build_tag:
-        description: "New Apple Silicon build tag (for example macos-v0.1.17-r1)"
+        description: "New Apple Silicon build tag (for example macos-v0.1.18-r1)"
         required: true
         type: string
       runner_image:
@@ -73,6 +73,8 @@ jobs:
           dotnet build STOCK.Avalonia.sln -c Release -m:1 -nr:false -p:UseSharedCompilation=false
           pwsh -File avalonia-scripts/verify-core-manifest.ps1
           dotnet run --project Stock.Portable.Tests -c Release --no-build
+          dotnet run --project Stock.Bins.Tests -c Release --no-build -- "$RUNNER_TEMP/mac-bins"
+          dotnet run --project Stock.Portable.Tests -c Release --no-build -- --validate-guide "docs/strategy/현재_전략_상세설명_및_JSON_가이드_2026-11-11.md"
           dotnet run --project Stock.Desktop.Tests -c Release --no-build -- "$RUNNER_TEMP/mac-ui"
           dotnet run --project Stock.Desktop.Tests -c Release --no-build -- "$RUNNER_TEMP/mac-design" --design
 
@@ -145,6 +147,7 @@ jobs:
           name: AppleSilicon-${{ github.ref_name }}-verification
           path: |
             ${{ runner.temp }}/stock-macos-release/audit
+            ${{ runner.temp }}/mac-bins
             ${{ runner.temp }}/mac-ui
             ${{ runner.temp }}/mac-design
             ${{ runner.temp }}/public-macos-release/audit

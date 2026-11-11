@@ -113,7 +113,7 @@
                                 </ListBox>
                             </WrapPanel>
                             <Grid Grid.Row="2">
-                                <local:StockChart x:Name="MainPriceChart" Bars="{Binding ChartBars}" DisplayBarCount="{Binding ChartDisplayCount}" IndicatorBars="{Binding ChartIndicatorBars}" DailyBars="{Binding ChartDailyBars}" Markers="{Binding ChartMarkers}" Zones="{Binding ChartZones}" ShowMovingAverages="{Binding ShowMa}" ShowCloud="{Binding ShowCloud}" Revision="{Binding ChartRevision}" Period="{Binding ChartPeriod}" Margin="0,8,0,4" />
+                                <local:StockChart x:Name="MainPriceChart" Currency="{Binding PriceCurrency}" Bars="{Binding ChartBars}" DisplayBarCount="{Binding ChartDisplayCount}" IndicatorBars="{Binding ChartIndicatorBars}" DailyBars="{Binding ChartDailyBars}" Markers="{Binding ChartMarkers}" Zones="{Binding ChartZones}" ShowMovingAverages="{Binding ShowMa}" ShowCloud="{Binding ShowCloud}" Revision="{Binding ChartRevision}" Period="{Binding ChartPeriod}" Margin="0,8,0,4" />
                                 <Border IsVisible="{Binding Busy}" Background="#F9FAFB" CornerRadius="12">
                                     <StackPanel VerticalAlignment="Center">
                                         <TextBlock Text="차트를 불러오고 있어요" FontSize="18" FontWeight="SemiBold" HorizontalAlignment="Center" />

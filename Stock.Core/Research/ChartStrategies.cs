@@ -44,25 +44,10 @@ public static class ChartIndicators
     public static (decimal? A,decimal? B) Cloud(IReadOnlyList<PriceBar> b,int index)=>index<26?(null,null):((Mid(b,index-26,9)+Mid(b,index-26,26))/2,Mid(b,index-26,52));
 }
 public sealed record ChartSignal(bool Buy,bool Sell,string Reason);
-/// <summary>스크리닝·백테스트·가상 재생에서 같은 확정 일봉 조건을 평가합니다.</summary>
+/// <summary>Old automatic chart strategies were retired. ChartIndicators remain shared display helpers.</summary>
 public static class ChartStrategies
 {
-    public static ChartSignal Evaluate(IReadOnlyList<PriceBar> bars,int index,ChartStrategySettings s,string owner="")
-    {
-        if(index<1)return new(false,false,"데이터 준비 중");var last=bars[index];var fast=ChartIndicators.Sma(bars,index,s.Fast);var slow=ChartIndicators.Sma(bars,index,s.Slow);
-        if(s.Excluded)return new(false,false,"사용자 악재 제외");
-        if(owner=="이동평균 추세"&&fast<slow)return new(false,true,"이동평균 추세 종료");
-        if(owner=="박스권"&&index>=s.BoxDays){var prior=bars.Skip(index-s.BoxDays).Take(s.BoxDays).ToArray();var lo=prior.Min(b=>b.Low);var hi=prior.Max(b=>b.High);if(last.Close>=hi-(hi-lo)*s.BoxExitZone/100||last.Close<lo)return new(false,true,"박스권 상단 / 하단 이탈");}
-        if(last.Volume<s.MinimumVolume)return new(false,false,"최소 거래량 미달");
-        if(s.VolumeMultiple>0){if(index<20)return new(false,false,"거래량 준비 중");if(last.Volume<bars.Skip(index-20).Take(20).Average(b=>b.Volume)*s.VolumeMultiple)return new(false,false,"거래량 배수 미달");}
-        if(s.CloudFilter){var cloud=ChartIndicators.Cloud(bars,index);if(cloud.A==null||cloud.B==null)return new(false,false,"일목 78봉 준비 중");if(last.Close<=Math.Max(cloud.A.Value,cloud.B.Value))return new(false,false,"일목 구름 아래");}
-        if(s.TrendEnabled&&fast>slow&&last.Close>fast)return new(true,false,"이동평균 추세");
-        if(s.BoxEnabled&&index>=s.BoxDays)
-        {var prior=bars.Skip(index-s.BoxDays).Take(s.BoxDays).ToArray();var low=prior.Min(b=>b.Low);var high=prior.Max(b=>b.High);var avg=prior.Average(b=>b.Volume);int touches=0;bool inside=false;foreach(var b in prior){var hit=b.Low<=low*(1+s.SupportTolerance/100);if(hit&&!inside)touches++;inside=hit;}if((s.BoxMaxVolume==0||avg<=s.BoxMaxVolume)&&(!s.BoxDecliningVolume||last.Volume<avg)&&(!s.BoxMaSupport||slow.HasValue&&Math.Abs(last.Close/slow.Value-1)*100<=s.SupportTolerance)&&touches>=s.BoxTouches&&(high-low)/low*100<=s.BoxWidth&&last.Close>=low&&last.Close<=low+(high-low)*s.EntryZone/100)return new(true,false,"박스권");}
-        if(s.ReboundEnabled&&(!s.RequireRiskReview||s.RiskReviewed)&&index>=s.DropDays)
-        {var prior=bars.Skip(index-s.DropDays).Take(s.DropDays).ToArray();var high=prior.Max(b=>b.High);var low=prior.Min(b=>b.Low);if((high-low)/high*100>=s.DropPercent&&last.Close>=low*(1+s.BouncePercent/100)&&last.Close>bars[index-1].Close&&bars[index-1].Close<=low*(1+s.BouncePercent/100))return new(true,false,"급락 후 반등");}
-        return new(false,false,"설정 조건 미충족");
-    }
+    public static ChartSignal Evaluate(IReadOnlyList<PriceBar> bars,int index,ChartStrategySettings settings,string owner="")=>throw RetiredStrategy.Error();
 }
 public sealed record BarFill(DateTimeOffset Time,string Side,int Quantity,decimal Price,decimal Fee,decimal Realized,string Reason,string OrderId="")
 {public string KoreaTime=>Time.ToOffset(TimeSpan.FromHours(9)).ToString("yyyy.MM.dd HH:mm");}
@@ -100,13 +85,7 @@ public sealed class BarPaperAccount
         }
         Last=bar.Close;Equity.Add(new(bar.Time,Value));
     }
-    public void AutoDecide(IReadOnlyList<PriceBar> bars,int index,ChartStrategySettings s)
-    {
-        if(HasPending)return;var signal=ChartStrategies.Evaluate(bars,index,s,Owner);
-        if(Quantity>0){if(Last<=Cost*(1-s.StopPercent/100)||Last>=Cost*(1+s.TakePercent/100)||signal.Sell)Queue(false,Quantity,signal.Sell?signal.Reason:Last<Cost?"손절":"익절");}
-        else if(signal.Buy){var qty=(int)Math.Min(int.MaxValue,decimal.Floor(Value*s.AllocationPercent/100/(bars[index].Close*(1+(s.FeePercent+s.SlippagePercent)/100))));if(qty>0)Queue(true,qty,signal.Reason);}
-    }
-    public decimal MaxDrawdown{get{decimal peak=Initial,dd=0;foreach(var p in Equity){peak=Math.Max(peak,p.Value);if(peak>0)dd=Math.Max(dd,(peak-p.Value)/peak*100);}return dd;}}
-    public static BarPaperAccount Backtest(IReadOnlyList<PriceBar> bars,ChartStrategySettings settings,decimal capital,int start,CancellationToken token)
-    {settings.Validate();var account=new BarPaperAccount(capital);for(int i=Math.Max(0,start);i<bars.Count;i++){token.ThrowIfCancellationRequested();account.Advance(bars[i],settings);if(i<bars.Count-1)account.AutoDecide(bars,i,settings);}account.Cancel();return account;}
+    public void AutoDecide(IReadOnlyList<PriceBar> bars,int index,ChartStrategySettings settings)=>throw RetiredStrategy.Error();
+    public decimal MaxDrawdown{get{decimal peak=Initial,dd=0;foreach(var point in Equity){peak=Math.Max(peak,point.Value);if(peak>0)dd=Math.Max(dd,(peak-point.Value)/peak*100);}return dd;}}
+    public static BarPaperAccount Backtest(IReadOnlyList<PriceBar> bars,ChartStrategySettings settings,decimal capital,int start,CancellationToken token)=>throw RetiredStrategy.Error();
 }

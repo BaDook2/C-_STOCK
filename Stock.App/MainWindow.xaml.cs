@@ -23,20 +23,12 @@ public partial class MainWindow : Window
         if(vm.SelectedResearchRecord!=null){e.Handled=true;vm.Actions["테스트상세"].Execute(null);}
     }
     private bool closingAfterStop;
-    private DayTradingDialog? dayTradingDialog;
-    private void DayTradingClick(object sender,RoutedEventArgs e)
-    {
-        if(DataContext is not WorkspaceViewModel model)return;
-        if(dayTradingDialog!=null){dayTradingDialog.Activate();return;}
-        var mode=(sender as FrameworkElement)?.Tag?.ToString();model.PrepareDayTradingWindow(mode=="Screen");
-        dayTradingDialog=new(model.DayTrading,mode=="Settings"?0:1){Owner=this};dayTradingDialog.Closed+=(_,_)=>dayTradingDialog=null;dayTradingDialog.Show();
-    }
+
     private async void OnClosing(object? sender,CancelEventArgs e)
     {
         if(DataContext is not WorkspaceViewModel vm)return;
         if(closingAfterStop){FinishClose(vm);return;}
-        if(vm.Busy||vm.DayTrading.Busy){e.Cancel=true;MessageBox.Show(this,"작업 취소를 누르고 작업이 끝난 뒤 닫아주세요.");return;}
-        if(vm.DayTrading.HasUnsettled&&MessageBox.Show(this,"전략 D 가상 계좌에 보유/미체결이 남아 있습니다. 종료하면 보호 감시도 끝나며 임의 청산하지 않습니다. 종료할까요?","가상 계좌 확인",MessageBoxButton.YesNo,MessageBoxImage.Warning,MessageBoxResult.No)!=MessageBoxResult.Yes){e.Cancel=true;return;}
+        if(vm.Busy){e.Cancel=true;MessageBox.Show(this,"작업 취소를 누르고 작업이 끝난 뒤 닫아주세요.");return;}
         if(vm.MultiSessionExists){e.Cancel=true;IsEnabled=false;try{await vm.StopMulti();}catch{MessageBox.Show(this,"중지 후 취소 상태를 증권사에서 확인하세요.");}finally{IsEnabled=true;closingAfterStop=true;Close();}}else FinishClose(vm);
     }
     private static void FinishClose(WorkspaceViewModel vm)

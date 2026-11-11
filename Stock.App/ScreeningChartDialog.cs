@@ -71,7 +71,7 @@ public sealed class ScreeningChartDialog:Window
         ApplySeries();
         static string Percent(decimal? value)=>value is {} number?number.ToString("N2")+"%":"미산출";
     }
-    private void ApplySeries(){var series=ViewModel.DisplaySeries;chart.DisplayBarCount=Math.Clamp(series.Bars.Length,25,2000);chart.Bars=series.Bars;chart.Period=series.Period;chart.TradeMarkers=Snapshot.Markers;chart.SupportZones=Snapshot.SupportZones;chart.EnableScreeningReviewMode(500);}
+    private void ApplySeries(){var series=ViewModel.DisplaySeries;chart.DisplayBarCount=Math.Clamp(series.Bars.Length,25,2000);chart.Bars=series.Bars;chart.Currency=Snapshot.Stock.Currency;chart.Period=series.Period;chart.TradeMarkers=Snapshot.Markers;chart.SupportZones=Snapshot.SupportZones;chart.EnableScreeningReviewMode(500);}
     private async Task Navigate(int delta)
     {
         if(navigate==null)return;navigationCancellation?.Cancel();navigationCancellation?.Dispose();navigationCancellation=new();var token=navigationCancellation.Token;var mine=++generation;source.Text="백테스트 자료를 불러오는 중...";

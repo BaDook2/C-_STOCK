@@ -17,7 +17,7 @@ public partial class StockChart
  {
   var plot=PricePlot.Plot;var limits=plot.Axes.GetLimits();plot.Axes.Right.Min=limits.Bottom;plot.Axes.Right.Max=limits.Top;
   if(!double.IsFinite(limits.Top-limits.Bottom)||limits.Top<=limits.Bottom)return;
-  var positions=Enumerable.Range(0,5).Select(i=>limits.Bottom+(limits.Top-limits.Bottom)*i/4).ToArray();var labels=positions.Select(v=>Math.Floor(v).ToString("N0")).ToArray();plot.Axes.Right.SetTicks(positions,labels);plot.Axes.Left.SetTicks(positions,labels);
+  var positions=Enumerable.Range(0,5).Select(i=>limits.Bottom+(limits.Top-limits.Bottom)*i/4).ToArray();var labels=positions.Select(v=>Currency=="USD"?v.ToString("0.########",System.Globalization.CultureInfo.InvariantCulture):Math.Floor(v).ToString("N0")).ToArray();plot.Axes.Right.SetTicks(positions,labels);plot.Axes.Left.SetTicks(positions,labels);
  }
  private void AddIndicators(PriceBar[] visible)
  {
