@@ -17,3 +17,7 @@
 [전체 전략 설명과 JSON](https://github.com/BaDook2/C-_STOCK/blob/v0.1.19/docs/strategy/현재_전략_상세설명_및_JSON_가이드_2026-11-11.md)을 한 파일에서 볼 수 있습니다. 샘플은 합성 자료로 기능을 검사한 파라미터이며 실제 시장 수익성 검증 결과가 아닙니다. 시세 데이터나 합성 거래 기록을 개인 DB에 추가하지 않으며, 실제 백테스트/스크리닝에는 원본 체결·호가 및 당시 확인 자료가 필요합니다. 공개 일봉만 있으면 자료 부족으로 보류합니다.
 
 Bin 실시간 가상 주문/재시작 복원은 연결 전까지 시작을 차단하며 실계좌 자동 전략 주문은 잠겨 있습니다. Mac은 M1 이후·macOS14 이상, ad-hoc 서명이며 Apple 공증은 포함하지 않습니다. 개인 DB·계좌키·실제 거래 기록은 배포하지 않습니다.
+
+## 최종 검증
+
+[Windows CI](https://github.com/BaDook2/C-_STOCK/actions/runs/43039584970)와 [Mac ARM64 CI](https://github.com/BaDook2/C-_STOCK/actions/runs/43041052949)가 모두 성공했습니다. Windows UI1007/Mac UI1009 및 Inje363/Bin187 검사를 통과했고, 배포 앱·공개 재다운로드 실행·기본 샘플9개를 확인했습니다. 공개8개 파일의 해시와 샘플 ZIP 내용을 대조했으며 기존 릴리즈 자산도 보존했습니다. [검증 기록](https://github.com/BaDook2/C-_STOCK/blob/main/docs/verification/Release-v0.1.19.md).

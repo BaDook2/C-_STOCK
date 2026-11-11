@@ -1,6 +1,6 @@
 # 작업 시작 안내
 
-현재 Avalonia UI는 Inje/Bin 두 상위 그룹과 단일 사용 체크다. 전체 설정 JSON·백테스트·일반 스크리닝을 연결했다. Bin 실시간 가상 주문/복원은 미연결로 시작 차단한다. v0.1.18 Windows/Apple Silicon 릴리즈를 게시·검증했다. 이전 릴리즈/아래 구기능 문서와 구분한다.
+현재 Avalonia UI는 Inje/Bin 두 상위 그룹과 단일 사용 체크다. 전체 설정 JSON·백테스트·일반 스크리닝과 샘플9개 기본 탑재를 연결했다. Bin 실시간 가상 주문/복원은 미연결로 시작 차단한다. v0.1.19 Windows/Apple Silicon 릴리즈를 게시·검증했다. 이전 릴리즈/아래 구기능 문서와 구분한다.
 
 ## 1분 안에 현재 상태 파악
 
@@ -11,7 +11,7 @@
 | 작업 | 우선 읽을 문서 | 핵심 소스 |
 |---|---|---|
 | Bin 독립 Core·전체 JSON·22개 결정·A~E 검사 | `strategy/Bins_Strategy_구현_검증_가이드_2026-11-11.md`, `architecture/Bins-Strategy.md`, `verification/Bins-2026-11-11.md` | `Stock.Core/Strategies/Bins`, `Stock.Bins.Tests`; 기존 Inje/UI/실제 기록 보존, 실계좌·배포 잠금 |
-| 현재 Avalonia Windows·Mac v0.1.18 배포/개발 | `../README-Avalonia.md`, `verification/Release-v0.1.18.md`, `avalonia/MACOS_APPLE_SILICON.md` | `STOCK.Avalonia.sln`, `Stock.Avalonia`, 공통 `Stock.Core`; 아래 WPF 소스는 호환 이력 |
+| 현재 Avalonia Windows·Mac v0.1.19 배포/개발 | `../README-Avalonia.md`, `verification/Release-v0.1.19.md`, `avalonia/MACOS_APPLE_SILICON.md` | `STOCK.Avalonia.sln`, `Stock.Avalonia`, 공통 `Stock.Core`; 아래 WPF 소스는 호환 이력 |
 | 현재 로컬 Inje 전략 | `strategy/현재_전략_상세설명_및_JSON_가이드_2026-11-11.md`, `architecture/Injes-Strategy.md`, `verification/Injes-2026-11-11.md` | `Stock.Core/Strategies/Injes`, 두 UI의 기존 설정·연구·가상 실행 연결. D 알고리즘/창/전용 기록은 제거 |
 | ChatGPT 논의용 현재 전략·전체 JSON | `strategy/현재_전략_상세설명_및_JSON_가이드_2026-11-11.md` | Inje 공통14개·전용10/12/11/13개·Standard6개 매핑·네 전략 전체 JSON과 Standard 예시를 한 파일에 포함. 구전략 설명서는 이력 |
 | 메모리 시세·모드 재사용·가격/스크롤바 | `verification/MemoryMode-2026-11-07.md` | `SessionMarketData`, `ConnectionLifetime`, `DisplayNumber`, `TossInspired.xaml` |
